@@ -1,0 +1,135 @@
+/* Splash — web adaptation of the app design "1 · Splash · Init".
+   Phone chrome (status bar, nav pill) is dropped; everything else
+   follows the app layout: mark + stacked title left-aligned, tagline,
+   and a bottom status line with a spinner. */
+
+.splash {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.75rem, 6vw, 5rem) clamp(1.5rem, 8vw, 7rem)
+    clamp(1.5rem, 5vw, 4rem);
+  background-color: var(--color-orange);
+  color: #ffffff;
+}
+
+.splash-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  max-width: 36rem;
+}
+
+/* The Z mark, rebuilt from the Android launcher vector */
+.splash-mark {
+  width: clamp(5.5rem, 13vw, 8.5rem);
+  height: auto;
+}
+
+.splash-title {
+  margin: clamp(1.75rem, 4.5vw, 3.25rem) 0 0;
+  font-weight: 900;
+  font-size: clamp(3.25rem, 10vw, 6.25rem);
+  line-height: 0.98;
+  letter-spacing: -0.025em;
+}
+
+.splash-title span {
+  display: block;
+}
+
+.splash-tagline {
+  margin: clamp(1rem, 2.5vw, 1.75rem) 0 0;
+  font-weight: 700;
+  font-size: clamp(1.2rem, 2.6vw, 1.6rem);
+  letter-spacing: -0.01em;
+}
+
+.splash-status {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.9rem, 2.2vw, 1.4rem);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: clamp(0.78rem, 1.5vw, 1rem);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-soft-white);
+}
+
+.splash-spinner {
+  flex: none;
+  width: clamp(1.7rem, 3.2vw, 2.2rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: clamp(3px, 0.45vw, 4.5px) solid var(--color-white, #ffffff);
+  border-right-color: transparent;
+  animation: splash-spin 1.1s linear infinite;
+}
+
+@keyframes splash-spin {
+  to {
+    rotate: 1turn;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-spinner {
+    animation: none;
+  }
+}
+
+/* Location gate: permission denied / unavailable / timed out.
+   Swaps the spinner row for the verdict, a hint, and a retry button. */
+
+.splash-status--blocked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.splash-hint {
+  max-width: 30rem;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 0.92rem;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-soft-white);
+}
+
+.splash-retry {
+  margin-top: 0.75rem;
+  min-height: 2.9rem;
+  padding-inline: 1.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  color: var(--color-ink);
+  border: 2.5px solid var(--color-ink);
+  border-radius: 1rem;
+  box-shadow: 3px 4px 0 0 var(--color-ink);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.98rem;
+  cursor: pointer;
+  transition: translate 0.08s ease, box-shadow 0.08s ease;
+}
+
+.splash-retry:hover {
+  translate: 1px 1px;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
+}
+
+.splash-retry:active {
+  translate: 3px 4px;
+  box-shadow: 0 0 0 0 var(--color-ink);
+}
+
+.splash-retry:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 3px;
+}

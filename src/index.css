@@ -1,0 +1,52 @@
+:root {
+  /* NearZoop brand tokens — from the NativeScript app (app.css)
+     and the launcher artwork (ic_launcher_foreground.xml) */
+  --color-orange: #fb4b32;
+  --color-orange-deep: #e4532c;
+  --color-ink: #1c1b19;
+  --color-yellow: #ffc93b;
+  --color-amber: #f2a81d;
+  --color-paper: #fffdf6;
+  --color-cream: #fff4e0;
+  --color-soft-white: #ffe4df;
+  --color-muted: #6e675e;
+  --color-stone: #6a6152;
+  --color-hairline: #dfd5c3;
+  --color-red: #d0342c;
+
+  --border-strong: 3px;
+  --border-mid: 2.5px;
+  --shadow-pill: 3px 4px 0 0 var(--color-ink);
+  --shadow-btn: 4px 6px 0 0 var(--color-ink);
+  --shadow-card: 6px 8px 0 0 var(--color-ink);
+
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light;
+  background-color: var(--color-orange);
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#root {
+  min-height: 100dvh;
+}

@@ -1,0 +1,298 @@
+/* Onboarding — web adaptation of "2 _ Onboarding _ 1/2/3.png" from the app
+   design folder. Three full-bleed cream slides: brand bar on top, copy +
+   tilted tile art in the middle (copy left / art right on desktop, art above
+   copy on mobile), dot progress + big CTA pinned to the bottom edge.
+
+   `.btn-primary` for the CTA comes from auth.css (imported by Onboarding.tsx). */
+
+.onboard {
+  min-height: 100dvh;
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+}
+
+.onboard-wrap {
+  min-height: 100dvh;
+  max-width: 66rem;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 1.6rem clamp(1.5rem, 5vw, 2.75rem) 2rem;
+}
+
+/* --- Top bar ----------------------------------------------------------- */
+
+.onboard-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.onboard-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 1.3rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.onboard-chip {
+  display: grid;
+  place-items: center;
+  width: 2.15rem;
+  aspect-ratio: 1;
+  background-color: var(--color-orange);
+  color: #ffffff;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 0.7rem;
+  box-shadow: var(--shadow-pill);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.onboard-skip {
+  padding: 0.4rem 0.2rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-stone);
+}
+
+.onboard-skip:hover {
+  color: var(--color-orange);
+}
+
+.onboard-skip:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 3px;
+  border-radius: 0.4rem;
+}
+
+/* --- Middle: copy + title + tile art ----------------------------------- */
+
+.onboard-main {
+  flex: 1;
+  display: grid;
+  align-items: center;
+  gap: clamp(1.5rem, 4vw, 4rem);
+  margin-top: 0.75rem;
+}
+
+.onboard-copy {
+  animation: onboard-rise 0.28s ease both;
+}
+
+.onboard-title {
+  margin: 0;
+  font-size: clamp(2.7rem, 5.6vw, 4.5rem);
+  font-weight: 900;
+  line-height: 0.99;
+  letter-spacing: -0.03em;
+}
+
+.onboard-title span {
+  display: block;
+}
+
+.onboard-body {
+  margin: 1.5rem 0 0;
+  max-width: 30rem;
+  color: var(--color-stone);
+  font-size: clamp(1.05rem, 2.4vw, 1.28rem);
+  line-height: 1.55;
+}
+
+.onboard-art {
+  /* Mobile order: art first, like the app mocks */
+  order: -1;
+  align-self: center;
+  justify-self: center;
+  position: relative;
+  width: min(100%, 27rem);
+  min-height: clamp(19rem, 46vw, 26rem);
+  animation: onboard-rise 0.28s ease both;
+}
+
+@keyframes onboard-rise {
+  from {
+    opacity: 0;
+    translate: 0 14px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboard-copy,
+  .onboard-art {
+    animation: none;
+  }
+}
+
+/* Big tilted tile. Tile colors from the mocks: brand amber/orange, and a
+   green sampled off the "Walk in. Show. Save." design. */
+.art-tile {
+  position: absolute;
+  left: 3%;
+  top: 6%;
+  display: grid;
+  place-items: center;
+  width: clamp(13.5rem, 56%, 18rem);
+  aspect-ratio: 1;
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 3rem;
+  box-shadow: 7px 10px 0 0 var(--color-ink);
+  rotate: -8deg;
+}
+
+.art-tile-amber {
+  background-color: var(--color-amber);
+}
+
+.art-tile-orange {
+  background-color: var(--color-orange);
+}
+
+.art-tile-green {
+  background-color: #1fa855;
+}
+
+.art-icon {
+  width: 52%;
+  height: 52%;
+}
+
+.tile-rupee {
+  font-size: clamp(4rem, 10vw, 6.4rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+/* Smaller counter-chip overlapping the tile's bottom-right. Matched colors:
+   amber/orange same as their tile, pink (sampled) on the green slide. */
+.art-sticker {
+  position: absolute;
+  right: 0;
+  top: 42%;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  width: clamp(7.6rem, 37%, 9.8rem);
+  aspect-ratio: 1;
+  padding: 0.4rem 0.5rem;
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 1.7rem;
+  box-shadow: 5px 6px 0 0 var(--color-ink);
+  rotate: 9deg;
+  color: var(--color-ink);
+  text-align: center;
+}
+
+.art-sticker-amber {
+  background-color: var(--color-amber);
+}
+
+.art-sticker-orange {
+  background-color: var(--color-orange);
+}
+
+.art-sticker-green {
+  background-color: #f48fb8;
+}
+
+.art-sticker.sticker-white {
+  color: #ffffff;
+}
+
+.sticker-big {
+  font-size: clamp(1.9rem, 4.2vw, 2.4rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.sticker-small {
+  margin-top: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* --- Desktop: copy left, art right, full width engaged ------------------ */
+
+@media (min-width: 1000px) {
+  .onboard-main {
+    grid-template-columns: minmax(0, 34rem) minmax(22rem, 1fr);
+  }
+
+  .onboard-art {
+    order: 0;
+    width: 100%;
+    max-width: 30rem;
+    min-height: 34rem;
+  }
+}
+
+/* --- Bottom bar: dots + CTA --------------------------------------------- */
+
+.onboard-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: auto;
+  padding-top: 2rem;
+}
+
+.onboard-dots {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.onboard-dot {
+  flex: none;
+  width: 0.55rem;
+  aspect-ratio: 1;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background-color: #c9bfae;
+  cursor: pointer;
+  transition: width 0.18s ease, background-color 0.18s ease;
+}
+
+.onboard-dot:hover {
+  background-color: var(--color-amber);
+}
+
+.onboard-dot.is-active {
+  width: 2.2rem;
+  background-color: var(--color-ink);
+}
+
+.onboard-dot:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 3px;
+}
+
+.onboard-cta {
+  width: auto;
+  min-height: 3.7rem;
+  padding-inline: 2.1rem;
+  gap: 0.55rem;
+  font-size: 1.28rem;
+}
+
+.onboard-chev {
+  width: 1.15rem;
+  height: 1.15rem;
+}

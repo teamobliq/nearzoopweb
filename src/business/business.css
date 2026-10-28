@@ -1,0 +1,845 @@
+/* Business (merchant) sign-in flow — web adaptation of the merchant screens
+   from the app design set: amber welcome landing, business mobile number,
+   and the 6-digit code screen (which reuses the customer OTP component).
+   Page shells are scoped `biz-*`; buttons/fields reuse auth.css classes. */
+
+/* --- Landing ------------------------------------------------------------ */
+
+.biz-landing {
+  min-height: 100dvh;
+  background-color: var(--color-amber);
+  color: var(--color-ink);
+}
+
+.biz-landing-wrap {
+  min-height: 100dvh;
+  max-width: 64rem;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 1.6rem clamp(1.5rem, 5vw, 2.75rem) 2.2rem;
+}
+
+.biz-top {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.biz-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 1.3rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.biz-chip {
+  display: grid;
+  place-items: center;
+  width: 2.15rem;
+  aspect-ratio: 1;
+  background-color: var(--color-orange);
+  color: #ffffff;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 0.7rem;
+  box-shadow: var(--shadow-pill);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.biz-badge {
+  padding: 0.42rem 0.85rem;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 0.6rem;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.biz-main {
+  flex: 1;
+  display: grid;
+  align-items: center;
+  gap: clamp(1.5rem, 4vw, 4rem);
+  margin-top: 1.4rem;
+}
+
+.biz-art {
+  position: relative;
+  width: min(100%, 26rem);
+  min-height: clamp(18rem, 44vw, 25rem);
+  justify-self: center;
+}
+
+.biz-tile {
+  position: absolute;
+  left: 2%;
+  top: 4%;
+  display: grid;
+  place-items: center;
+  width: clamp(12rem, 58%, 16.5rem);
+  aspect-ratio: 1;
+  background-color: var(--color-orange);
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 3rem;
+  box-shadow: 7px 10px 0 0 var(--color-ink);
+  rotate: -8deg;
+}
+
+.biz-tile-icon {
+  width: 50%;
+  height: 50%;
+}
+
+.biz-stat {
+  position: absolute;
+  right: 0;
+  top: 42%;
+  width: clamp(10.5rem, 54%, 14rem);
+  padding: 1rem 1.15rem 1.15rem;
+  display: grid;
+  gap: 0.18rem;
+  text-align: left;
+  background-color: #ffffff;
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 1.5rem;
+  box-shadow: 5px 6px 0 0 var(--color-ink);
+  rotate: 6deg;
+}
+
+.biz-stat-label {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.biz-stat-big {
+  font-size: clamp(2.5rem, 7vw, 3rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.biz-stat-sub {
+  color: var(--color-stone);
+  font-size: 0.98rem;
+}
+
+.biz-side {
+  display: flex;
+  flex-direction: column;
+}
+
+.biz-title {
+  margin: 0;
+  font-weight: 900;
+  font-size: clamp(2.7rem, 5.6vw, 4.3rem);
+  line-height: 0.99;
+  letter-spacing: -0.03em;
+}
+
+.biz-title span {
+  display: block;
+}
+
+.biz-body {
+  margin: 1.4rem 0 0;
+  max-width: 30rem;
+  color: var(--color-stone);
+  font-size: clamp(1.05rem, 2.3vw, 1.24rem);
+  line-height: 1.55;
+}
+
+.biz-actions {
+  display: grid;
+  gap: 1rem;
+  margin-top: 2.6rem;
+}
+
+.biz-btn {
+  gap: 0.6rem;
+  font-size: 1.26rem;
+}
+
+.biz-cta-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex: none;
+}
+
+@media (min-width: 1000px) {
+  .biz-main {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 28rem);
+  }
+
+  .biz-art {
+    width: 100%;
+    max-width: 30rem;
+    min-height: 32rem;
+    justify-self: start;
+  }
+
+  .biz-actions {
+    margin-top: 3rem;
+  }
+}
+
+/* --- Phone + OTP pages --------------------------------------------------- */
+
+.biz-page {
+  min-height: 100dvh;
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+}
+
+.biz-shell {
+  min-height: 100dvh;
+  max-width: 36rem;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 1.8rem clamp(1.5rem, 5vw, 2rem) 2.5rem;
+}
+
+.biz-backrow {
+  display: flex;
+  margin-bottom: 1.5rem;
+}
+
+.biz-center {
+  flex: 1;
+  display: grid;
+  place-items: center;
+}
+
+.biz-legal {
+  margin: 1.6rem 0 0;
+  color: var(--color-stone);
+  font-size: 0.98rem;
+  line-height: 1.6;
+}
+
+.biz-legal a {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.biz-legal a:hover {
+  color: var(--color-orange);
+}
+
+.biz-legal a:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 3px;
+  border-radius: 0.3rem;
+}
+
+/* --- Setup wizard (steps 1–3) -------------------------------------------- */
+
+.biz-steptop {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.biz-steptitle {
+  margin: 0;
+  font-weight: 900;
+  font-size: 1.45rem;
+  letter-spacing: -0.02em;
+}
+
+.biz-progress {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1.1rem;
+}
+
+.biz-seg {
+  flex: 1;
+  height: 0.8rem;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 0.5rem;
+  background-color: var(--color-cream);
+}
+
+.biz-seg.is-done {
+  background-color: var(--color-orange);
+}
+
+.biz-stepcap {
+  margin: 0.8rem 0 0;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+/* Pinned bottom action bar (ink rule + full-width CTA) */
+.biz-formfoot {
+  margin-top: auto;
+  padding-top: 1.3rem;
+  border-top: 3px solid var(--color-ink);
+}
+
+.biz-formfoot .btn-primary {
+  width: 100%;
+}
+
+.biz-field {
+  margin-top: 1.7rem;
+}
+
+.biz-label {
+  display: block;
+  margin: 0 0 0.6rem;
+  font-weight: 800;
+  font-size: 1.13rem;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+}
+
+.biz-intro {
+  margin: 1.4rem 0 0;
+  color: var(--color-stone);
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.biz-hint {
+  margin: 0.55rem 0 0;
+  color: var(--color-stone);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.biz-input {
+  width: 100%;
+  min-height: 3.4rem;
+  padding: 0.45rem 1.05rem;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1.08rem;
+  color: var(--color-ink);
+  background-color: #ffffff;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1rem;
+}
+
+.biz-input:focus-visible {
+  outline: none;
+  border-color: var(--color-orange);
+}
+
+.biz-inputrow {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-height: 3.4rem;
+  padding: 0.55rem 1rem;
+  background-color: #ffffff;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1rem;
+}
+
+.biz-inputrow:focus-within {
+  border-color: var(--color-orange);
+}
+
+.biz-inputrow-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: none;
+}
+
+.biz-input-plain {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 1.12rem;
+  color: var(--color-ink);
+}
+
+.biz-input-plain:focus-visible {
+  outline: none;
+}
+
+/* Green validity / recommendation pill */
+.biz-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.38rem 0.8rem;
+  border-radius: 999px;
+  background-color: #dff3e7;
+  color: #0e8a4c;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.biz-pill svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+/* Category chips */
+.biz-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.biz-chipbtn {
+  padding: 0.62rem 1.25rem;
+  background-color: #ffffff;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.biz-chipbtn.is-selected {
+  background-color: var(--color-ink);
+  color: #ffffff;
+}
+
+.biz-chipbtn:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 3px;
+}
+
+/* Show/hide phone toggle */
+.biz-toggle {
+  position: relative;
+  flex: none;
+  width: 3.55rem;
+  height: 2.05rem;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 999px;
+  background-color: #ffffff;
+  transition: background-color 0.16s ease;
+}
+
+.biz-toggle.is-on {
+  background-color: #1fa855;
+}
+
+.biz-toggle-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.biz-toggle-knob {
+  position: absolute;
+  top: 50%;
+  left: 0.2rem;
+  width: 1.5rem;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background-color: #ffffff;
+  border: 2.5px solid var(--color-ink);
+  translate: 0 -50%;
+  transition: left 0.16s ease;
+}
+
+.biz-toggle.is-on .biz-toggle-knob {
+  left: calc(100% - 1.75rem);
+}
+
+/* Photo upload box */
+.biz-photobox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: clamp(9.5rem, 26vw, 12rem);
+  border: 2px solid var(--color-hairline);
+  border-radius: 1.1rem;
+  background-color: #f9edd6;
+  overflow: hidden;
+}
+
+.biz-photobox::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(242, 168, 29, 0.18) 0 1.05rem,
+    transparent 1.05rem 2.1rem
+  );
+}
+
+.biz-photobox img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.biz-phototag {
+  position: relative;
+  padding: 0.5rem 0.95rem;
+  border-radius: 0.6rem;
+  background-color: rgba(255, 251, 240, 0.92);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.13em;
+  color: var(--color-ink);
+  pointer-events: none;
+}
+
+.biz-photoinput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Location step: full-bleed pannable map */
+.biz-map {
+  position: relative;
+  margin: 1.6rem calc(50% - 50vw) 0;
+  height: clamp(17rem, 38vw, 27rem);
+  border-block: 3px solid var(--color-ink);
+  background-color: #ebd9b4;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.biz-map:active {
+  cursor: grabbing;
+}
+
+.biz-map-inner {
+  position: absolute;
+  top: -6%;
+  left: -10%;
+  width: 120%;
+  height: 112%;
+}
+
+.biz-map text {
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.biz-pin {
+  position: absolute;
+  left: 50%;
+  top: 26%;
+  translate: -50% -100%;
+  width: clamp(3rem, 8vw, 4rem);
+  pointer-events: none;
+  filter: drop-shadow(2px 3px 0 rgba(28, 27, 25, 0.45));
+}
+
+.biz-pin svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.biz-pintip {
+  position: absolute;
+  left: 50%;
+  top: calc(26% + 3.8rem);
+  translate: -50% 0;
+  max-width: 17rem;
+  margin: 0;
+  padding: 0.7rem 1rem;
+  border-radius: 1.2rem;
+  background-color: var(--color-ink);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.98rem;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+/* Hours card */
+.biz-hours {
+  background-color: #ffffff;
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 1.3rem;
+  overflow: hidden;
+}
+
+.biz-hoursrow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+}
+
+.biz-hoursrow + .biz-hoursrow {
+  border-top: 2px solid var(--color-hairline);
+}
+
+.biz-hoursrow-main {
+  flex: 1;
+}
+
+.biz-hoursname {
+  font-weight: 800;
+  font-size: 1.18rem;
+  letter-spacing: -0.01em;
+}
+
+.biz-hourstime {
+  margin-top: 0.25rem;
+  color: var(--color-stone);
+  font-size: 1.05rem;
+}
+
+.biz-chev {
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--color-stone);
+}
+
+/* Document choice card */
+.biz-choicelist {
+  background-color: #ffffff;
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 1.4rem;
+  overflow: hidden;
+}
+
+.biz-choice {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem 1.1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.biz-choice + .biz-choice {
+  border-top: 2px solid var(--color-hairline);
+}
+
+.biz-choice:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 3px var(--color-orange);
+}
+
+.biz-radio {
+  flex: none;
+  width: 1.95rem;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  border: 2.5px solid #a99e87;
+  background-color: #ffffff;
+  display: grid;
+  place-items: center;
+}
+
+.biz-choice.is-selected .biz-radio {
+  border-color: var(--color-ink);
+}
+
+.biz-radio-dot {
+  width: 0.95rem;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background-color: var(--color-orange);
+}
+
+.biz-choice-text {
+  flex: 1;
+  display: grid;
+  gap: 0.18rem;
+}
+
+.biz-choice-name {
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+}
+
+.biz-choice-sub {
+  color: var(--color-stone);
+  font-size: 1rem;
+}
+
+/* --- Status screens (checking / failed) ----------------------------------- */
+
+.biz-bigtile {
+  display: grid;
+  place-items: center;
+  width: 6.9rem;
+  aspect-ratio: 1;
+  margin-top: 1.4rem;
+  border: 3px solid var(--color-ink);
+  border-radius: 2rem;
+  box-shadow: 5px 7px 0 0 var(--color-ink);
+  rotate: -7deg;
+}
+
+.biz-bigtile svg {
+  width: 52%;
+  height: 52%;
+}
+
+.biz-bigtile-checking {
+  background-color: var(--color-yellow);
+}
+
+.biz-bigtile-failed {
+  background-color: var(--color-red);
+}
+
+.biz-status-title {
+  margin: 1.9rem 0 0;
+  font-weight: 900;
+  font-size: clamp(1.9rem, 5.4vw, 2.3rem);
+  letter-spacing: -0.02em;
+}
+
+.biz-status-body {
+  margin: 1rem 0 0;
+  max-width: 30rem;
+  color: var(--color-stone);
+  font-size: 1.08rem;
+  line-height: 1.55;
+}
+
+.biz-checklist {
+  list-style: none;
+  margin: 1.7rem 0 0;
+  padding: 0;
+  background-color: #ffffff;
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 1.4rem;
+  overflow: hidden;
+}
+
+.biz-checkrow {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.95rem 1.1rem;
+}
+
+.biz-checkrow + .biz-checkrow {
+  border-top: 2px solid var(--color-hairline);
+}
+
+.biz-chipicon {
+  flex: none;
+  width: 2.05rem;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+}
+
+.biz-chipicon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.biz-chipicon-done {
+  background-color: #dff3e7;
+}
+
+.biz-chipicon-checking {
+  background-color: #fbe9c9;
+}
+
+.biz-chipicon-failed {
+  background-color: #f9d9d6;
+}
+
+.biz-checklabel {
+  flex: 1;
+  font-weight: 800;
+  font-size: 1.16rem;
+  letter-spacing: -0.01em;
+}
+
+.biz-checkstate {
+  color: var(--color-stone);
+  font-weight: 700;
+  font-size: 1.02rem;
+}
+
+.biz-statuscta {
+  margin-top: 1.5rem;
+}
+
+.biz-linkbtn {
+  display: block;
+  margin: 1.1rem auto 0;
+  padding: 0.6rem 1rem;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 1.13rem;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.biz-linkbtn:hover {
+  color: var(--color-orange);
+}
+
+.biz-linkbtn:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 3px;
+  border-radius: 0.4rem;
+}
+
+/* Tiny demo affordance — remove when verification is real */
+.biz-demo {
+  display: block;
+  margin: 0.9rem auto 0;
+  border: none;
+  background: none;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  color: var(--color-stone);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.biz-demo:hover {
+  color: var(--color-orange);
+}

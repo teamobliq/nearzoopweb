@@ -1,0 +1,559 @@
+/* Sign-in flow — web adaptation of app designs
+   "14 · Sign in · phone" and "14 · Sign in · OTP".
+   Phone chrome dropped; forms are keyboard-first with focus states. */
+
+.flow {
+  min-height: 100dvh;
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+}
+
+/* Full-bleed cream page; the form sits in a left column with a
+   decorative vector field taking the right side on wide screens. */
+.flow-wrap {
+  min-height: 100dvh;
+  max-width: 66rem;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 1.75rem clamp(1.5rem, 5vw, 2.5rem) 2.25rem;
+}
+
+.flow-main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 33rem);
+  margin-inline: auto;
+  width: 100%;
+  gap: clamp(2rem, 6vw, 5rem);
+}
+
+.flow-col {
+  width: 100%;
+  align-self: center;
+}
+
+#nz-recaptcha {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.flow-top {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-circle {
+  width: 3.4rem;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 50%;
+  background-color: #ffffff;
+  color: var(--color-ink);
+  box-shadow: var(--shadow-pill);
+  cursor: pointer;
+  transition: translate 0.08s ease, box-shadow 0.08s ease;
+}
+
+.btn-circle svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.btn-circle:active {
+  translate: 2px 3px;
+  box-shadow: 1px 1px 0 0 var(--color-ink);
+}
+
+.btn-notnow {
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 1.08rem;
+  color: var(--color-stone);
+  padding: 0.4rem 0.2rem;
+  cursor: pointer;
+}
+
+.btn-notnow:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.auth-title {
+  margin: 2.4rem 0 0;
+  font-weight: 900;
+  font-size: clamp(2.1rem, 7.5vw, 2.9rem);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+}
+
+.auth-sub {
+  margin: 0.9rem 0 0;
+  color: var(--color-stone);
+  font-size: clamp(1rem, 2.4vw, 1.15rem);
+  line-height: 1.5;
+}
+
+.auth-form {
+  width: 100%;
+  margin-top: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.auth-field-row {
+  width: 100%;
+  display: flex;
+  gap: 0.9rem;
+}
+
+.auth-country {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding-inline: 1.05rem;
+  min-height: 3.75rem;
+  background-color: #ffffff;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.35rem;
+  box-shadow: var(--shadow-pill);
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.auth-phone {
+  flex: 1;
+  min-width: 0;
+  min-height: 3.75rem;
+  padding-inline: 1.15rem;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--color-ink);
+  background-color: #ffffff;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.35rem;
+  box-shadow: var(--shadow-pill);
+}
+
+.auth-phone::placeholder {
+  color: #c5bdad;
+  font-weight: 700;
+}
+
+.auth-phone:focus-visible {
+  outline: none;
+  box-shadow: 3px 4px 0 0 var(--color-amber);
+}
+
+/* Underlined side-link under the phone field — entry to the shop-owner flow */
+.auth-business {
+  width: fit-content;
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.auth-business:hover {
+  color: var(--color-orange);
+}
+
+.auth-business:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 3px;
+  border-radius: 0.3rem;
+}
+
+.btn-primary,
+.btn-secondary {
+  width: 100%;
+  min-height: 3.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: clamp(1.2rem, 3vw, 1.4rem);
+  border-radius: 1.2rem;
+  cursor: pointer;
+  transition: translate 0.08s ease, box-shadow 0.08s ease;
+}
+
+.btn-primary {
+  background-color: var(--color-orange);
+  color: #ffffff;
+  border: var(--border-strong) solid var(--color-ink);
+  box-shadow: var(--shadow-btn);
+}
+
+.btn-primary:hover:not(:disabled),
+.btn-secondary:hover:not(:disabled) {
+  translate: 1px 1px;
+  box-shadow: 3px 5px 0 0 var(--color-ink);
+}
+
+.btn-primary:active:not(:disabled),
+.btn-secondary:active:not(:disabled) {
+  translate: 4px 6px;
+  box-shadow: 0 0 0 0 var(--color-ink);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.btn-secondary {
+  background-color: #ffffff;
+  color: var(--color-ink);
+  border: var(--border-strong) solid var(--color-ink);
+  box-shadow: var(--shadow-btn);
+}
+
+.auth-icon {
+  width: 1.45rem;
+  height: 1.45rem;
+  flex: none;
+}
+
+.auth-or {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.7rem 0 1.3rem;
+  color: var(--color-stone);
+  font-size: 1rem;
+}
+
+.auth-or::before,
+.auth-or::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  background-color: var(--color-hairline);
+}
+
+/* OTP boxes */
+
+.auth-otp {
+  width: 100%;
+  margin-top: 2.1rem;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.65rem;
+}
+
+.auth-otp-box {
+  width: 100%;
+  aspect-ratio: 0.96;
+  text-align: center;
+  font-family: inherit;
+  font-weight: 900;
+  font-size: clamp(1.35rem, 4vw, 1.65rem);
+  color: var(--color-ink);
+  background-color: #ffffff;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.25rem;
+  caret-color: var(--color-orange);
+}
+
+.auth-otp-box:focus {
+  outline: none;
+  border-color: var(--color-orange);
+}
+
+.auth-otp-box:disabled {
+  opacity: 0.7;
+}
+
+.auth-resend {
+  margin: 1.5rem 0 0;
+  color: var(--color-stone);
+  font-size: 1.05rem;
+}
+
+.auth-resend b {
+  color: var(--color-ink);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.auth-resend-link {
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--color-ink);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
+}
+
+.auth-resend-link:hover {
+  color: var(--color-orange);
+}
+
+.auth-resend-link:disabled {
+  cursor: default;
+  color: var(--color-stone);
+}
+
+.auth-verify {
+  margin-top: 1.9rem;
+}
+
+.auth-error {
+  margin: 0.9rem 0 0;
+  color: var(--color-red);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+/* Fine print + focus styles */
+
+.fine {
+  margin-top: auto;
+  padding-top: 2.2rem;
+  color: var(--color-stone);
+  font-size: 0.98rem;
+  line-height: 1.6;
+}
+
+.fine a {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.fine a:hover {
+  color: var(--color-orange);
+}
+
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.btn-circle:focus-visible,
+.btn-notnow:focus-visible,
+.auth-resend-link:focus-visible,
+.fine a:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 3px;
+}
+
+.btn-primary:focus-visible {
+  outline-color: var(--color-amber);
+}
+
+/* Decorative vector field (desktop ≥1060px) — one composed "map board":
+   a paper card holding the map patches, the dashed search-radius ring
+   with a center pin, and offer-bubble stickers; the logo chip overlaps
+   the board corner like a pinned sticker. Everything is decorative. */
+
+.flow-art {
+  display: none;
+}
+
+@media (min-width: 1060px) {
+  .flow-main {
+    width: auto;
+    margin-inline: 0;
+    grid-template-columns: minmax(0, 30rem) minmax(20rem, 1fr);
+  }
+
+  .flow-art {
+    display: block;
+    position: relative;
+    min-height: 40rem;
+  }
+}
+
+.art-board {
+  position: absolute;
+  inset: 0;
+  background: var(--color-paper);
+  border: 3px solid var(--color-ink);
+  border-radius: 1.75rem;
+  box-shadow: 8px 10px 0 0 var(--color-ink);
+  overflow: hidden;
+}
+
+.art-patch {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.art-patch-sage {
+  width: 21rem;
+  aspect-ratio: 1;
+  top: 3%;
+  right: 14%;
+  background: #e7ebdd;
+}
+
+.art-patch-lake {
+  width: 17rem;
+  aspect-ratio: 1;
+  bottom: -5%;
+  left: 4%;
+  background: #d5e0db;
+}
+
+.art-patch-cream {
+  width: 11rem;
+  aspect-ratio: 1;
+  top: 32%;
+  left: 36%;
+  background: #f6e9cb;
+}
+
+.art-ring {
+  position: absolute;
+  width: 24rem;
+  aspect-ratio: 1;
+  left: 52%;
+  top: 44%;
+  translate: -50% -50%;
+  border: 4px dashed rgba(251, 75, 50, 0.55);
+  border-radius: 50%;
+}
+
+.art-pin {
+  position: absolute;
+  width: 1.5rem;
+  aspect-ratio: 1;
+  left: 52%;
+  top: 44%;
+  translate: -50% -50%;
+  background: #fb4b32;
+  border: 3px solid var(--color-ink);
+  border-radius: 50%;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
+}
+
+.art-mark {
+  position: absolute;
+  margin: 0;
+  width: 5.4rem;
+  padding: 0.6rem;
+  top: -1.4rem;
+  left: -1.6rem;
+  rotate: -12deg;
+  z-index: 2;
+  background: #ffffff;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.2rem;
+  box-shadow: var(--shadow-pill);
+}
+
+.art-mark img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 256 / 264;
+}
+
+.art-bubble {
+  position: absolute;
+  filter: drop-shadow(4px 5px 0 var(--color-ink));
+}
+
+.art-bubble text {
+  fill: var(--color-ink);
+  font-family: var(--font-sans);
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.art-pos-bogo {
+  width: 10rem;
+  left: 7%;
+  top: 5%;
+  rotate: -7deg;
+}
+
+.art-pos-off {
+  width: 12.5rem;
+  right: 5%;
+  top: 26%;
+  rotate: 5deg;
+}
+
+.art-pos-price {
+  width: 9.5rem;
+  left: 8%;
+  bottom: 27%;
+  rotate: 6deg;
+}
+
+.art-pos-ten {
+  width: 12rem;
+  right: 7%;
+  bottom: 5%;
+  rotate: -11deg;
+}
+
+/* Done stub */
+
+.done {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background-color: var(--color-cream);
+}
+
+.done-card {
+  width: min(28rem, 100%);
+  padding: clamp(2rem, 5vw, 2.75rem) clamp(1.75rem, 4vw, 2.25rem);
+  background-color: #ffffff;
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 1.6rem;
+  box-shadow: var(--shadow-card);
+}
+
+.done-title {
+  margin: 0;
+  font-weight: 900;
+  font-size: clamp(1.9rem, 6vw, 2.5rem);
+  letter-spacing: -0.02em;
+}
+
+.done-body {
+  margin: 0.8rem 0 0;
+  color: var(--color-stone);
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.done-signout {
+  width: auto;
+  min-height: 3.1rem;
+  margin-top: 1.7rem;
+  padding-inline: 1.6rem;
+  font-size: 1.05rem;
+}
