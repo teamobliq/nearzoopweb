@@ -35,18 +35,9 @@
   letter-spacing: -0.02em;
 }
 
-.biz-chip {
-  display: grid;
-  place-items: center;
-  width: 2.15rem;
-  aspect-ratio: 1;
-  background-color: var(--color-orange);
-  color: #ffffff;
-  border: var(--border-mid) solid var(--color-ink);
-  border-radius: 0.7rem;
-  box-shadow: var(--shadow-pill);
-  font-size: 1.05rem;
-  font-weight: 900;
+.biz-brandmark {
+  width: 2.2rem;
+  height: auto;
 }
 
 .biz-badge {
@@ -200,16 +191,11 @@
 
 .biz-shell {
   min-height: 100dvh;
-  max-width: 36rem;
+  max-width: 38rem;
   margin-inline: auto;
   display: flex;
   flex-direction: column;
-  padding: 1.8rem clamp(1.5rem, 5vw, 2rem) 2.5rem;
-}
-
-.biz-backrow {
-  display: flex;
-  margin-bottom: 1.5rem;
+  padding: 2.2rem clamp(1.5rem, 5vw, 2rem) 2.75rem;
 }
 
 .biz-center {
@@ -260,7 +246,7 @@
 .biz-progress {
   display: flex;
   gap: 0.5rem;
-  margin-top: 1.1rem;
+  margin-top: 1.3rem;
 }
 
 .biz-seg {
@@ -276,7 +262,7 @@
 }
 
 .biz-stepcap {
-  margin: 0.8rem 0 0;
+  margin: 1rem 0 0;
   font-family: var(--font-mono);
   font-weight: 500;
   font-size: 0.8rem;
@@ -288,8 +274,7 @@
 /* Pinned bottom action bar (ink rule + full-width CTA) */
 .biz-formfoot {
   margin-top: auto;
-  padding-top: 1.3rem;
-  border-top: 3px solid var(--color-ink);
+  padding-top: 1.5rem;
 }
 
 .biz-formfoot .btn-primary {
@@ -297,12 +282,12 @@
 }
 
 .biz-field {
-  margin-top: 1.7rem;
+  margin-top: 2.15rem;
 }
 
 .biz-label {
   display: block;
-  margin: 0 0 0.6rem;
+  margin-bottom: 0.72rem;
   font-weight: 800;
   font-size: 1.13rem;
   letter-spacing: -0.01em;
@@ -310,14 +295,14 @@
 }
 
 .biz-intro {
-  margin: 1.4rem 0 0;
+  margin: 1.6rem 0 0;
   color: var(--color-stone);
   font-size: 1.05rem;
   line-height: 1.55;
 }
 
 .biz-hint {
-  margin: 0.55rem 0 0;
+  margin: 0.62rem 0 0;
   color: var(--color-stone);
   font-size: 0.95rem;
   line-height: 1.5;
@@ -401,11 +386,11 @@
 .biz-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem;
+  gap: 0.8rem;
 }
 
 .biz-chipbtn {
-  padding: 0.62rem 1.25rem;
+  padding: 0.68rem 1.35rem;
   background-color: #ffffff;
   border: 2.5px solid var(--color-ink);
   border-radius: 999px;
@@ -461,6 +446,13 @@
   border: 2.5px solid var(--color-ink);
   translate: 0 -50%;
   transition: left 0.16s ease;
+  /* The knob paints above the invisible checkbox — let clicks fall through. */
+  pointer-events: none;
+}
+
+.biz-toggle:has(.biz-toggle-input:focus-visible) {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 3px;
 }
 
 .biz-toggle.is-on .biz-toggle-knob {
@@ -513,6 +505,17 @@
   pointer-events: none;
 }
 
+.biz-photobox.is-busy img {
+  opacity: 0.55;
+}
+
+.biz-photoerror {
+  margin: 0.55rem 0 0;
+  color: var(--color-orange);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
 .biz-photoinput {
   position: absolute;
   inset: 0;
@@ -522,44 +525,106 @@
   cursor: pointer;
 }
 
-/* Location step: full-bleed pannable map */
+/* Location step: rounded map card on the left, input fields on the right.
+   The row breaks out of the narrow shell (like the old full-bleed map) so
+   both halves get room, and stacks map-first on small screens. The pin is
+   fixed at the map's exact centre — the saved coordinates are what sits
+   under its tip. */
+
+.biz-locrow {
+  margin: 1.6rem calc(50% - 50vw) 0;
+  padding-inline: clamp(1.25rem, 5vw, 3rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: clamp(1.25rem, 2.5vw, 2rem);
+  align-items: stretch;
+}
+
+.biz-locfields {
+  min-width: 0;
+}
+
 .biz-map {
   position: relative;
-  margin: 1.6rem calc(50% - 50vw) 0;
-  height: clamp(17rem, 38vw, 27rem);
-  border-block: 3px solid var(--color-ink);
-  background-color: #ebd9b4;
+  min-height: 21rem;
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 1.5rem;
+  background-color: #ecdcba;
   overflow: hidden;
-  cursor: grab;
+  /* Firefox lets a composited WebGL canvas escape a rounded overflow clip
+     (map pixels paint past the border). clip-path clips at the compositor,
+     which Firefox honours for accelerated layers. */
+  clip-path: inset(0 round 1.5rem);
   touch-action: none;
   user-select: none;
 }
 
-.biz-map:active {
+@media (max-width: 719px) {
+  .biz-locrow {
+    grid-template-columns: 1fr;
+  }
+
+  .biz-map {
+    min-height: 16rem;
+  }
+}
+
+.biz-map-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.biz-map .maplibregl-map {
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-sans);
+}
+
+.biz-map .maplibregl-canvas {
+  cursor: grab;
+  outline: none;
+  /* The canvas clips its own painting to the card's inner radius — a
+     replaced element's own border-radius survives layer promotion, unlike
+     an ancestor's overflow clip. */
+  border-radius: calc(1.5rem - var(--border-strong));
+}
+
+.biz-map .maplibregl-canvas:active {
   cursor: grabbing;
 }
 
-.biz-map-inner {
-  position: absolute;
-  top: -6%;
-  left: -10%;
-  width: 120%;
-  height: 112%;
+.biz-map .maplibregl-canvas:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: -3px;
 }
 
-.biz-map text {
+.biz-map .maplibregl-ctrl-attrib {
+  padding: 2px 7px;
+  background-color: rgba(255, 253, 246, 0.85);
+  color: var(--color-stone);
+  border-radius: 0.5rem 0 0 0;
   font-family: var(--font-mono);
-  font-weight: 500;
+  font-size: 0.6rem;
+  letter-spacing: 0.02em;
+}
+
+.biz-map .maplibregl-ctrl-attrib a {
+  color: inherit;
+}
+
+.biz-map .maplibregl-ctrl-attrib-button {
+  display: none;
 }
 
 .biz-pin {
   position: absolute;
   left: 50%;
-  top: 26%;
+  top: 50%;
   translate: -50% -100%;
-  width: clamp(3rem, 8vw, 4rem);
+  width: clamp(2rem, 4.5vw, 2.5rem);
   pointer-events: none;
-  filter: drop-shadow(2px 3px 0 rgba(28, 27, 25, 0.45));
+  z-index: 800;
+  filter: drop-shadow(1.5px 2px 0 rgba(28, 27, 25, 0.45));
 }
 
 .biz-pin svg {
@@ -571,8 +636,9 @@
 .biz-pintip {
   position: absolute;
   left: 50%;
-  top: calc(26% + 3.8rem);
+  top: calc(50% + 1.3rem);
   translate: -50% 0;
+  z-index: 800;
   max-width: 17rem;
   margin: 0;
   padding: 0.7rem 1rem;
@@ -585,7 +651,9 @@
   pointer-events: none;
 }
 
-/* Hours card */
+/* Hours card — two expandable day groups (Mon–Sat, Sunday). Rows are
+   buttons that toggle an inline editor with opens/closes time inputs and
+   a "closed all day" switch. */
 .biz-hours {
   background-color: #ffffff;
   border: var(--border-strong) solid var(--color-ink);
@@ -593,15 +661,22 @@
   overflow: hidden;
 }
 
+.biz-hoursgroup + .biz-hoursgroup {
+  border-top: 2px solid var(--color-hairline);
+}
+
 .biz-hoursrow {
   display: flex;
   align-items: center;
   gap: 1rem;
+  width: 100%;
   padding: 1rem 1.1rem;
-}
-
-.biz-hoursrow + .biz-hoursrow {
-  border-top: 2px solid var(--color-hairline);
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .biz-hoursrow-main {
@@ -609,15 +684,21 @@
 }
 
 .biz-hoursname {
+  display: block;
   font-weight: 800;
   font-size: 1.18rem;
   letter-spacing: -0.01em;
 }
 
 .biz-hourstime {
+  display: block;
   margin-top: 0.25rem;
   color: var(--color-stone);
   font-size: 1.05rem;
+}
+
+.biz-hourstime.is-empty {
+  opacity: 0.55;
 }
 
 .biz-chev {
@@ -625,6 +706,58 @@
   width: 1.1rem;
   height: 1.1rem;
   color: var(--color-stone);
+  transition: transform 0.15s ease;
+}
+
+.biz-hoursgroup.is-open .biz-chev {
+  transform: rotate(90deg);
+}
+
+.biz-hoursedit {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0 1.1rem 1rem;
+}
+
+.biz-timeinput {
+  width: 7.6rem;
+  min-height: 3rem;
+  border: 2px solid var(--color-ink);
+  border-radius: 0.7rem;
+  padding: 0.4rem 0.55rem;
+  background-color: #ffffff;
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.biz-timeinput:disabled {
+  opacity: 0.45;
+}
+
+.biz-hoursdash {
+  color: var(--color-stone);
+}
+
+.biz-hoursclosed {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+  color: var(--color-stone);
+  font-size: 0.95rem;
+  cursor: pointer;
+  accent-color: var(--color-orange);
+}
+
+.biz-hourserror {
+  margin: 0.55rem 0 0;
+  color: var(--color-orange);
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 /* Document choice card */
@@ -802,6 +935,14 @@
   margin-top: 1.5rem;
 }
 
+.biz-payfine {
+  margin: 0.9rem 0 0;
+  color: var(--color-stone);
+  font-size: 0.98rem;
+  font-weight: 700;
+  text-align: center;
+}
+
 .biz-linkbtn {
   display: block;
   margin: 1.1rem auto 0;
@@ -825,21 +966,3830 @@
   border-radius: 0.4rem;
 }
 
-/* Tiny demo affordance — remove when verification is real */
-.biz-demo {
-  display: block;
+/* Rejection reason written by the admin panel, shown on the failed screen */
+.biz-status-note {
   margin: 0.9rem auto 0;
-  border: none;
-  background: none;
+  max-width: 30rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--color-ink);
+  background-color: #f9d9d6;
+  border: 2px solid var(--color-ink);
+  border-radius: 0.8rem;
+  padding: 0.7rem 0.95rem;
+}
+
+/* --- Photo crop dialog ---------------------------------------------------- */
+
+.biz-cropback {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background-color: rgba(28, 27, 25, 0.62);
+}
+
+.biz-crop {
+  width: min(100%, 34rem);
+  background-color: var(--color-cream);
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 1.5rem;
+  box-shadow: 7px 10px 0 0 var(--color-ink);
+  padding: 1.4rem 1.4rem 1.5rem;
+}
+
+.biz-croptitle {
+  margin: 0;
+  font-weight: 900;
+  font-size: 1.3rem;
+  letter-spacing: -0.02em;
+}
+
+.biz-cropsub {
+  margin: 0.35rem 0 0;
+  color: var(--color-stone);
+  font-size: 0.95rem;
+}
+
+.biz-cropview {
+  margin-top: 1.1rem;
+  display: grid;
+  place-items: center;
+  height: min(52vh, 24rem);
+  background-color: #26231f;
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.biz-cropframe {
+  position: relative;
+  width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  border: 2.5px solid rgba(255, 251, 240, 0.92);
+  border-radius: 0.6rem;
+  cursor: grab;
+  touch-action: none;
+}
+
+.biz-cropframe:active {
+  cursor: grabbing;
+}
+
+.biz-cropframe img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+}
+
+.biz-cropzoom {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+
+.biz-cropzoom-label {
   font-family: var(--font-mono);
   font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+.biz-cropzoom input[type='range'] {
+  flex: 1;
+  accent-color: var(--color-orange);
+}
+
+.biz-cropactions {
+  display: flex;
+  gap: 0.8rem;
+  margin-top: 1.2rem;
+}
+
+.biz-cropactions .btn-secondary,
+.biz-cropactions .btn-primary {
+  flex: 1;
+}
+
+/* --- Business dashboard --------------------------------------------------- */
+
+.biz-boot {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
   letter-spacing: 0.08em;
   color: var(--color-stone);
+  text-align: center;
+}
+
+.biz-dash {
+  min-height: 100dvh;
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+}
+
+.biz-dash-shell {
+  max-width: 38rem;
+  margin-inline: auto;
+  padding: 2rem clamp(1.5rem, 5vw, 2rem) 8rem;
+}
+
+.biz-dash-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.biz-dash-hello {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+.biz-dash-shop {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.35rem 0 0;
+  font-weight: 900;
+  font-size: clamp(1.5rem, 5vw, 1.85rem);
+  letter-spacing: -0.02em;
+}
+
+.biz-dash-shop svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: none;
+}
+
+.biz-dashnote {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  margin-top: 1.4rem;
+  padding: 1rem 1.1rem;
+  background-color: #fdeecd;
+  border: 2px solid var(--color-ink);
+  border-radius: 1rem;
+}
+
+.biz-dashnote svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+  margin-top: 0.15rem;
+}
+
+.biz-dashnote p {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.5;
+}
+
+.biz-first-tile {
+  display: grid;
+  place-items: center;
+  width: 9.5rem;
+  aspect-ratio: 1;
+  margin-top: 2.4rem;
+  background-color: var(--color-amber);
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 2rem;
+  box-shadow: 7px 10px 0 0 var(--color-ink);
+  rotate: -7deg;
+  font-weight: 900;
+  font-size: 3.4rem;
+  letter-spacing: -0.03em;
+}
+
+.biz-dash-h2 {
+  margin: 1.7rem 0 0;
+  font-weight: 900;
+  font-size: clamp(2rem, 6vw, 2.6rem);
+  letter-spacing: -0.03em;
+}
+
+.biz-dash-body {
+  margin: 0.9rem 0 0;
+  color: var(--color-stone);
+  font-size: 1.15rem;
+  line-height: 1.55;
+}
+
+.biz-dash-cta {
+  width: 100%;
+  margin-top: 1.7rem;
+}
+
+.biz-dash-cta svg,
+.biz-oempty .btn-primary svg,
+.biz-dash-actions .btn-primary svg,
+.biz-dash-actions .btn-secondary svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.biz-dash-tip {
+  margin: 0.9rem 0 0;
+  color: var(--color-stone);
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+/* Full dashboard (offers exist) */
+
+.biz-hero {
+  position: relative;
+  margin-top: 1.4rem;
+  padding: 1.3rem 1.4rem 1.5rem;
+  background-color: var(--color-orange);
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 1.6rem;
+  box-shadow: 6px 8px 0 0 var(--color-ink);
+  color: #ffffff;
+}
+
+.biz-hero-label {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.biz-hero-pill {
+  position: absolute;
+  top: 1.1rem;
+  right: 1.1rem;
+  padding: 0.35rem 0.85rem;
+  background-color: #ffffff;
+  color: var(--color-ink);
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.biz-hero-big {
+  margin: 0.9rem 0 0;
+  font-weight: 900;
+  font-size: clamp(3.4rem, 12vw, 4.6rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.biz-hero-sub {
+  margin: 0.2rem 0 0;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.biz-statrow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.9rem;
+  margin-top: 1.1rem;
+}
+
+.biz-statcard {
+  padding: 1rem 1.05rem 1.1rem;
+  background-color: #ffffff;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.2rem;
+  box-shadow: 4px 5px 0 0 var(--color-ink);
+}
+
+.biz-statcard-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+.biz-statcard-value {
+  margin: 0.45rem 0 0;
+  font-weight: 900;
+  font-size: 1.9rem;
+  letter-spacing: -0.02em;
+}
+
+.biz-dash-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+  margin-top: 1.3rem;
+}
+
+.biz-dash-actions .btn-primary,
+.biz-dash-actions .btn-secondary {
+  width: 100%;
+  justify-content: center;
+}
+
+.biz-dash-rowhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 2.2rem;
+}
+
+/* Section-header "see all" link — the base .biz-linkbtn is a centered
+   standalone button; this variant reads as an inline navigation link. */
+.biz-seeall {
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+  font-size: 1rem;
   text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration-thickness: 2.5px;
+  text-underline-offset: 4px;
+}
+
+/* --- Offer details screen ---------------------------------------------------------------
+   One offer, everything about it. Lives inside the dashboard shell like the
+   builder (is-create hides the sidebar); reuses the list's tile, chip and
+   stat-card language. */
+
+.biz-detail-toprow {
+  display: flex;
+  gap: 0.7rem;
+  margin-left: auto;
+}
+
+.biz-detail-circle {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 3.1rem;
+  aspect-ratio: 1;
+  background-color: #ffffff;
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 999px;
+  box-shadow: var(--shadow-pill);
+  color: var(--color-ink);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.biz-detail-circle svg {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+.biz-detail-menuwrap {
+  position: relative;
+  display: flex;
+}
+
+/* Share dialog — the app's modal language: paper card, ink border, hard
+   shadow, centered over a dimmed backdrop. */
+.biz-share-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background-color: rgba(20, 16, 12, 0.55);
+}
+
+.biz-share-dialog {
+  width: min(24rem, 100%);
+  background-color: var(--color-paper);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.1rem;
+  box-shadow: 0.5rem 0.5rem 0 var(--color-ink);
+  padding: 1.1rem 1.2rem 1.3rem;
+}
+
+.biz-share-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.biz-share-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+/* The close circle reuses the header circle shape, smaller. */
+.biz-share-close {
+  width: 2.3rem;
+  border-width: var(--border-mid);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.biz-share-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+}
+
+.biz-share-tile {
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  padding: 0.8rem 0.4rem 0.7rem;
+  background: none;
+  border: none;
+  border-radius: 0.8rem;
+  font: inherit;
+  color: var(--color-ink);
   cursor: pointer;
 }
 
-.biz-demo:hover {
-  color: var(--color-orange);
+.biz-share-tile:hover {
+  background-color: var(--color-cream);
+}
+
+.biz-share-tile:active {
+  translate: 0 1px;
+}
+
+.biz-share-tile-icon {
+  display: grid;
+  place-items: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  background-color: #ffffff;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 999px;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.biz-share-tile-icon svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.biz-share-tile-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.biz-share-error {
+  margin: 0.9rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-red);
+}
+
+/* Reviewer note — the pink card a rejected offer leads with. */
+.biz-reviewnote {
+  margin-top: 1.6rem;
+  padding: 1.1rem 1.2rem 1.2rem;
+  background-color: #fbdcdc;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-pill);
+}
+
+.biz-reviewnote-label {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-red);
+}
+
+.biz-reviewnote p {
+  margin: 0.6rem 0 0;
+  font-size: 1.15rem;
+  line-height: 1.5;
+}
+
+/* Quick fix — the reviewer's suggested rewrite. */
+.biz-quickfix {
+  margin-top: 1.8rem;
+}
+
+.biz-quickfix-card {
+  margin-top: 0.9rem;
+  padding: 1rem 1.2rem 1.1rem;
+  background-color: #ffffff;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1rem;
+}
+
+.biz-quickfix-try {
+  font-size: 1.05rem;
+  color: var(--color-muted);
+}
+
+.biz-quickfix-text {
+  margin: 0.35rem 0 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.biz-quickfix-more {
+  margin: 0.9rem 0 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--color-stone);
+}
+
+/* Confirm modals (end offer, delete) — the share dialog's shell: paper
+   card, ink border, hard shadow, dimmed backdrop. Buttons stack
+   full-width like the design. */
+.biz-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background-color: rgba(20, 16, 12, 0.55);
+}
+
+.biz-modal-card {
+  width: min(26rem, 100%);
+  background-color: var(--color-paper);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.1rem;
+  box-shadow: 0.5rem 0.5rem 0 var(--color-ink);
+  padding: 1.4rem 1.4rem 1.5rem;
+}
+
+.biz-modal-title {
+  margin: 0 0 0.7rem;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.biz-modal-body {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.biz-modal-actions {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1.3rem;
+}
+
+.biz-modal-error {
+  margin: 0.8rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-red);
+}
+
+.biz-menu-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+.biz-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 41;
+  display: grid;
+  gap: 0.5rem;
+  min-width: 15rem;
+  padding: 0.8rem;
+  background-color: var(--color-paper);
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 0.9rem;
+  box-shadow: var(--shadow-pill);
+}
+
+.biz-menu-item {
+  padding: 0.55rem 0.7rem;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  color: var(--color-red);
+  cursor: pointer;
+  border-radius: 0.5rem;
+}
+
+.biz-menu-item:hover {
+  background-color: var(--color-cream);
+}
+
+.biz-menu-confirm {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.biz-menu-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.biz-menu-row .biz-btn {
+  flex: 1;
+}
+
+.biz-detail {
+  /* Clears the fixed action bar on statuses that have one. */
+  padding-bottom: 6.5rem;
+}
+
+.biz-detail-hero {
+  display: flex;
+  align-items: center;
+  gap: 1.3rem;
+  margin-top: 1.5rem;
+}
+
+/* The hero-sized tile — the list tile scaled up and tilted like the design.
+   Chained to .biz-otile so the upscale out-specifies the base tile's own
+   width/height further down the file; a bare .biz-dtile loses that race
+   and the text outgrows the tile. */
+.biz-otile.biz-dtile {
+  width: 8.5rem;
+  height: 8.5rem;
+  transform: rotate(-4deg);
+}
+
+/* Rejected offers show the tile straight — the tilt reads as "live". */
+.biz-otile.biz-dtile-flat {
+  transform: none;
+}
+
+.biz-dtile .biz-otile-big {
+  font-size: 2.5rem;
+}
+
+.biz-dtile .biz-otile-small {
+  font-size: 0.95rem;
+}
+
+.biz-detail-hero-main {
+  display: grid;
+  gap: 0.45rem;
+  justify-items: start;
+}
+
+.biz-detail-name {
+  margin: 0;
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.biz-detail-when {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-stone);
+}
+
+.biz-detail-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin-top: 1.3rem;
+  padding: 0.85rem 1rem;
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 0.9rem;
+  background-color: var(--color-cream);
+}
+
+.biz-detail-banner svg {
+  flex: none;
+  width: 1.2rem;
+  height: 1.2rem;
+  margin-top: 0.15rem;
+}
+
+.biz-detail-banner p {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.biz-detail-section {
+  margin-top: 2.1rem;
+}
+
+.biz-detail-sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.95rem;
+  color: var(--color-stone);
+}
+
+.biz-detail-stats {
+  margin-top: 1.1rem;
+}
+
+.biz-detail-fine {
+  margin: 1rem 0 0;
+  font-size: 0.9rem;
+  color: var(--color-stone);
+}
+
+.biz-detailcard {
+  margin-top: 1.1rem;
+  padding: 0.3rem 1.1rem;
+  background-color: var(--color-paper);
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-pill);
+}
+
+.biz-detailrow {
+  display: grid;
+  grid-template-columns: 8.5rem 1fr;
+  gap: 0.9rem;
+  align-items: baseline;
+  padding: 0.85rem 0;
+}
+
+.biz-detailrow + .biz-detailrow {
+  border-top: 1.5px solid var(--color-cream);
+}
+
+.biz-detailrow-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-stone);
+}
+
+.biz-detailrow-value {
+  font-size: 0.98rem;
+}
+
+.biz-detailrow-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.95rem;
+}
+
+.biz-detailrow-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.biz-detailrow-photos img {
+  display: block;
+  width: 4.5rem;
+  height: 4.5rem;
+  border: 2px solid var(--color-ink);
+  border-radius: 0.6rem;
+  object-fit: cover;
+}
+
+.biz-detail-error {
+  margin: 1.2rem 0 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-red);
+}
+
+.biz-detail-foot {
+  margin-top: 2rem;
+}
+
+/* The foot reuses the builder's fixed bar; its buttons carry inline icons
+   that need explicit sizing (SVGs default to 300×150 without it — which
+   blew the bar up over the content). */
+.biz-detail-foot .biz-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.biz-detail-foot .biz-btn svg {
+  flex: none;
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.biz-detail-half {
+  flex: 1 1 0;
+}
+
+.biz-detail-full {
+  flex: 1 1 100%;
+}
+
+/* The home "Live now" card opens the details screen too. */
+.biz-offerrow {
+  cursor: pointer;
+}
+
+@media (min-width: 56rem) {
+  /* The desktop shell is flush-left (shadows only fall down-right), but the
+     -4° tile tilt pushes its corners ~0.3rem past the box on every side —
+     without left padding the scroll pane clips them. */
+  .biz-detail-hero {
+    padding-left: 0.4rem;
+  }
+
+  /* Desktop bar follows the builder's convention: buttons hug their labels,
+     the primary action at the right edge, the secondary beside it. Mobile
+     keeps the design's full-width halves. */
+  .biz-detail-half,
+  .biz-detail-full {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .biz-detail-half:last-child,
+  .biz-detail-full {
+    margin-left: auto;
+  }
+
+  /* The bar is sticky inside the scroll pane on desktop — the fixed-bar
+     clearance is mobile-only. */
+  .biz-detail {
+    padding-bottom: 0.5rem;
+  }
+}
+
+
+.biz-dash-h3 {
+  margin: 0;
+  font-weight: 900;
+  font-size: 1.55rem;
+  letter-spacing: -0.02em;
+}
+
+.biz-attention {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  text-align: left;
+  background-color: #fbdce2;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.3rem;
+  box-shadow: 4px 5px 0 0 var(--color-ink);
+  color: var(--color-ink);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.biz-attention-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.5rem;
+  color: #d6336b;
+}
+
+.biz-attention-icon svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.biz-attention-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.biz-attention-title {
+  display: block;
+  font-weight: 800;
+  font-size: 1.08rem;
+}
+
+.biz-attention-sub {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--color-stone);
+  font-size: 0.95rem;
+}
+
+.biz-attention-chev {
+  flex: none;
+  width: 1.1rem;
+  color: var(--color-stone);
+}
+
+.biz-attention-chev svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  display: block;
+}
+
+.biz-offerrow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  background-color: #ffffff;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.3rem;
+  box-shadow: 4px 5px 0 0 var(--color-ink);
+}
+
+.biz-offerbadge {
+  display: grid;
+  place-items: center;
+  flex: none;
+  align-self: stretch;
+  width: 4.4rem;
+  background-color: var(--color-amber);
+  border: 2.5px solid var(--color-ink);
+  border-radius: 1rem;
+  font-weight: 900;
+  font-size: 1.45rem;
+  letter-spacing: -0.02em;
+  padding: 0.4rem;
+  text-align: center;
+}
+
+.biz-offer-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.biz-offer-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+.biz-offer-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.7rem;
+  background-color: #dff3e7;
+  color: #0e8a4c;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.biz-offer-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background-color: #1fa855;
+}
+
+.biz-offer-title {
+  display: block;
+  margin-top: 0.35rem;
+  font-weight: 800;
+  font-size: 1.08rem;
+}
+
+.biz-offer-stats {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--color-stone);
+  font-size: 0.92rem;
+}
+
+.biz-dash-signout {
+  display: block;
+  margin: 2.6rem auto 0;
+}
+
+/* Bottom navigation */
+
+.biz-dashnav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  width: min(100%, 38rem);
+  padding: 0.8rem 0.6rem calc(0.7rem + env(safe-area-inset-bottom));
+  background-color: #ffffff;
+  border-top: 3px solid var(--color-ink);
+}
+
+.biz-navitem {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.biz-navitem svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.biz-navitem.is-active span {
+  padding: 0.28rem 1rem;
+  background-color: var(--color-amber);
+  border: 2.5px solid var(--color-ink);
+  border-radius: 999px;
+}
+
+.biz-navscan {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  margin-top: -2.1rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.biz-navscan-chip {
+  display: grid;
+  place-items: center;
+  width: 3.9rem;
+  aspect-ratio: 1;
+  background-color: var(--color-orange);
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 1.4rem;
+  box-shadow: 4px 6px 0 0 var(--color-ink);
+  color: #ffffff;
+}
+
+.biz-navscan-chip svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* --- Dashboard desktop adaptation -------------------------------------------
+   The merchant screens are phone-first by design: forms and status screens
+   stay centered at reading width. The dashboard is the one surface that
+   earns a wide layout — two-column grid, split empty-state hero, floating
+   pill nav. */
+
+.biz-dash-attention {
+  margin-top: 1.7rem;
+}
+
+/* Sidebar-only pieces (desktop) — absent from the mobile bottom bar. */
+.biz-navcompose,
+.biz-navitem-create,
+.biz-navsignout {
+  display: none;
+}
+
+/* --- Offers list view -----------------------------------------------------
+   "Your offers": FAB + display title, scrollable filter chips, and one
+   bordered card per offer with its tile, lifecycle chip and counters. */
+
+.biz-offers-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-top: 0.4rem;
+}
+
+.biz-fab {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  background-color: var(--color-yellow);
+  color: var(--color-ink);
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 999px;
+  box-shadow: var(--shadow-pill);
+  cursor: pointer;
+}
+
+.biz-fab svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.biz-fab:hover {
+  translate: 1px 1px;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
+}
+
+.biz-offers-title {
+  align-self: flex-start;
+  margin: 0;
+  font-size: clamp(2.3rem, 9vw, 2.7rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+.biz-offer-filters {
+  display: flex;
+  gap: 0.7rem;
+  margin: 1.5rem 0 1.3rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  scrollbar-width: none;
+}
+
+.biz-offer-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.biz-fchip {
+  flex: none;
+  padding: 0.62rem 1.2rem;
+  background-color: var(--color-paper);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.biz-fchip.is-on {
+  background-color: var(--color-ink);
+  border-color: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.biz-offerlist {
+  display: grid;
+  gap: 1.3rem;
+}
+
+.biz-offer-card {
+  display: flex;
+  align-items: center;
+  gap: 1.05rem;
+  width: 100%;
+  padding: 1.05rem 1rem 1.05rem 1.05rem;
+  background-color: var(--color-paper);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.4rem;
+  box-shadow: var(--shadow-card);
+  font-family: inherit;
+  color: var(--color-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.biz-otile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  flex: none;
+  width: 5.7rem;
+  height: 5.7rem;
+  padding: 0.4rem;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.1rem;
+  text-align: center;
+}
+
+.biz-otile-big {
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.biz-otile-small {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.biz-otile-yellow {
+  background-color: var(--color-yellow);
+  color: var(--color-ink);
+}
+
+.biz-otile-red {
+  background-color: var(--color-orange);
+  color: #ffffff;
+}
+
+.biz-otile-pink {
+  background-color: #f06bac;
+  color: #ffffff;
+}
+
+.biz-otile-green {
+  background-color: var(--color-green);
+  color: #ffffff;
+}
+
+.biz-otile-gray {
+  background-color: #e9e4d8;
+  color: var(--color-stone);
+}
+
+.biz-ocard-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.biz-ocard-top {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.biz-ochip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: none;
+  padding: 0.28rem 0.75rem;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.biz-ochip-live {
+  background-color: #dff3e7;
+  color: #0e8a4c;
+}
+
+.biz-ochip-scheduled {
+  background-color: #fdecc8;
+  color: var(--color-ink);
+}
+
+.biz-ochip-review {
+  background-color: #fdecc8;
+  color: #b45309;
+}
+
+.biz-ochip-draft {
+  background-color: #f3efe4;
+  color: var(--color-stone);
+}
+
+.biz-ochip-changes {
+  background-color: #fbdcdc;
+  color: var(--color-red);
+}
+
+.biz-ochip-gray {
+  background-color: #ece8dc;
+  color: var(--color-stone);
+}
+
+.biz-ocard-dates {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.biz-ocard-title {
+  display: block;
+  margin-top: 0.45rem;
+  font-weight: 800;
+  font-size: 1.12rem;
+  line-height: 1.25;
+}
+
+.biz-ocard-meta {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: var(--color-stone);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.biz-ocard-meta > span {
+  margin-right: 1.15rem;
+}
+
+.biz-ocard-meta > span:last-child {
+  margin-right: 0;
+}
+
+.biz-ocard-strong {
+  color: var(--color-ink);
+  font-weight: 800;
+}
+
+.biz-ocard-chev {
+  flex: none;
+  color: var(--color-stone);
+}
+
+.biz-ocard-chev svg {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.biz-onone {
+  margin-top: 2.2rem;
+  text-align: center;
+  font-weight: 600;
+  color: var(--color-stone);
+}
+
+.biz-oempty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  margin-top: 3.2rem;
+  text-align: center;
+}
+
+.biz-oempty-tile {
+  display: grid;
+  place-items: center;
+  width: 4.6rem;
+  height: 4.6rem;
+  background-color: var(--color-yellow);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.2rem;
+  box-shadow: var(--shadow-pill);
+}
+
+.biz-oempty-tile svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+.biz-oempty-h {
+  margin: 0.3rem 0 0;
+  font-size: 1.7rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.biz-oempty-body {
+  max-width: 24rem;
+  margin: 0 0 0.5rem;
+  color: var(--color-stone);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.biz-oempty .btn-primary {
+  width: fit-content;
+  align-self: center;
+}
+
+/* --- Offer builder --------------------------------------------------------
+   Four steps plus the sent screen. Own header and pinned action bar on
+   mobile (the bottom nav hides — the flow is focused); the content column
+   beside the sidebar on desktop. */
+
+.biz-dash.is-create .biz-dashnav {
+  display: none;
+}
+
+.biz-ob-top {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  margin-top: 0.4rem;
+}
+
+.biz-ob-back {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 3.2rem;
+  height: 3.2rem;
+  padding: 0;
+  background-color: var(--color-paper);
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 999px;
+  box-shadow: var(--shadow-pill);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.biz-ob-back svg {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+.biz-ob-back:hover {
+  translate: 1px 1px;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
+}
+
+.biz-ob-title {
+  margin: 0;
+  font-size: clamp(1.7rem, 6vw, 2rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.biz-ob-savedraft {
+  margin-left: auto;
+  padding: 0.4rem 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 1.02rem;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.biz-ob-savedraft:hover {
+  color: var(--color-orange-deep);
+}
+
+.biz-ob-savedraft:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.biz-ob-error {
+  margin: 1.4rem 0 0;
+  padding: 0.85rem 1.05rem;
+  background-color: #fbdcdc;
+  border: var(--border-mid) solid var(--color-red);
+  border-radius: 1rem;
+  color: var(--color-red);
+  font-weight: 700;
+  font-size: 0.98rem;
+  line-height: 1.4;
+}
+
+/* Offer-type tiles — selected tile goes ink with a yellow value. */
+.biz-dealgrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.9rem;
+}
+
+.biz-dealtile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 1.15rem 0.4rem;
+  background-color: var(--color-paper);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.2rem;
+  font-family: inherit;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.biz-dealtile:hover {
+  background-color: var(--color-cream);
+}
+
+.biz-dealtile-big {
+  font-size: 1.55rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.biz-dealtile-small {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-stone);
+}
+
+.biz-dealtile.is-on {
+  background-color: var(--color-ink);
+  border-color: var(--color-ink);
+  box-shadow: var(--shadow-pill);
+}
+
+.biz-dealtile.is-on .biz-dealtile-big {
+  color: var(--color-yellow);
+}
+
+.biz-dealtile.is-on .biz-dealtile-small {
+  color: var(--color-paper);
+}
+
+/* Paired inputs — discount value + scope, starts + ends. */
+.biz-duo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+}
+
+.biz-duo-deal {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr);
+}
+
+.biz-duo-cell {
+  min-width: 0;
+}
+
+.biz-duo .biz-inputrow {
+  min-width: 0;
+}
+
+/* The calendar icons inside the date rows — svg sizing is scoped per
+   context in this codebase. */
+.biz-inputrow > svg {
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: none;
+}
+
+.biz-unit {
+  flex: none;
+  font-weight: 800;
+  font-size: 1.12rem;
+  color: var(--color-ink);
+}
+
+.biz-textarea {
+  min-height: 8.5rem;
+  padding: 0.9rem 1.05rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+/* Photo slots — dashed when empty, full-bleed image when filled. */
+.biz-photoduo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+}
+
+.biz-photoslot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 6.8rem;
+  background-color: var(--color-paper);
+  border: 2.5px dashed var(--color-amber);
+  border-radius: 1.1rem;
+  color: var(--color-stone);
+  font-weight: 700;
+  font-size: 0.88rem;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.biz-photoslot svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.biz-photoslot.has-photo {
+  border: var(--border-mid) solid var(--color-ink);
+}
+
+.biz-photoslot.is-busy {
+  opacity: 0.55;
+}
+
+.biz-photoslot img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.biz-photopick {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.biz-photodel {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background-color: var(--color-paper);
+  border: 2.5px solid var(--color-ink);
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 1.05rem;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+/* Redemption choice cards — selected card fills yellow. */
+.biz-redlist {
+  display: grid;
+  gap: 1rem;
+}
+
+.biz-redcard {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.95rem;
+  padding: 1.15rem 1.2rem;
+  background-color: var(--color-paper);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.3rem;
+  font-family: inherit;
+  color: var(--color-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.biz-redcard.is-on {
+  background-color: var(--color-yellow);
+  box-shadow: var(--shadow-pill);
+}
+
+.biz-redradio {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  margin-top: 0.15rem;
+  background-color: var(--color-paper);
+  border: 2.5px solid var(--color-ink);
+  border-radius: 999px;
+}
+
+.biz-redradio::after {
+  content: '';
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  background-color: transparent;
+}
+
+.biz-redcard.is-on .biz-redradio::after {
+  background-color: var(--color-orange);
+}
+
+.biz-redicon {
+  flex: none;
+  margin-top: 0.1rem;
+  color: var(--color-ink);
+}
+
+.biz-redicon svg {
+  width: 1.45rem;
+  height: 1.45rem;
+  display: block;
+}
+
+.biz-redmain {
+  flex: 1;
+  min-width: 0;
+}
+
+.biz-redtitle {
+  display: block;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.biz-redsub {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--color-stone);
+  font-size: 0.98rem;
+  line-height: 1.45;
+}
+
+/* Checkbox rows — ink square with a white check when on. */
+.biz-optlist {
+  display: grid;
+  gap: 1.05rem;
+}
+
+.biz-optrow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.biz-optbox {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  background-color: transparent;
+  border: 2.5px solid #b9ad97;
+  border-radius: 0.7rem;
+  color: var(--color-paper);
+  cursor: pointer;
+}
+
+.biz-optbox.is-on {
+  background-color: var(--color-ink);
+  border-color: var(--color-ink);
+}
+
+.biz-optbox svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.biz-optlabel {
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.biz-optinput {
+  flex: none;
+  width: 9.5rem;
+  min-height: 3.1rem;
+  margin-left: auto;
+}
+
+/* Mono section captions inside the preview step. */
+.biz-ob-cap {
+  margin: 2.1rem 0 0.8rem;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+/* Customer-card preview — mirrors the customer app's list card. */
+.biz-pv-card {
+  display: flex;
+  align-items: center;
+  gap: 1.05rem;
+  padding: 1.1rem 1rem 1.1rem 1.05rem;
+  background-color: var(--color-paper);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.4rem;
+  box-shadow: var(--shadow-card);
+}
+
+.biz-pv-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.biz-pv-title {
+  display: block;
+  font-weight: 800;
+  font-size: 1.12rem;
+  line-height: 1.3;
+}
+
+.biz-pv-shop {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.3rem;
+  color: var(--color-stone);
+  font-weight: 700;
+  font-size: 0.98rem;
+}
+
+.biz-pv-shop svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: none;
+}
+
+.biz-pv-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.6rem;
+}
+
+.biz-pv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.8rem;
+  background-color: var(--color-cream);
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--color-ink);
+}
+
+.biz-pv-chip svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex: none;
+}
+
+.biz-pv-mark {
+  flex: none;
+  color: var(--color-stone);
+}
+
+.biz-pv-mark svg {
+  width: 1.3rem;
+  height: 1.3rem;
+  display: block;
+}
+
+/* Map preview with the offer's pin bubble. */
+.biz-ob-map {
+  position: relative;
+  height: 15rem;
+  background-color: var(--color-cream);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.3rem;
+  overflow: hidden;
+  /* Same Firefox quirk as .biz-map: the composited WebGL canvas escapes a
+     rounded overflow clip, so clip at the compositor instead. */
+  clip-path: inset(0 round 1.3rem);
+}
+
+.biz-ob-map-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.biz-map-pin {
+  /* MapLibre positions the marker with a JS transform and expects the
+     element to be absolutely placed at 0,0 — owning those properties here
+     keeps the pin compact no matter which stylesheet loads last. */
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  min-width: 3.4rem;
+  padding: 0.45rem 0.8rem 0.55rem;
+  background-color: var(--color-orange);
+  border: 2.5px solid var(--color-ink);
+  border-radius: 999px;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
+  color: var(--color-paper);
+  font-family: var(--font-sans);
+  font-weight: 900;
+  font-size: 0.95rem;
+}
+
+.biz-map-pin::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  translate: -50% 0;
+  rotate: 45deg;
+  width: 0.85rem;
+  height: 0.85rem;
+  background-color: var(--color-orange);
+  border-right: 2.5px solid var(--color-ink);
+  border-bottom: 2.5px solid var(--color-ink);
+  border-bottom-right-radius: 0.25rem;
+}
+
+/* Summary card with Edit jumps. */
+.biz-sumcard {
+  margin-top: 1.6rem;
+  background-color: var(--color-paper);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.3rem;
+  overflow: hidden;
+}
+
+.biz-sumrow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.05rem 1.2rem;
+}
+
+.biz-sumrow + .biz-sumrow {
+  border-top: 2px solid var(--color-hairline);
+}
+
+.biz-sumrow > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.biz-sumlabel {
+  margin: 0;
+  font-weight: 800;
+  font-size: 1.08rem;
+}
+
+.biz-sumvalue {
+  margin: 0.2rem 0 0;
+  color: var(--color-stone);
+  font-size: 0.98rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.biz-sumedit {
+  flex: none;
+  padding: 0.3rem 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--color-orange-deep);
+  cursor: pointer;
+}
+
+.biz-sumedit:hover {
+  text-decoration: underline;
+}
+
+.biz-honour {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-top: 1.6rem;
+}
+
+.biz-honour p {
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+  font-size: 1.02rem;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+
+/* Pinned action bar — fixed to the viewport on mobile, sticky at the
+   column foot on desktop. */
+.biz-ob-foot {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  gap: 1rem;
+  padding: 1rem clamp(1.5rem, 5vw, 2rem) calc(1rem + env(safe-area-inset-bottom, 0px));
+  background-color: var(--color-cream);
+  border-top: var(--border-strong) solid var(--color-ink);
+}
+
+.biz-ob-backbtn {
+  flex: none;
+  width: 8.6rem;
+}
+
+.biz-ob-go {
+  flex: 1;
+  width: auto;
+}
+
+.biz-ob-go svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+/* Sent screen — tilted tile, mono reference, two actions. */
+.biz-sent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 34rem;
+  margin-top: 1rem;
+}
+
+.biz-sent-tile {
+  display: grid;
+  place-items: center;
+  width: 8.5rem;
+  height: 8.5rem;
+  margin-top: 3.5rem;
+  background-color: var(--color-orange);
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 2rem;
+  box-shadow: var(--shadow-card);
+  color: var(--color-paper);
+  rotate: -5deg;
+}
+
+.biz-sent-tile svg {
+  width: 3rem;
+  height: 3rem;
+}
+
+.biz-sent-h {
+  margin: 2.2rem 0 0;
+  font-size: clamp(2.1rem, 8vw, 2.6rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.biz-sent-body {
+  margin: 1.1rem 0 0;
+  color: var(--color-stone);
+  font-size: 1.13rem;
+  line-height: 1.55;
+}
+
+.biz-sent-ref {
+  margin: 1.6rem 0 0;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.9rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+.biz-sent-go {
+  width: 100%;
+  margin-top: 1.8rem;
+}
+
+.biz-sent-again {
+  margin-top: 1.4rem;
+  align-self: center;
+}
+
+@media (min-width: 56rem) {
+  /* The page becomes a Gmail-style shell: a full-height app frame where the
+     page itself never scrolls — each pane scrolls independently. */
+  .biz-dash {
+    display: grid;
+    grid-template-columns: 15.5rem minmax(0, 1fr);
+    column-gap: 2.2rem;
+    height: 100dvh;
+    overflow: hidden;
+    padding: 1.6rem clamp(1.5rem, 3vw, 2.5rem) 2rem;
+  }
+
+  .biz-dash-shell {
+    grid-column: 2;
+    grid-row: 1;
+    max-width: 64rem;
+    margin-inline: 0;
+    /* Right padding keeps ink shadows inside the pane — a scroll container
+       clips shadow paint at its own box, and shadows are not scrollable
+       content. Left stays flush; shadows only fall down-right. */
+    padding: 0.4rem 0.4rem 2rem 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* Empty state: a centered media-object hero — tile left, pitch right, and
+     a button sized like a button instead of a billboard. */
+  .biz-first {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: center;
+    column-gap: 3.5rem;
+    align-items: center;
+    margin-top: 2.4rem;
+  }
+
+  .biz-first-tile {
+    margin-top: 0;
+  }
+
+  .biz-first-main {
+    max-width: 30rem;
+  }
+
+  .biz-dash-cta {
+    width: fit-content;
+  }
+
+  /* Full dashboard: hero + stats flow down the left column, actions +
+     attention stack in the right one, and the offer list spans full width. */
+  .biz-dashgrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    grid-template-areas:
+      'hero actions'
+      'stats attention'
+      'offers offers';
+    align-items: start;
+    column-gap: 2.5rem;
+  }
+
+  .biz-dashgrid .biz-hero {
+    grid-area: hero;
+  }
+
+  .biz-dashgrid .biz-statrow {
+    grid-area: stats;
+  }
+
+  .biz-dashgrid .biz-dash-actions {
+    grid-area: actions;
+  }
+
+  .biz-dashgrid .biz-dash-attention {
+    grid-area: attention;
+  }
+
+  .biz-dashgrid .biz-dash-offers {
+    grid-area: offers;
+  }
+
+  .biz-dash-actions {
+    grid-template-columns: 1fr;
+  }
+
+  /* Sign-out lives in the sidebar on desktop; the mobile bottom link hides. */
+  .biz-dash-signout {
+    display: none;
+  }
+
+  /* The bottom bar becomes a Gmail-style floating sidebar: the Scan action
+     on top, nav rows beneath (the active one fills), utility pinned to the
+     bottom. The pane scrolls on its own when a short viewport cuts it. */
+  .biz-dashnav {
+    /* Back to an in-flow grid pane — the mobile base's position: fixed,
+       left: 50% and translate would otherwise keep it floating mid-screen. */
+    position: static;
+    translate: none;
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    width: auto;
+    height: 100%;
+    padding: 1rem 0.9rem;
+    background-color: #ffffff;
+    border: var(--border-strong) solid var(--color-ink);
+    border-radius: 1.5rem;
+    box-shadow: var(--shadow-card);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .biz-navcompose {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin: 0.2rem 0.2rem 1.2rem;
+    padding: 0.8rem 1rem;
+    background-color: var(--color-orange);
+    color: #ffffff;
+    border: var(--border-strong) solid var(--color-ink);
+    border-radius: 999px;
+    box-shadow: var(--shadow-pill);
+    font-weight: 800;
+    font-size: 1.02rem;
+    cursor: pointer;
+  }
+
+  .biz-navcompose svg {
+    width: 1.2rem;
+    height: 1.2rem;
+  }
+
+  .biz-navcompose:hover {
+    translate: 1px 1px;
+    box-shadow: 2px 3px 0 0 var(--color-ink);
+  }
+
+  .biz-navitem {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    width: 100%;
+    padding: 0.65rem 1.1rem;
+    border: 2.5px solid transparent;
+    border-radius: 999px;
+    font-size: 1rem;
+    text-align: left;
+  }
+
+  .biz-navitem svg {
+    width: 1.3rem;
+    height: 1.3rem;
+  }
+
+  .biz-navitem:hover {
+    background-color: var(--color-cream);
+  }
+
+  .biz-navitem.is-active {
+    background-color: var(--color-yellow);
+    border-color: var(--color-ink);
+    box-shadow: 2px 3px 0 0 var(--color-ink);
+  }
+
+  .biz-navitem.is-active span {
+    padding: 0;
+    background: none;
+    border: none;
+  }
+
+  .biz-navscan {
+    display: none;
+  }
+
+  /* Scanning lives in the sidebar's top button now; the create actions stay
+     in the content column. */
+  .biz-dash-actions .btn-secondary {
+    display: none;
+  }
+
+  .biz-navsignout {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin-top: auto;
+    padding: 0.65rem 1.1rem;
+    border: none;
+    background: none;
+    font-family: inherit;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--color-stone);
+    cursor: pointer;
+  }
+
+  .biz-navsignout svg {
+    width: 1.3rem;
+    height: 1.3rem;
+  }
+
+  .biz-navsignout:hover {
+    background-color: #f9d9d6;
+    color: var(--color-red);
+  }
+
+  /* Offers view: the sidebar's Create row owns creation, so the floating
+     action button retires; the filter chips wrap instead of scrolling. */
+  .biz-fab {
+    display: none;
+  }
+
+  .biz-offer-filters {
+    overflow-x: visible;
+    flex-wrap: wrap;
+    padding-bottom: 0;
+  }
+
+  /* Offer builder: the sidebar stays (the Create row lights up), the deal
+     step and the preview go two-column, and the action bar docks to the
+     column foot instead of the viewport. */
+  .biz-dash.is-create .biz-dashnav {
+    display: flex;
+  }
+
+  /* The action bar is the form's last element — no shell padding under it,
+     so it lands flush with the pane's foot at full scroll. */
+  .biz-dash.is-create .biz-dash-shell {
+    padding-bottom: 0;
+  }
+
+  .biz-ob-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 3rem;
+    align-items: start;
+  }
+
+  .biz-ob-narrow {
+    max-width: 40rem;
+  }
+
+  .biz-pv-duo {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 2.6rem;
+    align-items: start;
+  }
+
+  .biz-ob-foot {
+    position: sticky;
+    left: auto;
+    right: auto;
+    bottom: 0;
+    margin-top: 2rem;
+    padding: 1rem 0 calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Desktop bar: the action button hugs its label and sits at the right
+     edge — Back (when present) stays on the left. Mobile keeps the
+     full-width thumb button. */
+  .biz-ob-go {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+}
+
+/* ---- Scan flow (BusinessScan overlay) ----
+   Dark camera stage on mobile-first; the code screen flips the overlay to
+   the app's cream. On desktop the sheet becomes a centered card. */
+
+.biz-scan {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: #17130e;
+  color: var(--color-cream);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.biz-scan-head {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1.1rem clamp(1.2rem, 4vw, 2rem);
+}
+
+.biz-scan-head h1 {
+  margin: 0;
+  flex: 1;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.biz-scan-circle {
+  width: 2.7rem;
+  height: 2.7rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-cream);
+  color: #17130e;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.biz-scan-circle svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.biz-scan-circle.is-on {
+  background: var(--color-yellow);
+}
+
+/* Spacer that keeps the title centred when the torch button is absent. */
+.biz-scan-void {
+  background: transparent;
+}
+
+.biz-scan-body {
+  flex: 1;
+  width: 100%;
+  max-width: 30rem;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  padding: 0.5rem clamp(1.2rem, 4vw, 2rem) 2rem;
+}
+
+.biz-scan-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 1.2rem;
+  overflow: hidden;
+  background: #000;
+}
+
+.biz-scan-frame video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  /* Webcam feeds read better mirrored (selfie convention). A true rear
+     camera opts out via .biz-scan-rear — CSS mirroring never touches the
+     pixels the QR detector reads, so scanning is unaffected either way. */
+  transform: scaleX(-1);
+}
+
+.biz-scan-frame.biz-scan-rear video {
+  transform: none;
+}
+
+.biz-scan-wait {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 1.4rem;
+  background: #211b13;
+  color: #b7ab93;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.biz-scan-wait p {
+  margin: 0;
+  max-width: 22rem;
+}
+
+.biz-scan-corner {
+  position: absolute;
+  z-index: 3;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 4px solid var(--color-yellow);
+}
+
+.biz-scan-tl {
+  top: 14px;
+  left: 14px;
+  border-right: none;
+  border-bottom: none;
+  border-top-left-radius: 0.5rem;
+}
+
+.biz-scan-tr {
+  top: 14px;
+  right: 14px;
+  border-left: none;
+  border-bottom: none;
+  border-top-right-radius: 0.5rem;
+}
+
+.biz-scan-bl {
+  bottom: 14px;
+  left: 14px;
+  border-right: none;
+  border-top: none;
+  border-bottom-left-radius: 0.5rem;
+}
+
+.biz-scan-br {
+  bottom: 14px;
+  right: 14px;
+  border-left: none;
+  border-top: none;
+  border-bottom-right-radius: 0.5rem;
+}
+
+.biz-scan-laser {
+  position: absolute;
+  z-index: 3;
+  left: 14px;
+  right: 14px;
+  top: 12%;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-red);
+  box-shadow: 0 0 12px rgba(208, 52, 44, 0.8);
+  animation: biz-scan-sweep 2.6s ease-in-out infinite alternate;
+}
+
+@keyframes biz-scan-sweep {
+  from {
+    top: 12%;
+  }
+  to {
+    top: 84%;
+  }
+}
+
+.biz-scan-hint {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #b7ab93;
+  text-align: center;
+}
+
+.biz-scan-manual {
+  border: 2.5px solid var(--color-cream);
+  background: transparent;
+  color: var(--color-cream);
+  font: inherit;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 0.75rem 1.6rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.biz-scan-manual:hover {
+  background: rgba(255, 244, 224, 0.12);
+}
+
+/* Code screen — cream, matching the app's surfaces. */
+
+.biz-scan-light {
+  background: var(--color-cream);
+  color: var(--color-ink);
+}
+
+.biz-scan-light .biz-scan-circle {
+  background: var(--color-ink);
+  color: var(--color-cream);
+}
+
+.biz-scan-code {
+  flex: 1;
+  width: 100%;
+  max-width: 30rem;
+  margin-inline: auto;
+  padding: 0.2rem clamp(1.2rem, 4vw, 2rem) 3rem;
+}
+
+.biz-scan-explainer {
+  margin: 0.4rem 0 0;
+  color: var(--color-stone);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.biz-scan-coderow {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 1.4rem;
+}
+
+.biz-scan-nz {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1.5rem;
+  letter-spacing: 0.06em;
+}
+
+.biz-scan-codeinput {
+  width: 6.2rem;
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0.7rem 0.4rem;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 0.9rem;
+  background: #fff;
+  color: var(--color-ink);
+}
+
+.biz-scan-codeinput:focus {
+  outline: 3px solid var(--color-yellow);
+  outline-offset: 1px;
+}
+
+.biz-scan-dash {
+  font-size: 1.4rem;
+  color: var(--color-stone);
+}
+
+.biz-scan-check {
+  margin-top: 1.4rem;
+  width: 100%;
+}
+
+.biz-scan-err {
+  margin: 0.8rem 0 0;
+  color: var(--color-red);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.biz-scan-manualsec {
+  margin-top: 2.2rem;
+}
+
+.biz-scan-manualsec h2 {
+  margin: 0 0 0.8rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.biz-scan-manualcard {
+  background: #fff;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 1.1rem;
+  box-shadow: var(--shadow-card);
+  padding: 1.1rem 1.2rem 1.2rem;
+}
+
+.biz-scan-manualcard > p {
+  margin: 0 0 1rem;
+  color: var(--color-stone);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.biz-scan-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  background: var(--color-yellow);
+  border: 2.5px solid var(--color-ink);
+  border-radius: 999px;
+  box-shadow: var(--shadow-pill);
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.98rem;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  color: var(--color-ink);
+}
+
+.biz-scan-mark + .biz-scan-mark {
+  margin-top: 0.7rem;
+}
+
+.biz-scan-mark:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 2px 0 0 var(--color-ink);
+}
+
+.biz-scan-mark svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+/* Result sheet — bottom sheet on mobile, centred card on desktop. */
+
+.biz-scan-sheetwrap {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(23, 19, 14, 0.55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.biz-scan-sheet {
+  width: 100%;
+  max-width: 30rem;
+  background: var(--color-cream);
+  color: var(--color-ink);
+  border: 2.5px solid var(--color-ink);
+  border-bottom: none;
+  border-radius: 1.4rem 1.4rem 0 0;
+  padding: 1.6rem 1.4rem calc(1.6rem + env(safe-area-inset-bottom, 0px));
+  text-align: center;
+}
+
+@media (min-width: 56rem) {
+  .biz-scan-sheetwrap {
+    align-items: center;
+    padding: 2rem;
+  }
+
+  .biz-scan-sheet {
+    border-bottom: 2.5px solid var(--color-ink);
+    border-radius: 1.4rem;
+    box-shadow: var(--shadow-card);
+  }
+}
+
+.biz-scan-sheeticon {
+  display: inline-grid;
+  place-items: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 1rem;
+  background: var(--color-red);
+  color: #fff;
+  transform: rotate(-4deg);
+}
+
+.biz-scan-sheeticon svg {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.biz-scan-sheet h2 {
+  margin: 1rem 0 0;
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.biz-scan-sheetcode {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--color-stone);
+}
+
+.biz-scan-sheetbody {
+  margin: 0.7rem auto 0;
+  max-width: 26rem;
+  color: var(--color-stone);
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+.biz-scan-sheet .btn-danger {
+  margin-top: 1.3rem;
+  width: 100%;
+}
+
+.biz-scan-sheetlink {
+  margin-top: 0.9rem;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Redeemed — the green full screen. */
+
+.biz-scan.biz-scan-done {
+  background: var(--color-green);
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.biz-scan-checktile {
+  display: grid;
+  place-items: center;
+  width: 4.6rem;
+  height: 4.6rem;
+  background: #fff;
+  color: var(--color-green);
+  border-radius: 1.2rem;
+  transform: rotate(-5deg);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.biz-scan-checktile svg {
+  width: 2.4rem;
+  height: 2.4rem;
+}
+
+.biz-scan-done h1 {
+  margin: 1.2rem 0 0;
+  font-size: clamp(2.6rem, 9vw, 3.6rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.biz-scan-give {
+  margin: 0.5rem 0 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.biz-scan-meta {
+  margin: 0.9rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.biz-scan-next {
+  margin-top: 2.2rem;
+  background: #fff;
+  color: var(--color-green);
+  border: none;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 800;
+  font-size: 1.05rem;
+  padding: 0.85rem 2.2rem;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.biz-scan-undo {
+  margin-top: 1.1rem;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.9);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.biz-scan-doneerr {
+  margin: 0.9rem 0 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 0.6rem;
+  padding: 0.45rem 0.8rem;
+}
+
+/* ---- Insights ---- */
+
+.biz-insights {
+  width: 100%;
+  max-width: 34rem;
+  margin-inline: auto;
+  padding: 0 clamp(1.2rem, 4vw, 2rem) 3rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.biz-insights-title {
+  align-self: flex-start;
+  margin: 0;
+  font-size: clamp(2.3rem, 9vw, 2.7rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+.biz-insights-sub {
+  margin: 0.5rem 0 0;
+  font-size: 1.1rem;
+  color: var(--color-stone);
+}
+
+.biz-insights-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 1.4rem;
+}
+
+.biz-insights-chip {
+  border: 2.5px solid var(--color-ink);
+  background: #fff;
+  color: var(--color-ink);
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.98rem;
+  padding: 0.55rem 1.2rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.biz-insights-chip.is-on {
+  background: var(--color-ink);
+  color: var(--color-cream);
+}
+
+.biz-insights-card {
+  margin-top: 1.6rem;
+  padding: 1.4rem 1.3rem 1.5rem;
+}
+
+.biz-insights-label {
+  margin: 0 0 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+.biz-insights-row {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.biz-insights-row + .biz-insights-row {
+  margin-top: 0.75rem;
+}
+
+/* Bars live in a fixed 58% zone so a full-width bar never pushes its
+   label out of the card. */
+.biz-insights-barzone {
+  flex: 0 0 58%;
+  display: flex;
+}
+
+.biz-insights-bar {
+  display: flex;
+  align-items: center;
+  min-width: 4.2rem;
+  padding: 0.55rem 0.9rem;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+
+.biz-insights-gold {
+  background: var(--color-yellow);
+}
+
+.biz-insights-pale {
+  background: #ffd966;
+}
+
+.biz-insights-red {
+  background: var(--color-red);
+  color: #fff;
+}
+
+.biz-insights-rowlabel {
+  flex: 1;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.biz-insights-empty {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  color: var(--color-stone);
+}
+
+.biz-insights-charttop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.biz-insights-charttop .biz-insights-label {
+  margin: 0;
+}
+
+.biz-insights-peak {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.biz-insights-chart {
+  display: flex;
+  gap: 0.45rem;
+  height: 11rem;
+  margin-top: 1.3rem;
+}
+
+.biz-insights-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.biz-insights-barzone-v {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+}
+
+.biz-insights-vbar {
+  width: 100%;
+  max-width: 2.6rem;
+  margin-inline: auto;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 0.55rem;
+  background: var(--color-yellow);
+}
+
+.biz-insights-vbar.is-peak {
+  background: var(--color-red);
+}
+
+.biz-insights-collabel {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-stone);
+  text-align: center;
+}
+
+/* Stat strip under the range chips. */
+.biz-insights-stats {
+  margin-top: 1.1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.9rem;
+}
+
+.biz-insights-stat {
+  padding: 0.9rem 1rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.biz-insights-statvalue {
+  font-size: 1.7rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.biz-insights-statvalue.is-up {
+  color: var(--color-green);
+}
+
+.biz-insights-statvalue.is-down {
+  color: var(--color-red);
+}
+
+.biz-insights-statlabel {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+/* How redemptions happened, under the funnel. */
+.biz-insights-split {
+  margin: 0.9rem 0 0;
+  font-size: 0.92rem;
+  color: var(--color-stone);
+}
+
+/* The hour chart reads buckets without dates — label it honestly. */
+.biz-insights-alltime {
+  margin-left: 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 400;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+/* Offer-by-offer table. */
+.biz-insights-wide {
+  margin-top: 1.2rem;
+}
+
+.biz-insights-ohead,
+.biz-insights-orow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.2rem 5.2rem 3.8rem;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.biz-insights-ohead {
+  padding-bottom: 0.45rem;
+  border-bottom: 2px solid var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+.biz-insights-ohead span:not(:first-child) {
+  text-align: right;
+}
+
+.biz-insights-orow {
+  padding: 0.65rem 0;
+}
+
+.biz-insights-orow + .biz-insights-orow {
+  border-top: 1.5px solid var(--color-hairline);
+}
+
+.biz-insights-oname {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.biz-insights-otitle {
+  font-weight: 800;
+  font-size: 1.02rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.biz-insights-onum {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.biz-insights-ostatus,
+.biz-insights-otop {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.16rem 0.5rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--color-ink);
+}
+
+.biz-insights-ostatus {
+  color: var(--color-stone);
+  border-color: var(--color-hairline);
+}
+
+.biz-insights-otop {
+  background: var(--color-yellow);
+}
+
+/* ---- Shop page (BusinessShop) ---- */
+
+.biz-shop {
+  width: 100%;
+  max-width: 34rem;
+  margin-inline: auto;
+  padding: 0 clamp(1.2rem, 4vw, 2rem) 3rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.biz-shophero {
+  border: 2.5px solid var(--color-ink);
+  border-radius: 1.4rem;
+  background: #fff;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.biz-shophero-photo {
+  position: relative;
+  height: 11rem;
+  background-color: #f9edd6;
+  border-bottom: 2.5px solid var(--color-ink);
+}
+
+.biz-shophero-photo::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(242, 168, 29, 0.18) 0 1.05rem,
+    transparent 1.05rem 2.1rem
+  );
+}
+
+.biz-shophero-photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.biz-shophero-tag {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 0.5rem 0.95rem;
+  border-radius: 0.6rem;
+  background-color: rgba(255, 251, 240, 0.92);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.13em;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+
+.biz-shophero-body {
+  padding: 1.1rem 1.2rem 1.3rem;
+}
+
+.biz-shophero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.biz-shopchip-cat {
+  background: var(--color-yellow);
+  color: var(--color-ink);
+}
+
+.biz-shopchip-verified {
+  background: #c9f2d3;
+  color: #116b33;
+  gap: 0.35rem;
+}
+
+.biz-shopchip-verified svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.biz-shopchip-open {
+  background: #c9f2d3;
+  color: #116b33;
+}
+
+.biz-shophero-name {
+  margin: 0.8rem 0 0;
+  font-size: clamp(1.9rem, 6vw, 2.3rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.biz-shophero-addr {
+  margin: 0.45rem 0 0;
+  font-size: 1.02rem;
+  color: var(--color-stone);
+}
+
+.biz-shophero-edit {
+  margin-top: 1.1rem;
+  width: 100%;
+}
+
+.biz-shophero-edit svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.biz-shop-h2 {
+  margin: 1.7rem 0 0;
+  font-size: 1.7rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.biz-shopcard {
+  margin-top: 0.9rem;
+  padding: 0.2rem 1.1rem;
+}
+
+.biz-shoprow {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  padding: 0.95rem 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: var(--color-ink);
+}
+
+.biz-shoprow + .biz-shoprow {
+  border-top: 1.5px solid var(--color-hairline);
+}
+
+button.biz-shoprow {
+  cursor: pointer;
+}
+
+.biz-shoprow-icon {
+  display: grid;
+  place-items: center;
+  width: 2.9rem;
+  height: 2.9rem;
+  flex: 0 0 auto;
+  border-radius: 0.9rem;
+  background: #ffe4a8;
+  color: var(--color-ink);
+}
+
+.biz-shoprow-icon svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.biz-shoprow-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.biz-shoprow-title {
+  font-size: 1.08rem;
+  font-weight: 800;
+}
+
+.biz-shoprow-sub {
+  font-size: 0.95rem;
+  color: var(--color-stone);
+}
+
+.biz-shoprow > svg,
+.biz-shoprow .biz-chev {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
+  color: var(--color-stone);
+}
+
+/* Pill switch — green on, pale off. */
+
+.biz-switch {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.biz-switch input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.biz-switch-track {
+  display: block;
+  width: 3.4rem;
+  height: 2rem;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 999px;
+  background: #f6e7c8;
+  transition: background 0.15s ease;
+}
+
+.biz-switch-track::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0.28rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  background: #fff;
+  border: 2.5px solid var(--color-ink);
+  transform: translateY(-50%);
+  transition: left 0.15s ease;
+}
+
+.biz-switch input:checked + .biz-switch-track {
+  background: var(--color-green);
+}
+
+.biz-switch input:checked + .biz-switch-track::after {
+  left: calc(100% - 1.63rem);
+}
+
+.biz-switch input:focus-visible + .biz-switch-track {
+  outline: 3px solid var(--color-yellow);
+  outline-offset: 2px;
+}
+
+/* ---- Shop editor (ShopEdit) ---- */
+
+.biz-shopedit {
+  width: 100%;
+  max-width: 34rem;
+  margin-inline: auto;
+  padding: 0 clamp(1.2rem, 4vw, 2rem) 3rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.biz-shopedit-head {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 1.4rem;
+}
+
+.biz-shopedit-head h1 {
+  margin: 0;
+  font-size: clamp(1.7rem, 6vw, 2.1rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.biz-shopedit-back {
+  width: 2.9rem;
+  height: 2.9rem;
+  flex: 0 0 auto;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--color-ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-pill);
+}
+
+.biz-shopedit-back svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.biz-shopedit-sec {
+  margin-top: 1.5rem;
+}
+
+.biz-shopedit-h {
+  margin: 0 0 0.7rem;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.biz-shopedit-photos {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.biz-shopedit-photos .biz-photobox {
+  flex: 0 0 auto;
+  width: 10.5rem;
+  min-height: 7.5rem;
+}
+
+.biz-shopedit-note {
+  margin: 0.55rem 0 0;
+  font-size: 0.98rem;
+  color: var(--color-stone);
+}
+
+.biz-hourcard {
+  padding: 0.2rem 1.1rem;
+}
+
+.biz-hourrow {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.85rem 0;
+}
+
+.biz-hourrow-day {
+  flex: 0 0 5.8rem;
+  white-space: nowrap;
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+
+.biz-hourrow-times {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.biz-hourrow-dash {
+  color: var(--color-stone);
+}
+
+.biz-hoursep {
+  border-top: 1.5px solid var(--color-hairline);
+}
+
+.biz-shopedit-save {
+  margin-top: 1.8rem;
+  width: 100%;
+}
+
+/* Desktop — stop centring phone columns; use the pane. Shop: hero left,
+   settings right. Insights: funnel and chart side by side. Editor: fields
+   in two columns. */
+
+@media (min-width: 56rem) {
+  .biz-shop {
+    max-width: 70rem;
+    display: grid;
+    grid-template-columns: minmax(0, 27rem) minmax(0, 1fr);
+    gap: 2.2rem;
+    align-items: start;
+  }
+
+  .biz-shophero-photo {
+    height: 15rem;
+  }
+
+  .biz-shop-h2 {
+    margin-top: 0.2rem;
+  }
+
+  .biz-shopedit {
+    max-width: 66rem;
+    display: grid;
+    grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+    grid-template-areas:
+      'head head'
+      'photos name'
+      'photos phone'
+      'hours hours'
+      'err err'
+      'save save';
+    column-gap: 3.2rem;
+    align-items: start;
+  }
+
+  .biz-shopedit-head {
+    grid-area: head;
+  }
+
+  .biz-sec-photos {
+    grid-area: photos;
+  }
+
+  .biz-sec-name {
+    grid-area: name;
+  }
+
+  .biz-sec-phone {
+    grid-area: phone;
+    margin-top: 1.6rem;
+  }
+
+  .biz-sec-hours {
+    grid-area: hours;
+  }
+
+  /* The photo anchors the left column — give it real presence. */
+  .biz-shopedit-photos .biz-photobox {
+    width: 100%;
+    min-height: 13.5rem;
+  }
+
+  /* Inputs read better at a human width than stretched across the column. */
+  .biz-sec-name .biz-input,
+  .biz-sec-phone .biz-input {
+    max-width: 26rem;
+  }
+
+  .biz-shopedit .biz-scan-err {
+    grid-area: err;
+    margin: 0;
+  }
+
+  .biz-shopedit-save {
+    grid-area: save;
+    justify-self: end;
+    width: auto;
+    min-width: 15rem;
+    margin-top: 2.4rem;
+  }
+
+  .biz-insights {
+    max-width: 70rem;
+  }
+
+  .biz-insights-cards {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 2.2rem;
+    align-items: start;
+  }
+
+  .biz-insights-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .biz-insights-wide {
+    margin-top: 2.2rem;
+  }
+}
+
+/* ---- Shop sub-screens (reports / notifications) ---- */
+
+.biz-shopscreen {
+  width: 100%;
+  max-width: 54rem;
+  margin-inline: auto;
+  padding: 0 clamp(1.2rem, 4vw, 2rem) 3rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.biz-shopscreen-intro {
+  margin: 0 0 1.2rem;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  color: var(--color-stone);
+}
+
+.biz-shopscreen-empty {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  color: var(--color-stone);
+}
+
+/* Report list rows — tappable, they open the report detail. */
+button.biz-report {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.biz-report > svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: 0 0 auto;
+  color: var(--color-ink);
+}
+
+.biz-report {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.95rem 0;
+}
+
+.biz-report + .biz-report {
+  border-top: 1.5px solid var(--color-hairline);
+}
+
+.biz-report-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.biz-report-offer {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+.biz-report-reason {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.biz-report-note {
+  font-size: 0.98rem;
+  color: var(--color-stone);
+}
+
+.biz-report-stamp,
+.biz-notif-stamp {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: var(--color-stone);
+}
+
+.biz-report-resolve {
+  flex: 0 0 auto;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.95rem;
+}
+
+.biz-notif {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  padding: 0.95rem 0;
+}
+
+.biz-notif + .biz-notif {
+  border-top: 1.5px solid var(--color-hairline);
+}
+
+.biz-notif-dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  flex: 0 0 auto;
+  margin-top: 0.45rem;
+  border-radius: 50%;
+  background: var(--color-yellow);
+  border: 2px solid var(--color-ink);
+}
+
+.biz-notif-dot.is-read {
+  background: transparent;
+  border-color: var(--color-hairline);
+}
+
+.biz-notif-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.biz-notif-title {
+  font-size: 1.08rem;
+  font-weight: 800;
+}
+
+.biz-notif-body {
+  font-size: 0.98rem;
+  line-height: 1.5;
+  color: var(--color-stone);
+}
+
+/* Editor hour rows: once the card goes full-width the switch rides the
+   right edge like a settings row; from 64rem the two day groups sit side
+   by side inside the card. */
+@media (min-width: 56rem) {
+  .biz-hourrow .biz-switch {
+    margin-left: auto;
+  }
+}
+
+@media (min-width: 64rem) {
+  .biz-hourcard {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 2.8rem;
+    padding: 0.35rem 1.5rem;
+  }
+
+  .biz-hoursep {
+    display: none;
+  }
 }

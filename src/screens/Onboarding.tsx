@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import logoUrl from '../assets/logo.svg'
 // Reuses .btn-primary (with hover/active/disabled/focus states) from auth.css.
 import './auth.css'
 import './onboarding.css'
@@ -15,10 +16,10 @@ type Slide = {
 }
 
 /* Copy, tile colors and sticker content taken 1:1 from the app designs
-   ("Deals on your para", "Closer means better", "Walk in. Show. Save."). */
+   ("Deals on your locality", "Closer means better", "Walk in. Show. Save."). */
 const SLIDES: Slide[] = [
   {
-    title: ['Deals', 'on your', 'para.'],
+    title: ['Deals', 'on your', 'locality.'],
     body: 'Live offers from shops around you — phuchka stalls, saree ghars, mobile shops — updated by the shops themselves.',
     tile: 'amber',
     icon: 'rupee',
@@ -106,9 +107,12 @@ export default function Onboarding({ onExit }: { onExit: () => void }) {
       <div className="onboard-wrap">
         <header className="onboard-top">
           <span className="onboard-brand">
-            <span className="onboard-chip" aria-hidden="true">
-              Z
-            </span>
+            <img
+              className="onboard-brandmark"
+              src={logoUrl}
+              alt=""
+              aria-hidden="true"
+            />
             NearZoop
           </span>
           <button type="button" className="onboard-skip" onClick={finish}>

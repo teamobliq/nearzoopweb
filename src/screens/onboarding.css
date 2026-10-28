@@ -17,7 +17,7 @@
   margin-inline: auto;
   display: flex;
   flex-direction: column;
-  padding: 1.6rem clamp(1.5rem, 5vw, 2.75rem) 2rem;
+  padding: 1.6rem clamp(1.5rem, 5vw, 2.75rem) 1.5rem;
 }
 
 /* --- Top bar ----------------------------------------------------------- */
@@ -37,18 +37,9 @@
   letter-spacing: -0.02em;
 }
 
-.onboard-chip {
-  display: grid;
-  place-items: center;
-  width: 2.15rem;
-  aspect-ratio: 1;
-  background-color: var(--color-orange);
-  color: #ffffff;
-  border: var(--border-mid) solid var(--color-ink);
-  border-radius: 0.7rem;
-  box-shadow: var(--shadow-pill);
-  font-size: 1.05rem;
-  font-weight: 900;
+.onboard-brandmark {
+  width: 2.2rem;
+  height: auto;
 }
 
 .onboard-skip {
@@ -107,13 +98,15 @@
 }
 
 .onboard-art {
-  /* Mobile order: art first, like the app mocks */
+  /* Mobile order: art first, like the app mocks. Height yields to short
+     viewports (floored so the tile never collapses) so the slide never
+     scrolls. */
   order: -1;
   align-self: center;
   justify-self: center;
   position: relative;
   width: min(100%, 27rem);
-  min-height: clamp(19rem, 46vw, 26rem);
+  min-height: max(12rem, min(clamp(19rem, 46vw, 26rem), calc(100dvh - 19rem)));
   animation: onboard-rise 0.28s ease both;
 }
 
@@ -237,7 +230,7 @@
     order: 0;
     width: 100%;
     max-width: 30rem;
-    min-height: 34rem;
+    min-height: max(16rem, min(34rem, calc(100dvh - 19rem)));
   }
 }
 
@@ -249,7 +242,7 @@
   justify-content: space-between;
   gap: 1rem;
   margin-top: auto;
-  padding-top: 2rem;
+  padding-top: 1.25rem;
 }
 
 .onboard-dots {
@@ -261,7 +254,7 @@
 .onboard-dot {
   flex: none;
   width: 0.55rem;
-  aspect-ratio: 1;
+  height: 0.55rem;
   padding: 0;
   border: none;
   border-radius: 999px;

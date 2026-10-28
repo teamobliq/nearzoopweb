@@ -9,13 +9,50 @@ type Props = {
 }
 
 /** Splash asks for location access once its hold timer runs out. */
-type Phase = 'hold' | 'locating' | 'blocked'
+type Phase = 'hold' | 'locating' | 'found' | 'blocked'
 
 type BlockReason = 'denied' | 'unavailable' | 'timeout'
 
-const HOLD_STATUS: Record<Exclude<Phase, 'blocked'>, string> = {
-  hold: 'Restoring Gariahat · 2 km',
-  locating: 'Finding your para…',
+/** Both pre-block phases read the same: the locality isn't known yet. */
+const STATUS_TEXT = 'Finding your locality…'
+
+/** Reverse-geocodes the fix into a locality name via Nominatim (OpenStreetMap,
+    free and keyless). Narrowest area first, city as the last resort. Fails
+    silently — the celebration then shows a plain "Location found". */
+async function resolveLocality(
+  coords: Coords,
+  onName: (name: string) => void,
+): Promise<void> {
+  const query = new URLSearchParams({
+    format: 'jsonv2',
+    lat: coords.lat.toFixed(6),
+    lon: coords.lng.toFixed(6),
+    zoom: '16',
+    addressdetails: '1',
+    'accept-language': 'en',
+  })
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?${query.toString()}`,
+      { signal: AbortSignal.timeout(4000) },
+    )
+    if (!res.ok) return
+    const data = (await res.json()) as {
+      address?: Partial<Record<string, string>>
+    }
+    const parts = data.address ?? {}
+    const name =
+      parts.neighbourhood ??
+      parts.suburb ??
+      parts.quarter ??
+      parts.city_district ??
+      parts.village ??
+      parts.town ??
+      parts.city
+    if (name) onName(name)
+  } catch {
+    // Offline, slow, or blocked — the tick still celebrates without a name.
+  }
 }
 
 const BLOCK_TEXT: Record<BlockReason, string> = {
@@ -27,6 +64,8 @@ const BLOCK_TEXT: Record<BlockReason, string> = {
 function Splash({ onProceed }: Props) {
   const [phase, setPhase] = useState<Phase>('hold')
   const [reason, setReason] = useState<BlockReason>('denied')
+  const [locality, setLocality] = useState<string | null>(null)
+  const [showFound, setShowFound] = useState(false)
   const asking = useRef(false)
 
   // Hold for a random beat (3–6 s), then ask for location access.
@@ -77,7 +116,12 @@ function Splash({ onProceed }: Props) {
             // Storage blocked — navigation still proceeds.
           }
           asking.current = false
-          onProceed(coords)
+          // Celebrate the fix: arc morphs to the tick, the locality name
+          // resolves in the background, then hand over to the next screen.
+          setPhase('found')
+          void resolveLocality(coords, setLocality)
+          window.setTimeout(() => setShowFound(true), 900)
+          window.setTimeout(() => onProceed(coords), 2300)
         },
         (error) => {
           asking.current = false
@@ -108,7 +152,7 @@ function Splash({ onProceed }: Props) {
             <span>Near</span>
             <span>Zoop</span>
           </h1>
-          <p className="splash-tagline">Offers in your para, right now.</p>
+          <p className="splash-tagline">Offers in your locality, right now.</p>
         </div>
 
         <footer className="splash-status splash-status--blocked" role="status">
@@ -134,12 +178,26 @@ function Splash({ onProceed }: Props) {
           <span>Near</span>
           <span>Zoop</span>
         </h1>
-        <p className="splash-tagline">Offers in your para, right now.</p>
+        <p className="splash-tagline">Offers in your locality, right now.</p>
       </div>
 
       <footer className="splash-status" role="status">
-        <span className="splash-spinner" aria-hidden="true" />
-        <span>{HOLD_STATUS[phase]}</span>
+        <span
+          className={`splash-indicator${phase === 'found' ? ' is-found' : ''}`}
+          aria-hidden="true"
+        >
+          <svg viewBox="0 0 48 48" focusable="false">
+            <circle className="splash-indicator-ring" cx="24" cy="24" r="20" />
+            <path className="splash-indicator-tick" d="M15 25l6.5 6.5L33 18.5" />
+          </svg>
+        </span>
+        <span>
+          {phase === 'found' && showFound
+            ? locality
+              ? `Location found: ${locality}`
+              : 'Location found'
+            : STATUS_TEXT}
+        </span>
       </footer>
     </main>
   )

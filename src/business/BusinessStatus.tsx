@@ -2,11 +2,11 @@ type Variant = 'checking' | 'failed'
 
 type Props = {
   variant: Variant
+  /** Admin's rejection reason — shown on the failed screen when present. */
+  note?: string
   /** "Draft my first offer" (checking) / "Upload another document" (failed). */
   onPrimary: () => void
   onDashboard: () => void
-  /** Demo hook: flips between checking and failed until a real backend exists. */
-  onDemoSwitch: () => void
 }
 
 const COPY: Record<
@@ -27,7 +27,7 @@ const COPY: Record<
   failed: {
     title: 'We couldn’t verify that.',
     body:
-      'The GSTIN legal name (S. Das Textiles) doesn’t match “Gariahat Saree Ghar”. Upload a trade licence or a signboard photo instead.',
+      'We couldn’t accept that document. Upload a different one — a trade licence, Udyam registration or a clear signboard photo works.',
     state: 'Action needed',
     cta: 'Upload another document',
   },
@@ -106,9 +106,9 @@ function FileIcon() {
 
 export default function BusinessStatus({
   variant,
+  note,
   onPrimary,
   onDashboard,
-  onDemoSwitch,
 }: Props) {
   const copy = COPY[variant]
   const rows = [
@@ -132,6 +132,10 @@ export default function BusinessStatus({
         <h1 className="biz-status-title">{copy.title}</h1>
         <p className="biz-status-body">{copy.body}</p>
 
+        {variant === 'failed' && note ? (
+          <p className="biz-status-note">{note}</p>
+        ) : null}
+
         <ul className="biz-checklist">
           {rows.map((row) => (
             <li className="biz-checkrow" key={row.label}>
@@ -151,12 +155,6 @@ export default function BusinessStatus({
 
         <button type="button" className="biz-linkbtn" onClick={onDashboard}>
           Go to dashboard
-        </button>
-
-        <button type="button" className="biz-demo" onClick={onDemoSwitch}>
-          {variant === 'checking'
-            ? 'demo · show the failed state'
-            : 'demo · back to checking'}
         </button>
       </div>
     </main>

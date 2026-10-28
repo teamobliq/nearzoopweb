@@ -185,13 +185,15 @@
 }
 
 .btn-primary,
-.btn-secondary {
+.btn-secondary,
+.btn-danger {
   width: 100%;
   min-height: 3.85rem;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.8rem;
+  padding-inline: 1.6rem;
   font-family: inherit;
   font-weight: 700;
   font-size: clamp(1.2rem, 3vw, 1.4rem);
@@ -207,21 +209,34 @@
   box-shadow: var(--shadow-btn);
 }
 
+.btn-danger {
+  background-color: var(--color-red);
+  color: #ffffff;
+  border: var(--border-strong) solid var(--color-ink);
+  box-shadow: var(--shadow-btn);
+}
+
 .btn-primary:hover:not(:disabled),
-.btn-secondary:hover:not(:disabled) {
+.btn-secondary:hover:not(:disabled),
+.btn-danger:hover:not(:disabled) {
   translate: 1px 1px;
   box-shadow: 3px 5px 0 0 var(--color-ink);
 }
 
 .btn-primary:active:not(:disabled),
-.btn-secondary:active:not(:disabled) {
+.btn-secondary:active:not(:disabled),
+.btn-danger:active:not(:disabled) {
   translate: 4px 6px;
   box-shadow: 0 0 0 0 var(--color-ink);
 }
 
 .btn-primary:disabled,
-.btn-secondary:disabled {
+.btn-secondary:disabled,
+.btn-danger:disabled {
   opacity: 0.65;
+  /* A half-faded hard shadow reads as a muddy gray band under the button —
+     drop it so disabled buttons sit flat and clean. */
+  box-shadow: none;
   cursor: default;
 }
 
@@ -357,6 +372,7 @@
 
 .btn-primary:focus-visible,
 .btn-secondary:focus-visible,
+.btn-danger:focus-visible,
 .btn-circle:focus-visible,
 .btn-notnow:focus-visible,
 .auth-resend-link:focus-visible,

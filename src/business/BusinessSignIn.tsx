@@ -1,16 +1,20 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
+  onAuthStateChanged,
   RecaptchaVerifier,
   signInWithPhoneNumber,
   signOut,
   type ConfirmationResult,
+  type User,
 } from 'firebase/auth'
 import { auth } from '../firebase'
 import VerifyCode from '../screens/VerifyCode'
+import BusinessDashboard from './BusinessDashboard'
 import BusinessLanding from './BusinessLanding'
 import BusinessPhone from './BusinessPhone'
 import BusinessSetup from './BusinessSetup'
 import BusinessStatus from './BusinessStatus'
+import { fetchShop, saveShop, watchShop, type ShopPatch, type ShopRecord } from './shop'
 import '../screens/auth.css'
 import './business.css'
 
@@ -49,6 +53,17 @@ function maskPhone(digits: string): string {
   return `+91 ${digits.slice(0, 5)} ••• ${digits.slice(-2)}`
 }
 
+/** Resolves with the auth state's next value — used right after OTP confirm,
+    where auth.currentUser can lag the confirmation by a tick. */
+function nextAuthUser(): Promise<User | null> {
+  return new Promise((resolve) => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      unsub()
+      resolve(user)
+    })
+  })
+}
+
 /** Merchant fine print, shown on both phone and OTP screens. */
 export function BizLegal() {
   return (
@@ -67,8 +82,89 @@ export default function BusinessSignIn() {
   const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
-  const [setupStart, setSetupStart] = useState<0 | 1 | 2>(0)
+  const [setupStart, setSetupStart] = useState<0 | 1 | 2 | 3>(0)
+  const [booting, setBooting] = useState(true)
+  const [bootError, setBootError] = useState('')
+  const [setupError, setSetupError] = useState('')
+  const [savedShop, setSavedShop] = useState<ShopRecord | null>(null)
+  const [autoVerified, setAutoVerified] = useState(false)
+  /** True once the fee is settled this session — covers merchants whose shop
+      doc was never fetched (fresh sign-ups), where savedShop stays null. */
+  const [hasPaid, setHasPaid] = useState(false)
   const verifier = useRef<RecaptchaVerifier | null>(null)
+  const bootedRef = useRef(false)
+
+  /**
+   * Routes a signed-in merchant: finished setup → dashboard; otherwise the
+   * wizard, resumed one step past whatever's already saved — which lands an
+   * unpaid, fully-saved shop directly on the wizard's payment step. Shared
+   * by the boot check and the post-OTP routing — the same number can log in
+   * OR register, and Firebase reuses the existing account either way.
+   */
+  function routeSignedIn(shop: ShopRecord | null): void {
+    setSavedShop(shop)
+    setAutoVerified(shop?.verification === 'verified')
+    if (shop?.setupDone) {
+      // A rejected shop re-opens on the failed screen — the merchant sees the
+      // admin's reason and the "Upload another document" path instead of a
+      // silently unbadged dashboard.
+      if (shop.verification === 'failed') {
+        setStep('failed')
+        return
+      }
+      setStep('dash')
+      return
+    }
+    if (shop) {
+      setSetupStart(Math.min((shop.setupStep ?? -1) + 1, 3) as 0 | 1 | 2 | 3)
+    }
+    // Diagnostic: if a finished merchant ever lands here again, the console
+    // records exactly what the boot read saw.
+    console.info(
+      '[busdash] routing to setup —',
+      shop
+        ? { setupStep: shop.setupStep, setupDone: shop.setupDone }
+        : 'no shop doc for this uid',
+    )
+    setStep('setup')
+  }
+
+  /**
+   * Session router: on load, a signed-in merchant with a saved shop goes
+   * straight to the dashboard; one without a shop resumes the setup wizard.
+   * Later auth events only handle sign-out (sign-in is driven by the OTP flow).
+   */
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => {
+      const initial = !bootedRef.current
+      bootedRef.current = true
+      if (!user) {
+        setBooting(false)
+        if (!initial) {
+          setStep('landing')
+        }
+        return
+      }
+      void (async () => {
+        try {
+          const shop = await fetchShop(user.uid)
+          if (initial) {
+            routeSignedIn(shop)
+          }
+        } catch {
+          // Only the initial routing owns this error — a later auth event's
+          // failed re-check must not mask an already-made decision.
+          if (initial) {
+            setBootError(
+              "Couldn't check your shop details. Check your connection, then reload.",
+            )
+          }
+        } finally {
+          setBooting(false)
+        }
+      })()
+    })
+  }, [])
 
   function resetVerifier() {
     try {
@@ -113,6 +209,12 @@ export default function BusinessSignIn() {
     }
   }
 
+  /**
+   * Confirms the OTP, then routes exactly like the boot check: an existing
+   * account with a finished shop lands on the dashboard (a login), a fresh
+   * number or an unfinished setup lands in the wizard. Firebase reuses the
+   * same account for a number either way — nothing is duplicated.
+   */
   async function verify(code: string): Promise<void> {
     if (!confirmation) {
       throw new Error('No code request found — send a fresh OTP.')
@@ -122,12 +224,146 @@ export default function BusinessSignIn() {
     } catch (err) {
       throw new Error(describe(err))
     }
-    setStep('setup')
+    // confirmation.confirm() can resolve a beat before auth.currentUser is
+    // set — never dump the merchant into a fresh wizard on that race; wait
+    // for the auth state to settle instead.
+    const user = auth.currentUser ?? (await nextAuthUser())
+    if (!user) {
+      setStep('landing')
+      return
+    }
+    let shop: ShopRecord | null
+    try {
+      shop = await fetchShop(user.uid)
+    } catch {
+      // Stay put with a clear message rather than risk dumping an existing
+      // merchant into a fresh wizard (which could overwrite their saved
+      // shop). A reload routes correctly via the boot check.
+      throw new Error(
+        "Couldn't check your shop details. Reload the page to continue.",
+      )
+    }
+    routeSignedIn(shop)
+  }
+
+  /**
+   * The merchant's 10-digit number for prefilling "Phone for customers":
+   * Firebase Auth's E.164 number when available (survives reloads), else
+   * whatever was typed this session.
+   */
+  function merchantPhone(): string {
+    const digits = (auth.currentUser?.phoneNumber ?? '').replace(/^\+91/, '')
+    return /^\d{10}$/.test(digits) ? digits : phone
   }
 
   /** Re-requests the SMS code while staying on the OTP screen. */
   async function resend(): Promise<void> {
     await sendCode(true)
+  }
+
+  /**
+   * While the merchant waits on the checking screen, their shop doc is
+   * watched live: when the admin panel sets a verdict the screen flips on
+   * its own — verified goes straight to the dashboard, failed to the retry
+   * screen.
+   */
+  const [watchedShop, setWatchedShop] = useState<ShopRecord | null>(null)
+  useEffect(() => {
+    if (step !== 'checking' && step !== 'failed') return
+    const user = auth.currentUser
+    if (!user) return
+    return watchShop(user.uid, (shop) => {
+      setWatchedShop(shop)
+      if (shop?.verification === 'verified') {
+        setStep('dash')
+      } else if (shop?.verification === 'failed') {
+        setStep('failed')
+      }
+    })
+  }, [step])
+
+  /**
+   * Persists the wizard's progress after every Continue. Steps 1–2 store the
+   * fields plus a setupStep marker; the final submit stores the documents
+   * and the wizard advances to its payment step — unless the fee is already
+   * settled (a re-submission after a failed check), in which case
+   * verification reopens and the checking screen takes over. Throws on
+   * failure so the wizard stays on its current step.
+   */
+  async function saveProgress(
+    patch: ShopPatch,
+    completedStep: 0 | 1 | 2,
+  ): Promise<void> {
+    const user = auth.currentUser
+    if (!user) {
+      setStep('landing')
+      return
+    }
+    setSetupError('')
+    const paid = savedShop?.paymentDone === true || hasPaid
+    try {
+      await saveShop(user.uid, {
+        ...patch,
+        setupStep: completedStep,
+        ...(completedStep === 2
+          ? paid
+            ? {
+                setupDone: true,
+                verification: patch.verification ?? ('pending' as const),
+              }
+            : {
+                // First submission: verification opens only once the fee is
+                // paid; an auto-verified GSTIN is kept for after payment.
+                ...(patch.verification
+                  ? { verification: patch.verification }
+                  : {}),
+              }
+          : {}),
+      })
+    } catch {
+      setSetupError(
+        'Could not save your shop. Check your connection and try again.',
+      )
+      throw new Error('save failed')
+    }
+    if (completedStep === 2) {
+      if (patch.verification === 'verified') {
+        setAutoVerified(true)
+      }
+      if (paid) {
+        // Re-submission after a failed check — the fee is settled, so the
+        // checking screen takes over again.
+        setStep(patch.verification === 'verified' ? 'dash' : 'checking')
+      }
+      // Unpaid: stay in setup — the wizard advances to its payment step.
+    }
+  }
+
+  /**
+   * Saves a successful ₹1,000 payment: records the reference, flips setupDone
+   * and opens verification — unless the GSTIN was already auto-verified, in
+   * which case the dashboard is next. Throws on save failure so the wizard's
+   * payment step can retry with the same payment id.
+   */
+  async function completePayment(paymentId: string): Promise<void> {
+    const user = auth.currentUser
+    if (!user) {
+      setStep('landing')
+      return
+    }
+    await saveShop(user.uid, {
+      paymentDone: true,
+      paymentId,
+      setupDone: true,
+      ...(autoVerified ? {} : { verification: 'pending' as const }),
+    })
+    setHasPaid(true)
+    setSavedShop((current) =>
+      current
+        ? { ...current, paymentDone: true, paymentId, setupDone: true }
+        : current,
+    )
+    setStep(autoVerified ? 'dash' : 'checking')
   }
 
   /** Signs the merchant back out and returns to the landing screen. */
@@ -140,6 +376,27 @@ export default function BusinessSignIn() {
     setStep('landing')
   }
 
+  if (booting) {
+    return (
+      <main className="biz-page">
+        <div className="biz-shell">
+          <div className="biz-center">
+            <p className="biz-boot">{bootError || 'Checking your session…'}</p>
+            {bootError && (
+              <button
+                type="button"
+                className="biz-linkbtn"
+                onClick={() => window.location.reload()}
+              >
+                Reload
+              </button>
+            )}
+          </div>
+        </div>
+      </main>
+    )
+  }
+
   if (step === 'landing') {
     return (
       <BusinessLanding
@@ -149,13 +406,34 @@ export default function BusinessSignIn() {
     )
   }
 
+  if (step === 'dash') {
+    const user = auth.currentUser
+    if (!user) {
+      return (
+        <main className="biz-page">
+          <div className="biz-shell">
+            <div className="biz-center">
+              <p className="biz-boot">
+                Session expired. Reload the page to continue.
+              </p>
+            </div>
+          </div>
+        </main>
+      )
+    }
+    return <BusinessDashboard uid={user.uid} onSignOut={leaveAuth} />
+  }
+
   if (step === 'setup') {
     return (
       <BusinessSetup
-        phone={phone}
+        phone={merchantPhone()}
         startStep={setupStart}
-        onSubmitted={() => setStep('checking')}
-        onBackToCode={() => setStep('code')}
+        submitError={setupError}
+        onSave={saveProgress}
+        shopName={savedShop?.name ?? ''}
+        ownerName={savedShop?.ownerName ?? ''}
+        onPaid={completePayment}
       />
     )
   }
@@ -164,6 +442,7 @@ export default function BusinessSignIn() {
     return (
       <BusinessStatus
         variant={step}
+        note={watchedShop?.reviewNote ?? savedShop?.reviewNote}
         onPrimary={() => {
           if (step === 'checking') {
             setStep('dash')
@@ -174,9 +453,6 @@ export default function BusinessSignIn() {
           }
         }}
         onDashboard={() => setStep('dash')}
-        onDemoSwitch={() =>
-          setStep(step === 'checking' ? 'failed' : 'checking')
-        }
       />
     )
   }
@@ -186,69 +462,25 @@ export default function BusinessSignIn() {
       <div className="biz-shell">
         <div id="nz-biz-recaptcha" aria-hidden="true" />
 
-        {step === 'dash' ? (
-          <div className="biz-center">
-            <section className="done-card">
-              <h1 className="done-title">Welcome, shopkeeper.</h1>
-              <p className="done-body">
-                You’re in as {maskPhone(phone)}. The dashboard where you post
-                offers is the next build.
-              </p>
-              <button
-                type="button"
-                className="btn-secondary done-signout"
-                onClick={leaveAuth}
-              >
-                Sign out
-              </button>
-            </section>
-          </div>
+        {step === 'phone' ? (
+          <BusinessPhone
+            phone={phone}
+            onPhone={setPhone}
+            onSend={() => void sendCode(false)}
+            sending={sending}
+            error={error}
+          />
         ) : (
-          <>
-            <div className="biz-backrow">
-              <button
-                type="button"
-                className="btn-circle"
-                aria-label="Back"
-                onClick={() =>
-                  step === 'code' ? setStep('phone') : setStep('landing')
-                }
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2.4}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M14.5 5.5 8 12l6.5 6.5" />
-                </svg>
-              </button>
-            </div>
-
-            {step === 'phone' ? (
-              <BusinessPhone
-                phone={phone}
-                onPhone={setPhone}
-                onSend={() => void sendCode(false)}
-                sending={sending}
-                error={error}
-              />
-            ) : (
-              <VerifyCode
-                phone={maskPhone(phone)}
-                onSubmit={verify}
-                onResend={resend}
-                sub={`Sent to ${maskPhone(phone)}.`}
-                submitLabel="Verify"
-              />
-            )}
-
-            <BizLegal />
-          </>
+          <VerifyCode
+            phone={maskPhone(phone)}
+            onSubmit={verify}
+            onResend={resend}
+            sub={`Sent to ${maskPhone(phone)}.`}
+            submitLabel="Verify"
+          />
         )}
+
+        <BizLegal />
       </div>
     </main>
   )

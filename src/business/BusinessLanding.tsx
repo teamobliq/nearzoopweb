@@ -1,3 +1,5 @@
+import logoUrl from '../assets/logo.svg'
+
 type Props = {
   onRegister: () => void
   onExisting: () => void
@@ -9,9 +11,12 @@ export default function BusinessLanding({ onRegister, onExisting }: Props) {
       <div className="biz-landing-wrap">
         <header className="biz-top">
           <span className="biz-brand">
-            <span className="biz-chip" aria-hidden="true">
-              z
-            </span>
+            <img
+              className="biz-brandmark"
+              src={logoUrl}
+              alt=""
+              aria-hidden="true"
+            />
             NearZoop
           </span>
           <span className="biz-badge">Business</span>
@@ -46,7 +51,7 @@ export default function BusinessLanding({ onRegister, onExisting }: Props) {
             <div className="biz-copy">
               <h1 className="biz-title">
                 <span>Bring your</span>
-                <span>para through</span>
+                <span>locality through</span>
                 <span>the door.</span>
               </h1>
               <p className="biz-body">
