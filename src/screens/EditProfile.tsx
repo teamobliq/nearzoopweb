@@ -1,21 +1,56 @@
 import { useCallback, useEffect, useState } from 'react'
 import { BackSvg } from './Locate'
-import { saveCustomer, watchCustomer, type CustomerProfile } from '../business/customer'
+import { maskPhone } from './AuthFlow'
+import {
+  fetchCustomer,
+  saveCustomer,
+  watchCustomer,
+  type CustomerProfile,
+} from '../business/customer'
 import './profile.css'
+
+/** Format a stored mobile (E.164, spaced, or bare digits) the way the auth
+    flow does. */
+function storedMobile(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const digits = raw.replace(/\D/g, '')
+  if (!digits) return null
+  return maskPhone(digits.slice(-10))
+}
 
 /** Edit profile screen — name, mobile, email (optional). Reads the current
     customer profile, lets the user edit each field, and persists on save.
     Mobile is shown read-only with a Verified badge since it's the account's
-    anchor (changed via re-verification, not here). */
+    anchor (changed via re-verification, not here).
+
+    A customer doc only exists after the first save, so a missing doc is a
+    normal state: the form opens empty (mobile filled from the signed-in
+    account) instead of waiting on a snapshot that will never carry data. */
 
 type Props = {
   uid: string
+  /** Account-level identity (Firebase Auth), used until the customers doc
+      exists — the profile screen already shows it, so the form must too. */
+  accountName?: string
+  accountEmail?: string
+  /** Masked account mobile — shown when the customers doc has none yet. */
+  mobile?: string | null
+  /** The signed-in account's mobile is verified even without a doc. */
+  verified?: boolean
   /** After saving (or cancelling), return to the profile screen. */
   onDone: () => void
 }
 
-export default function EditProfile({ uid, onDone }: Props) {
+export default function EditProfile({
+  uid,
+  accountName,
+  accountEmail,
+  mobile,
+  verified,
+  onDone,
+}: Props) {
   const [profile, setProfile] = useState<CustomerProfile | null>(null)
+  const [loading, setLoading] = useState(true)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [saving, setSaving] = useState(false)
@@ -23,14 +58,33 @@ export default function EditProfile({ uid, onDone }: Props) {
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    const unsub = watchCustomer(uid, setProfile)
-    return unsub
+    let alive = true
+    // The stream resolves both cases — a doc, or none at all. The eager read
+    // just fills the fields sooner on a cold start.
+    const unsub = watchCustomer(uid, (next) => {
+      if (!alive) return
+      setProfile(next)
+      setLoading(false)
+    })
+    void fetchCustomer(uid)
+      .then((next) => {
+        if (!alive) return
+        setProfile(next)
+        setLoading(false)
+      })
+      .catch(() => {
+        if (alive) setLoading(false)
+      })
+    return () => {
+      alive = false
+      unsub()
+    }
   }, [uid])
 
   useEffect(() => {
-    setName(profile?.name ?? '')
-    setEmail(profile?.email ?? '')
-  }, [profile])
+    setName(profile?.name ?? accountName ?? '')
+    setEmail(profile?.email ?? accountEmail ?? '')
+  }, [profile, accountName, accountEmail])
 
   const handleSave = useCallback(async () => {
     setError('')
@@ -53,9 +107,9 @@ export default function EditProfile({ uid, onDone }: Props) {
     }
   }, [uid, name, email, profile, onDone])
 
-  if (!profile) {
+  if (loading) {
     return (
-      <main className="prof-edit">
+      <div className="prof-edit">
         <header className="prof-edit-head">
           <button type="button" className="prof-back" onClick={onDone} aria-label="Back">
             <BackSvg />
@@ -63,12 +117,15 @@ export default function EditProfile({ uid, onDone }: Props) {
           <h1 className="prof-edit-title">Edit profile</h1>
         </header>
         <p className="prof-loading">Loading…</p>
-      </main>
+      </div>
     )
   }
 
+  const shownMobile = storedMobile(profile?.mobile) ?? mobile ?? null
+  const shownVerified = verified === true || profile?.verified === true
+
   return (
-    <main className="prof-edit">
+    <div className="prof-edit">
       <header className="prof-edit-head">
         <button type="button" className="prof-back" onClick={onDone} aria-label="Back">
           <BackSvg />
@@ -89,8 +146,8 @@ export default function EditProfile({ uid, onDone }: Props) {
 
         <label className="prof-field-label">MOBILE</label>
         <div className="prof-mobile">
-          <span className="prof-mobile-value">{profile.mobile ?? '—'}</span>
-          {profile.mobile ? (
+          <span className="prof-mobile-value">{shownMobile ?? '—'}</span>
+          {shownMobile && shownVerified ? (
             <span className="prof-verified">Verified</span>
           ) : null}
         </div>
@@ -125,6 +182,6 @@ export default function EditProfile({ uid, onDone }: Props) {
           {saving ? 'Saving…' : saved ? 'Saved' : 'Save changes'}
         </button>
       </div>
-    </main>
+    </div>
   )
 }

@@ -85,6 +85,7 @@ function isoToLocalInput(iso?: string): string {
 
 /** "Run it again" — maps a saved offer back into builder draft state. */
 function draftFromOffer(offer: OfferRecord): Draft {
+  const ended = (offer.status ?? 'live') === 'ended'
   return {
     dealKind: offer.dealKind ?? 'percent',
     dealValue: offer.dealValue ?? '',
@@ -96,8 +97,10 @@ function draftFromOffer(offer: OfferRecord): Draft {
     redeemKind: offer.redeemKind ?? 'screen',
     redeemCode: offer.redeemCode ?? '',
     redeemCustom: offer.redeemCustom ?? '',
-    startsAt: isoToLocalInput(offer.startsAt),
-    endsAt: isoToLocalInput(offer.endsAt),
+    // An ended run's window is history — a repeat needs fresh dates the
+    // merchant picks, not a silently expired copy of the old ones.
+    startsAt: ended ? '' : isoToLocalInput(offer.startsAt),
+    endsAt: ended ? '' : isoToLocalInput(offer.endsAt),
     minBillOn: typeof offer.minBill === 'number' && offer.minBill > 0,
     minBill: offer.minBill ? String(offer.minBill) : '',
     inStoreOnly: offer.inStoreOnly ?? true,
@@ -142,13 +145,13 @@ const REDEEM: {
   kind: OfferRedeemKind
   title: string
   sub: string
-  icon: 'scan' | 'tag' | 'ticket' | 'store'
+  icon: 'phone' | 'tag' | 'scan' | 'store'
 }[] = [
   {
     kind: 'screen',
     title: 'Customer shows the screen',
     sub: 'Simplest. Staff look at the phone and apply the discount.',
-    icon: 'scan',
+    icon: 'phone',
   },
   {
     kind: 'code',
@@ -160,7 +163,7 @@ const REDEEM: {
     kind: 'coupon',
     title: 'Customer claims a QR coupon',
     sub: 'Single use. You scan it here — gives you verified redemption counts.',
-    icon: 'ticket',
+    icon: 'scan',
   },
   {
     kind: 'custom',
@@ -236,6 +239,16 @@ function TagSvg() {
   )
 }
 
+function PhoneSvg() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="7" y="3" width="10" height="18" rx="2.2" />
+      <path d="M10.5 6h3" />
+      <circle cx="12" cy="17.5" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
 function QrSvg() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -267,10 +280,10 @@ function StoreSvg() {
   )
 }
 
-function RedeemIcon({ kind }: { kind: 'scan' | 'tag' | 'ticket' | 'store' }) {
-  if (kind === 'scan') return <QrSvg />
+function RedeemIcon({ kind }: { kind: 'phone' | 'tag' | 'scan' | 'store' }) {
+  if (kind === 'phone') return <PhoneSvg />
   if (kind === 'tag') return <TagSvg />
-  if (kind === 'ticket') return <TicketSvg />
+  if (kind === 'scan') return <QrSvg />
   return <StoreSvg />
 }
 
@@ -372,6 +385,14 @@ export default function BusinessOfferCreate({
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }))
 
+  /** Drafts and rejected offers are edited in place — resubmitting keeps the
+      same doc (and its history) instead of leaving a stale copy on the list.
+      Ended offers are copied into a fresh submission. */
+  const editingId =
+    initial && (initial.status === 'draft' || initial.status === 'changes')
+      ? initial.id
+      : undefined
+
   /** Writes the draft as-is — drafts skip validation on purpose. */
   async function persist(status: 'draft' | 'review', ref?: string): Promise<void> {
     const now = new Date().toISOString()
@@ -409,7 +430,9 @@ export default function BusinessOfferCreate({
         .map((line) => line.trim())
         .filter(Boolean),
       updatedAt: now,
-      createdAt: now,
+      createdAt: initial?.createdAt ?? now,
+      // A resubmission is a clean slate — the old verdict no longer applies.
+      ...(status === 'review' ? { reviewNote: '', reviewFix: '' } : {}),
     }
     if (ref) {
       write.ref = ref
@@ -418,7 +441,7 @@ export default function BusinessOfferCreate({
     if (draft.minBillOn && Number.isFinite(minBillNumber) && minBillNumber > 0) {
       write.minBill = minBillNumber
     }
-    await saveOffer(uid, write)
+    await saveOffer(uid, write, editingId)
   }
 
   async function handleSaveDraft() {

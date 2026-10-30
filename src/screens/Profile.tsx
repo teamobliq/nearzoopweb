@@ -1,56 +1,42 @@
 import { useEffect, useState } from 'react'
+import { signOut } from 'firebase/auth'
 import type { User } from 'firebase/auth'
+import { auth } from '../firebase'
 import {
   fetchCustomer,
   watchCustomer,
   type CustomerProfile,
 } from '../business/customer'
-import EditProfile from './EditProfile'
+import {
+  couponState,
+  listMyCoupons,
+  type CouponRecord,
+} from '../business/coupons'
+import { maskPhone } from './AuthFlow'
 import './profile.css'
 
-/** Profile screen — the "You" tab. Header card with the avatar, name, masked
-    mobile and an edit pencil; stats chips (Saved / Coupons / Following);
-    Activity list (Recently viewed, Redemption history, My savings, Invite
-    friends); Preferences list (Notifications, Interests). Editing name or
-    email opens the Edit profile screen and reflects back live. */
+/** Profile screen — the "You" tab. */
 
 type Props = {
-  /** When set, the signed-in Firebase user — used to read the profile. */
   user: User | null
-  /** Return to the customer home (the You tab's own navigation). */
-  onDone: () => void
-}
-
-function AvatarSvg() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-      <circle cx="12" cy="8" r="4" />
-      <path d="M5 20c1.2-3.2 3.8-5 7-5s5.8 1.8 7 5" />
-    </svg>
-  )
+  onSignOut: () => void
 }
 
 function EditSvg() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M18.5 1.5a.686.686 0 0 0-1 0l-4 4a.686.686 0 0 0 0 1l8.5 8.5a.686.686 0 0 0 1 0l4-4a.686.686 0 0 0 0-1z" />
+      <path d="M16.5 3.5l4 4L7.5 20.5H3.5v-4L16.5 3.5Z" />
+      <path d="M13.5 6.5l4 4" />
     </svg>
   )
 }
 
-function ChevronSvg() {
+function ExitSvg() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  )
-}
-
-function ClockSvg() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 4h3.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H15" />
+      <path d="M10 8l-4 4 4 4" />
+      <path d="M6 12h10" />
     </svg>
   )
 }
@@ -58,84 +44,22 @@ function ClockSvg() {
 function TicketSvg() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 7v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 0z" />
-      <path d="M17 2v2" />
-      <path d="M7 2v2" />
-      <path d="M21 12h-6" />
-      <path d="M11 12H5" />
+      <path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 6v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-6Z" />
+      <path d="M13 5.5v2M13 11v2M13 16.5v2" />
     </svg>
   )
 }
 
-function TagSvg() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M21 4H7a2 2 0 0 0-2 2v10l5-5 5 5V6a2 2 0 0 0 2-2z" />
-    </svg>
-  )
-}
-
-function PeopleSvg() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  )
-}
-
-function BellSvg() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-    </svg>
-  )
-}
-
-function StarSvg() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
-  )
-}
-
-function PinSvg() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 21s-6.5-5.4-6.5-10a6.5 6.5 0 1 1 13 0C18.5 15.6 12 21 12 21Z" />
-      <circle cx="12" cy="11" r="2.4" />
-    </svg>
-  )
-}
-
-function GridSvg() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" aria-hidden="true">
-      <rect x="4" y="4" width="7" height="7" rx="1.6" />
-      <rect x="13" y="4" width="7" height="7" rx="1.6" />
-      <rect x="4" y="13" width="7" height="7" rx="1.6" />
-      <rect x="13" y="13" width="7" height="7" rx="1.6" />
-    </svg>
-  )
-}
-
-function BookmarkSvg() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M7 4h10v17l-5-4.5L7 21Z" />
-    </svg>
-  )
-}
-
-export default function Profile({ user, onDone }: Props) {
+export default function Profile({ user, onSignOut }: Props) {
   const [profile, setProfile] = useState<CustomerProfile | null>(null)
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
   const [editing, setEditing] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const [couponsOpen, setCouponsOpen] = useState(false)
+  const [coupons, setCoupons] = useState<CouponRecord[]>([])
+  const [loadingCoupons, setLoadingCoupons] = useState(false)
+  const [filter, setFilter] = useState<'all' | 'available' | 'used' | 'expired'>('all')
+  const [selected, setSelected] = useState<CouponRecord | null>(null)
+  const [selectedQr, setSelectedQr] = useState('')
 
   useEffect(() => {
     if (!user) {
@@ -143,7 +67,6 @@ export default function Profile({ user, onDone }: Props) {
       return
     }
     const unsub = watchCustomer(user.uid, setProfile)
-    // Eagerly hydrate so the name/email reflect without waiting for a stream.
     void fetchCustomer(user.uid).then((p) => {
       if (p) setProfile(p)
     })
@@ -151,27 +74,74 @@ export default function Profile({ user, onDone }: Props) {
   }, [user?.uid])
 
   useEffect(() => {
-    setName(profile?.name ?? '')
-    setEmail(profile?.email ?? '')
-  }, [profile])
+    if (!couponsOpen || !user) return
+    setLoadingCoupons(true)
+    void listMyCoupons(user.uid)
+      .then((records) => setCoupons(records))
+      .catch(() => setCoupons([]))
+      .finally(() => setLoadingCoupons(false))
+  }, [couponsOpen, user?.uid])
 
-  const maskedMobile = user?.phoneNumber ? maskPhone(user.phoneNumber.replace(/^\+91/, '')) : null
-  const initial = (profile?.name ?? user?.displayName ?? '').trim().charAt(0).toUpperCase() || 'U'
+  useEffect(() => {
+    if (!selected) {
+      setSelectedQr('')
+      return
+    }
+    let alive = true
+    void import('qrcode')
+      .then((qr) => qr.toString(selected.code, { type: 'svg', margin: 1, width: 200 }))
+      .then((svg) => {
+        if (alive) setSelectedQr(svg)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [selected])
+
+  const accountName = profile?.name ?? user?.displayName ?? ''
+  const name = accountName || 'You'
+  const email = profile?.email ?? user?.email ?? ''
+  const rawMobile = user?.phoneNumber ?? profile?.mobile ?? ''
+  const mobileDigits = rawMobile.replace(/\D/g, '')
+  const maskedMobile = mobileDigits ? maskPhone(mobileDigits.slice(-10)) : null
+  const verified = user?.phoneNumber ? true : profile?.verified === true
+  const initial = name.trim().charAt(0).toUpperCase() || 'U'
 
   if (editing) {
     return (
-      <EditProfile uid={user?.uid ?? ''} onDone={() => setEditing(false)} />
+      <EditProfile
+        uid={user?.uid ?? ''}
+        accountName={accountName}
+        accountEmail={user?.email ?? ''}
+        mobile={maskedMobile}
+        verified={verified}
+        onDone={() => setEditing(false)}
+      />
     )
   }
 
+  async function handleSignOut(): Promise<void> {
+    if (signingOut) return
+    setSigningOut(true)
+    try {
+      await signOut(auth)
+    } catch {
+      // The session callback still clears local state below.
+    }
+    setSigningOut(false)
+    onSignOut()
+  }
+
   return (
-    <main className="profile">
+    <div className="profile" role="region" aria-label="Your profile">
       <header className="profile-head">
-        <div className="profile-avatar">
-          <span className="profile-avatar-mark">{initial}</span>
-        </div>
+        <span className="profile-avatar" aria-hidden="true">
+          {initial}
+        </span>
         <div className="profile-identity">
-          <h1 className="profile-name">{profile?.name ?? user?.displayName ?? 'You'}</h1>
+          <p className="profile-eyebrow">Your account</p>
+          <h1 className="profile-name">{name}</h1>
           <p className="profile-mobile">{maskedMobile ?? 'No mobile'}</p>
         </div>
         <button
@@ -184,71 +154,176 @@ export default function Profile({ user, onDone }: Props) {
         </button>
       </header>
 
-      <section className="profile-stats">
-        <div className="profile-stat">
-          <span className="profile-stat-big">3</span>
-          <span className="profile-stat-label">Saved</span>
-        </div>
-        <div className="profile-stat">
-          <span className="profile-stat-big">1</span>
-          <span className="profile-stat-label">Coupons</span>
-        </div>
-        <div className="profile-stat">
-          <span className="profile-stat-big">2</span>
-          <span className="profile-stat-label">Following</span>
-        </div>
+      <section className="profile-section">
+        <h2 className="profile-section-title">ACCOUNT</h2>
+        <dl className="profile-card">
+          <div className="profile-row">
+            <dt>Name</dt>
+            <dd>{name}</dd>
+          </div>
+          <div className="profile-row">
+            <dt>Mobile</dt>
+            <dd>
+              {maskedMobile ?? <span className="profile-muted">Not set</span>}
+              {verified && <span className="profile-badge">Verified</span>}
+            </dd>
+          </div>
+          <div className="profile-row">
+            <dt>Email</dt>
+            <dd>
+              {email || <span className="profile-muted">Not added</span>}
+            </dd>
+          </div>
+        </dl>
       </section>
 
-      <section className="profile-section">
-        <p className="profile-section-title">ACTIVITY</p>
-        <ul className="profile-list">
-          <li className="profile-list-item">
-            <ClockSvg className="profile-list-icon" />
-            <span className="profile-list-label">Recently viewed</span>
-            <ChevronSvg className="profile-list-chevron" />
-          </li>
-          <li className="profile-list-item">
-            <TicketSvg className="profile-list-icon" />
-            <div className="profile-list-label-wrap">
-              <span className="profile-list-label">Redemption history</span>
-              <span className="profile-list-sub">Only shop-verified redemptions</span>
-            </div>
-            <ChevronSvg className="profile-list-chevron" />
-          </li>
-          <li className="profile-list-item">
-            <TagSvg className="profile-list-icon" />
-            <span className="profile-list-label">My savings</span>
-            <ChevronSvg className="profile-list-chevron" />
-          </li>
-          <li className="profile-list-item">
-            <PeopleSvg className="profile-list-icon" />
-            <span className="profile-list-label">Invite friends</span>
-            <ChevronSvg className="profile-list-chevron" />
-          </li>
-        </ul>
-      </section>
+      <button
+        type="button"
+        className="profile-coupons"
+        onClick={() => setCouponsOpen(true)}
+      >
+        <TicketSvg />
+        Claimed coupons
+      </button>
 
-      <section className="profile-section">
-        <p className="profile-section-title">PREFERENCES</p>
-        <ul className="profile-list">
-          <li className="profile-list-item">
-            <BellSvg className="profile-list-icon" />
-            <div className="profile-list-label-wrap">
-              <span className="profile-list-label">Notifications</span>
-              <span className="profile-list-sub">Nearby offers, expiry reminders</span>
+      <button
+        type="button"
+        className="profile-signout"
+        onClick={() => void handleSignOut()}
+        disabled={signingOut}
+      >
+        <ExitSvg />
+        {signingOut ? 'Signing out…' : 'Sign out'}
+      </button>
+
+      {couponsOpen && (
+        <div
+          className="profile-coupondialog-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setCouponsOpen(false)
+          }}
+        >
+          <div className="profile-coupondialog" role="dialog" aria-modal="true" aria-label="Claimed coupons">
+            <header className="profile-coupondialog-head">
+              <h2>Claimed coupons</h2>
+              <button
+                type="button"
+                className="profile-coupondialog-close"
+                onClick={() => setCouponsOpen(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </header>
+            <div className="profile-couponchips">
+              {(['all', 'available', 'used', 'expired'] as const).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`profile-couponchip${filter === key ? ' is-on' : ''}`}
+                  onClick={() => setFilter(key)}
+                >
+                  {key === 'all'
+                    ? 'All'
+                    : key === 'available'
+                      ? 'Available'
+                      : key === 'used'
+                        ? 'Used'
+                        : 'Expired'}
+                </button>
+              ))}
             </div>
-            <ChevronSvg className="profile-list-chevron" />
-          </li>
-          <li className="profile-list-item">
-            <StarSvg className="profile-list-icon" />
-            <div className="profile-list-label-wrap">
-              <span className="profile-list-label">Interests</span>
-              <span className="profile-list-sub">Food, Mishti, Fashion</span>
+            <div className="profile-couponlist">
+              {loadingCoupons ? (
+                <p className="profile-muted">Loading…</p>
+              ) : coupons.filter((c) => {
+                  const state = couponState(c)
+                  if (filter === 'all') return true
+                  if (filter === 'available') return state === 'valid'
+                  if (filter === 'used') return state === 'used'
+                  return state === 'expired'
+                }).length === 0 ? (
+                <p className="profile-muted">No coupons here.</p>
+              ) : (
+                coupons
+                  .filter((c) => {
+                    const state = couponState(c)
+                    if (filter === 'all') return true
+                    if (filter === 'available') return state === 'valid'
+                    if (filter === 'used') return state === 'used'
+                    return state === 'expired'
+                  })
+                  .map((c) => (
+                    <button
+                      key={c.code}
+                      type="button"
+                      className={`profile-couponrow${couponState(c) === 'valid' ? '' : ' is-past'}`}
+                      onClick={() => setSelected(c)}
+                    >
+                      <span className="profile-couponrow-code">{c.code}</span>
+                      <span className="profile-couponrow-meta">
+                        {c.offerTitle}
+                        {c.discountLabel ? ` · ${c.discountLabel}` : ''}
+                      </span>
+                      <span className={`profile-couponrow-state state-${couponState(c)}`}>
+                        {couponState(c) === 'valid'
+                          ? 'Available'
+                          : couponState(c) === 'used'
+                            ? 'Used'
+                            : 'Expired'}
+                      </span>
+                    </button>
+                  ))
+              )}
             </div>
-            <ChevronSvg className="profile-list-chevron" />
-          </li>
-        </ul>
-      </section>
-    </main>
+          </div>
+        </div>
+      )}
+
+      {selected && (
+        <div
+          className="profile-coupondialog-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setSelected(null)
+          }}
+        >
+          <div className="profile-coupondialog" role="dialog" aria-modal="true" aria-label="Coupon">
+            <header className="profile-coupondialog-head">
+              <h2>{selected.offerTitle}</h2>
+              <button
+                type="button"
+                className="profile-coupondialog-close"
+                onClick={() => setSelected(null)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </header>
+            <div className="profile-couponpass">
+              <div className="profile-couponpass-qr">
+                {selectedQr ? (
+                  <span dangerouslySetInnerHTML={{ __html: selectedQr }} />
+                ) : (
+                  <span className="cust-pass-qrwait" aria-hidden="true" />
+                )}
+              </div>
+              <p className="profile-couponpass-code">{selected.code}</p>
+              <p className="profile-couponpass-note">
+                {couponState(selected) === 'used'
+                  ? `Redeemed${selected.usedAt ? ` on ${selected.usedAt.slice(0, 16).replace('T', ' ')}` : ''}.`
+                  : couponState(selected) === 'expired'
+                    ? 'This coupon expired with the offer.'
+                    : 'Single use. Show it at the counter — the shop scans it.'}
+              </p>
+              {selected.endsAt && couponState(selected) === 'valid' && (
+                <p className="profile-couponpass-meta">
+                  Valid till {selected.endsAt.slice(0, 16).replace('T', ' ')}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

@@ -40,6 +40,18 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // The customer's own record — the doc that actually carries an account's
+    // data today: profile { name, phone, email, stampMs }, phoneVerified,
+    // saved offers and the last area. Owner-only for reads and writes (the
+    // profile editor writes here); admins may read, nobody deletes.
+    match /users/{uid} {
+      allow get: if signedIn()
+        && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      allow create, update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+
     match /shops/{uid} {
       allow get, list: if signedIn()
         && (request.auth.uid == uid || isAdmin());
@@ -178,6 +190,38 @@ service cloud.firestore {
         && (isAdmin() || request.resource.data.shopUid == request.auth.uid);
       allow update, delete: if signedIn()
         && (isAdmin() || resource.data.shopUid == request.auth.uid);
+    }
+
+    // Claimed coupons — one doc per coupon, the doc id IS the code
+    // (`coupons/NZ-7Q4K-29XB`), so a scan is a single get and the merchant
+    // scanner never runs a query. The customer creates their own claim and
+    // can read it back; the shop that issued it marks it used (and can put
+    // it back during the scanner's undo window). Nothing is ever deleted.
+    match /coupons/{code} {
+      // A code is unguessable (32^7) and worth nothing without the shop.
+      allow get: if signedIn();
+      // Lists are pinned to the caller: a customer sees their own coupons,
+      // a shop sees the ones it issued.
+      allow list: if signedIn()
+        && (resource.data.customerUid == request.auth.uid
+          || resource.data.shopUid == request.auth.uid
+          || isAdmin());
+      allow create: if signedIn()
+        && request.resource.data.customerUid == request.auth.uid
+        && request.resource.data.usedAt == null
+        && request.resource.data.keys().hasAll([
+             'shopUid', 'shopName', 'offerId', 'offerTitle', 'customerUid',
+             'claimedAt', 'endsAt', 'usedAt', 'usedBy',
+           ]);
+      allow update: if signedIn()
+        && (resource.data.shopUid == request.auth.uid || isAdmin())
+        // The shop may only flip the used fields — the coupon itself is
+        // immutable, so a scan can't rewrite what was bought.
+        && request.resource.data.customerUid == resource.data.customerUid
+        && request.resource.data.shopUid == resource.data.shopUid
+        && request.resource.data.offerId == resource.data.offerId
+        && request.resource.data.claimedAt == resource.data.claimedAt;
+      allow delete: if false;
     }
 
     // Nothing outside the shops tree is reachable — and note: this wildcard

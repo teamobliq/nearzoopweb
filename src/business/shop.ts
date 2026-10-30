@@ -582,14 +582,27 @@ export type OfferWrite = Omit<
   'id' | 'views' | 'saves' | 'directions' | 'redemptions'
 >
 
-/** Creates an offer doc (draft or submitted) and returns its id. All field
-    values must be defined — Firestore rejects undefined. */
-export async function saveOffer(uid: string, offer: OfferWrite): Promise<string> {
-  const created = await addDoc(collection(db, 'shops', uid, 'offers'), offer)
-  // Mirror upkeep — new offers are drafts or in review, so this usually
-  // has nothing to write; the sync decides. Fire-and-forget like the rest.
-  void syncOffer(uid, created.id).catch((err) => console.warn('feed sync', err))
-  return created.id
+/** Persists an offer doc — a new one, or the same doc when `id` is given
+    (editing a draft, resubmitting after changes). All field values must be
+    defined — Firestore rejects undefined. */
+export async function saveOffer(
+  uid: string,
+  offer: OfferWrite,
+  id?: string,
+): Promise<string> {
+  let offerId = id
+  if (id) {
+    // Merge, not replace: counters, insight buckets and the admin's review
+    // fields survive an edit unless the write names them.
+    await setDoc(doc(db, 'shops', uid, 'offers', id), offer, { merge: true })
+  } else {
+    const created = await addDoc(collection(db, 'shops', uid, 'offers'), offer)
+    offerId = created.id
+  }
+  // Mirror upkeep — drafts and in-review offers have no mirror; a resubmit
+  // removes the one the offer may have had before. Fire-and-forget.
+  void syncOffer(uid, offerId).catch((err) => console.warn('feed sync', err))
+  return offerId
 }
 
 /** Live subscription to the merchant's offers. A failed stream (rules

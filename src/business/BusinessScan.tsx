@@ -2,6 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
 import type { OfferRecord } from './shop'
 import { markOfferRedeemed, unmarkOfferRedeemed } from './shop'
+import {
+  couponState,
+  fmtCouponCode,
+  lookupCoupon,
+  markCouponUsed,
+  releaseCoupon,
+  type CouponRecord,
+} from './coupons'
 import './business.css'
 
 /** The Scan flow — opened from the sidebar button, the mobile scan chip and
@@ -10,11 +18,13 @@ import './business.css'
     manual path is a first-class citizen, since a desktop webcam pointed at
     a customer's phone is the exception, not the rule.
 
-    Coupon lifecycle states (valid / expired / already used) need the claims
-    collection, which doesn't exist yet — every scanned or entered code
-    resolves to "not found" through the single lookup seam below. What works
-    fully today is the manual counting path for "show screen" & code offers:
-    mark → green Redeemed screen → undo within 2 minutes. */
+    Coupon lifecycle states (valid / expired / already used) come from the
+    claims collection (coupons.ts): a claimed coupon is a `coupons/{code}`
+    doc, the camera reads the QR payload or staff type the code, and the
+    lookup is a single get. Redeeming marks the coupon used and bumps the
+    offer's redemption count; the undo window puts both back. The manual
+    counting path for "show screen" & code offers stays as it was: mark →
+    green Redeemed screen → undo within 2 minutes. */
 
 type Props = {
   uid: string
@@ -27,6 +37,12 @@ type Props = {
 type CamState = 'starting' | 'live' | 'denied' | 'unsupported'
 type Mode = 'scan' | 'code'
 
+type SheetState = {
+  code: string
+  state: 'valid' | 'used' | 'expired' | 'notfound' | 'foreign'
+  coupon: CouponRecord | null
+}
+
 /** Minimal BarcodeDetector shape — the DOM lib doesn't type it yet. */
 type DetectedBarcode = { rawValue: string }
 type DetectorLike = {
@@ -34,17 +50,10 @@ type DetectorLike = {
 }
 type DetectorCtor = new (options: { formats: string[] }) => DetectorLike
 
-/** Coupon lookup by code. The claims collection doesn't exist yet — until
-    the customer claim flow ships, every code resolves to "not found".
-    This function is the single seam the coupon system plugs into. */
-function lookupCoupon(_code: string): Promise<null> {
-  return Promise.resolve(null)
-}
-
 /** The staff instruction under "Redeemed." — from the offer's badge label
     ("₹300 OFF" → "Give ₹300 off the bill."). */
-function giveLine(offer: OfferRecord): string {
-  const raw = (offer.discountLabel ?? '').trim()
+function giveLine(label?: string): string {
+  const raw = (label ?? '').trim()
   const match = raw.match(/^(.+?)\s+off$/i)
   if (match) return `Give ${match[1]} off the bill.`
   return 'Give the offer discount.'
@@ -59,13 +68,6 @@ function fmtStamp(at: Date): string {
     hour12: true,
   })
   return `${day.toUpperCase()}, ${time.toUpperCase()}`
-}
-
-/** "NZ-7Q4K-29XB" from the raw digits a customer reads out. */
-function fmtCode(raw: string): string {
-  const clean = raw.toUpperCase().replace(/[^A-Z0-9]/g, '')
-  if (clean.length === 7) return `NZ-${clean.slice(0, 4)}-${clean.slice(4)}`
-  return clean ? `NZ-${clean}` : '—'
 }
 
 function CloseSvg() {
@@ -122,9 +124,10 @@ export default function BusinessScan({
   // A rear camera (a phone pointed at the customer) shows the world as-is;
   // a laptop webcam is user-facing and reads better mirrored.
   const [rear, setRear] = useState(false)
-  const [sheet, setSheet] = useState<{ code: string } | null>(null)
+  const [sheet, setSheet] = useState<SheetState | null>(null)
   const [done, setDone] = useState<{
     offerId: string
+    code?: string
     line: string
     at: Date
   } | null>(null)
@@ -194,7 +197,8 @@ export default function BusinessScan({
               const found = await detector.detect(videoRef.current)
               if (found.length > 0 && !lockedRef.current) {
                 lockedRef.current = true
-                setSheet({ code: fmtCode(found[0].rawValue) })
+                setSheet(null)
+                void resolve(found[0].rawValue)
               }
             } catch {
               /* frame not ready — next tick retries */
@@ -252,6 +256,30 @@ export default function BusinessScan({
     lockedRef.current = false
   }
 
+  async function resolve(raw: string): Promise<void> {
+    const code = fmtCouponCode(raw)
+    if (code === '—' || busy) return
+    setBusy(true)
+    setError('')
+    try {
+      const coupon = await lookupCoupon(code)
+      if (!coupon) {
+        lockedRef.current = true
+        setSheet({ code, state: 'notfound', coupon: null })
+      } else if (coupon.shopUid !== uid) {
+        lockedRef.current = true
+        setSheet({ code, state: 'foreign', coupon })
+      } else {
+        lockedRef.current = true
+        setSheet({ code, state: couponState(coupon), coupon })
+      }
+    } catch {
+      setError('Couldn’t check that code. Try again.')
+      lockedRef.current = false
+    }
+    setBusy(false)
+  }
+
   async function toggleTorch(): Promise<void> {
     const track = streamRef.current?.getVideoTracks()[0]
     if (!track) return
@@ -295,16 +323,32 @@ export default function BusinessScan({
   async function checkCode(): Promise<void> {
     const clean = `${part1}${part2}`.toUpperCase()
     if (clean.length !== 7 || busy) return
+    lockedRef.current = true
+    await resolve(clean)
+  }
+
+  async function redeemCoupon(coupon: CouponRecord): Promise<void> {
+    if (busy) return
     setBusy(true)
     setError('')
     try {
-      const coupon = await lookupCoupon(clean)
-      if (coupon === null) {
-        lockedRef.current = true
-        setSheet({ code: fmtCode(clean) })
+      await markCouponUsed(coupon.code, uid)
+      // A scanned coupon also counts in the offer's redemption numbers.
+      try {
+        await markOfferRedeemed(uid, coupon.offerId)
+      } catch {
+        // The coupon is already spent; the count is secondary.
       }
+      setSheet(null)
+      setDone({
+        offerId: coupon.offerId,
+        code: coupon.code,
+        line: giveLine(coupon.discountLabel),
+        at: new Date(),
+      })
+      setUndoLeft(120)
     } catch {
-      setError('Couldn’t check that code. Try again.')
+      setError('Couldn’t redeem that. Check the connection and try again.')
     }
     setBusy(false)
   }
@@ -315,7 +359,7 @@ export default function BusinessScan({
     setError('')
     try {
       await markOfferRedeemed(uid, offer.id)
-      setDone({ offerId: offer.id, line: giveLine(offer), at: new Date() })
+      setDone({ offerId: offer.id, line: giveLine(offer.discountLabel), at: new Date() })
       setUndoLeft(120)
     } catch {
       setError('Couldn’t mark that. Check the connection and try again.')
@@ -327,6 +371,7 @@ export default function BusinessScan({
     if (!done || busy) return
     setBusy(true)
     try {
+      if (done.code) await releaseCoupon(done.code)
       await unmarkOfferRedeemed(uid, done.offerId)
       setDone(null)
       setMode('scan')
@@ -345,6 +390,7 @@ export default function BusinessScan({
         </span>
         <h1>Redeemed.</h1>
         <p className="biz-scan-give">{done.line}</p>
+        {done.code && <p className="biz-scan-metacode">{done.code}</p>}
         <p className="biz-scan-meta">
           {fmtStamp(done.at)} · BY {ownerName.toUpperCase() || 'YOU'}
         </p>
@@ -523,33 +569,101 @@ export default function BusinessScan({
             if (event.target === event.currentTarget) closeSheet()
           }}
         >
-          <div className="biz-scan-sheet" role="alertdialog" aria-label="Coupon not found">
-            <span className="biz-scan-sheeticon" aria-hidden="true">
-              <CloseSvg />
+          <div
+            className="biz-scan-sheet"
+            role="alertdialog"
+            aria-label={
+              sheet.state === 'valid'
+                ? 'Redeem coupon'
+                : sheet.state === 'used'
+                  ? 'Coupon already used'
+                  : sheet.state === 'expired'
+                    ? 'Coupon expired'
+                    : sheet.state === 'foreign'
+                      ? 'Not this shop’s coupon'
+                      : 'Coupon not found'
+            }
+          >
+            <span
+              className={`biz-scan-sheeticon${sheet.state === 'valid' ? ' is-ok' : ''}`}
+              aria-hidden="true"
+            >
+              {sheet.state === 'valid' ? <CheckSvg /> : <CloseSvg />}
             </span>
-            <h2>Coupon not found</h2>
+            <h2>
+              {sheet.state === 'valid'
+                ? 'Redeem coupon?'
+                : sheet.state === 'used'
+                  ? 'Already used'
+                  : sheet.state === 'expired'
+                    ? 'Expired'
+                    : sheet.state === 'foreign'
+                      ? 'Not this shop’s'
+                      : 'Coupon not found'}
+            </h2>
             <p className="biz-scan-sheetcode">{sheet.code}</p>
-            <p className="biz-scan-sheetbody">
-              No claimed coupon matches this code. Check it once more — or mark
-              the redemption by hand if the customer showed the offer.
-            </p>
+            {sheet.state === 'valid' && sheet.coupon && (
+              <p className="biz-scan-sheetbody">
+                {sheet.coupon.offerTitle}
+                {sheet.coupon.discountLabel ? ` · ${sheet.coupon.discountLabel}` : ''}
+                <br />
+                Claimed {fmtStamp(new Date(sheet.coupon.claimedAt))}
+              </p>
+            )}
+            {sheet.state === 'used' && sheet.coupon && (
+              <p className="biz-scan-sheetbody">
+                Redeemed
+                {sheet.coupon.usedAt ? ` on ${fmtStamp(new Date(sheet.coupon.usedAt))}` : ''}
+                . This coupon is single-use.
+              </p>
+            )}
+            {sheet.state === 'expired' && (
+              <p className="biz-scan-sheetbody">
+                This coupon’s offer has ended. It can no longer be redeemed.
+              </p>
+            )}
+            {sheet.state === 'foreign' && sheet.coupon && (
+              <p className="biz-scan-sheetbody">
+                This coupon was issued by {sheet.coupon.shopName}. Only the shop
+                that made the offer can redeem it.
+              </p>
+            )}
+            {sheet.state === 'notfound' && (
+              <p className="biz-scan-sheetbody">
+                No claimed coupon matches this code. Check it once more — or mark
+                the redemption by hand if the customer showed the offer.
+              </p>
+            )}
+            {sheet.state === 'valid' && sheet.coupon && (
+              <button
+                type="button"
+                className="btn-primary biz-btn biz-scan-check"
+                onClick={() => void redeemCoupon(sheet.coupon!)}
+                disabled={busy}
+              >
+                {busy ? 'Redeeming…' : 'Redeem coupon'}
+              </button>
+            )}
             <button
               type="button"
               className="btn-danger biz-btn"
               onClick={closeSheet}
+              disabled={busy}
             >
-              Scan another
+              {sheet.state === 'valid' ? 'Not now' : 'Scan another'}
             </button>
-            <button
-              type="button"
-              className="biz-scan-sheetlink"
-              onClick={() => {
-                closeSheet()
-                setMode('code')
-              }}
-            >
-              Count it manually instead
-            </button>
+            {sheet.state !== 'valid' && (
+              <button
+                className="biz-scan-sheetlink"
+                type="button"
+                onClick={() => {
+                  closeSheet()
+                  setMode('code')
+                }}
+              >
+                Count it manually instead
+              </button>
+            )}
           </div>
         </div>
       )}

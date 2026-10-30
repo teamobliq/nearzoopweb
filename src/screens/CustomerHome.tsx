@@ -36,6 +36,8 @@ type Props = {
   user: { uid: string; phoneNumber?: string | null; displayName?: string | null } | null
   /** The location chip — re-runs the Locate step. */
   onEditLocation: () => void
+  /** Opens one offer's detail page — `<shopUid>/<offerId>` — from a card. */
+  onOpenOffer: (shopUid: string, offerId: string) => void
   /** The You tab's sign-in button — routes to the auth flow and back. */
   onSignIn: () => void
   /** After sign-out completes — the session flips to guest. */
@@ -142,8 +144,8 @@ function distLabel(km: number): string {
 
 /** One offer card — the feed mirror's fields in the house card language:
     the deal tile (the same biz-otile the merchant lists wear), the title,
-    the shop line, and a meta row of distance + validity. Tapping selects
-    it, which lights the matching pin on the map. */
+    the shop line, and a meta row of distance + validity. Tapping opens
+    the offer's own page. */
 function OfferCard({
   item,
   selected,
@@ -210,6 +212,7 @@ export default function CustomerHome({
   session,
   user,
   onEditLocation,
+  onOpenOffer,
   onSignIn,
   onSignOut,
 }: Props) {
@@ -287,6 +290,13 @@ export default function CustomerHome({
         .getElementById(`chome-card-${id}`)
         ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     }, 380)
+  }
+
+  /** A card tap opens the offer's page; the card stays lit so the pin is
+      still marked when the customer comes back. */
+  function openOffer(item: FeedRecord) {
+    setSelected(item.offerId)
+    onOpenOffer(item.shopUid, item.offerId)
   }
 
   // The sheet handle: a tap toggles, a drag follows the gesture.
@@ -479,11 +489,7 @@ export default function CustomerHome({
                       key={item.offerId}
                       item={item}
                       selected={selected === item.offerId}
-                      onSelect={() =>
-                        setSelected(
-                          selected === item.offerId ? null : item.offerId,
-                        )
-                      }
+                      onSelect={() => openOffer(item)}
                     />
                   ))}
                 </ul>
@@ -538,11 +544,7 @@ export default function CustomerHome({
                       key={item.offerId}
                       item={item}
                       selected={selected === item.offerId}
-                      onSelect={() =>
-                        setSelected(
-                          selected === item.offerId ? null : item.offerId,
-                        )
-                      }
+                      onSelect={() => openOffer(item)}
                     />
                   ))}
                 </ul>
@@ -571,7 +573,7 @@ export default function CustomerHome({
         {view === 'you' && (
           <div className="chome-body">
             {session.variant === 'signed-in' && user ? (
-              <Profile user={user} onDone={() => {}} />
+              <Profile user={user} onSignOut={onSignOut} />
             ) : (
               <div className="chome-you">
                 <span className="chome-avatar" aria-hidden="true">

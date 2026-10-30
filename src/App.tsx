@@ -45,7 +45,7 @@ function readRoute(): Route {
   if (/(^|\/)busdash\/?$/i.test(path)) {
     return 'business'
   }
-  if (/(^|\/)business(\/[^/]+)?\/?$/i.test(path)) {
+  if (/(^|\/)business(\/.*)?\/?$/i.test(path)) {
     return 'business'
   }
   if (/(^|\/)nz-admin\/?$/i.test(path)) {
@@ -112,6 +112,48 @@ function App() {
     setRoute('business')
   }
 
+  /** Opens one offer's page from the customer list — a real URL, so Back,
+      reload and sharing all land on the same offer. */
+  function openOffer(uid: string, offerId: string) {
+    const target = `${import.meta.env.BASE_URL}${encodeURIComponent(uid)}/${encodeURIComponent(offerId)}?source=nearby`
+    try {
+      window.history.pushState({ nzOffer: true }, '', target)
+    } catch {
+      // History unavailable — the screen still opens, the URL just lags.
+    }
+    setDeepLink({ uid, offerId })
+  }
+
+  /** Leaves an offer page: back through history when it was opened from
+      the list, otherwise to Home (a shared link has no list behind it). */
+  function closeOffer() {
+    const state = window.history.state as { nzOffer?: boolean } | null
+    if (state?.nzOffer) {
+      window.history.back()
+    } else {
+      try {
+        window.history.pushState({}, '', import.meta.env.BASE_URL || '/')
+      } catch {
+        // State still switches below.
+      }
+    }
+    setDeepLink(null)
+    setScreen('home')
+  }
+
+  /** "Sign in to claim" on an offer page — the auth flow takes over, then
+      lands on Home (the offer stays reachable from there). */
+  function signInFromOffer() {
+    setAuthReturn('home')
+    try {
+      window.history.pushState({}, '', import.meta.env.BASE_URL || '/')
+    } catch {
+      // State still switches below.
+    }
+    setDeepLink(null)
+    setScreen('auth')
+  }
+
   if (route === 'business') {
     return <BusinessSignIn />
   }
@@ -145,7 +187,10 @@ function App() {
       <CustomerOffer
         uid={deepLink.uid}
         offerId={deepLink.offerId}
-        onSignIn={() => setScreen('auth')}
+        signedIn={session.variant === 'signed-in'}
+        viewerUid={session.uid}
+        onSignIn={signInFromOffer}
+        onBack={closeOffer}
       />
     )
   }
@@ -197,6 +242,7 @@ function App() {
       session={session}
       user={session.variant === 'signed-in' ? auth.currentUser : null}
       onEditLocation={() => setScreen('locate')}
+      onOpenOffer={openOffer}
       onSignIn={() => {
         setAuthReturn('home')
         setScreen('auth')

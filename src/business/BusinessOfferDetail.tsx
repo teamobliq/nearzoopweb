@@ -211,19 +211,20 @@ export default function BusinessOfferDetail({
   const [deleteOpen, setDeleteOpen] = useState(false)
 
   // Escape closes whichever overlay is open — share dialog, end-offer
-  // confirm, or delete confirm.
+  // confirm, delete confirm, or the ⋯ menu.
   useEffect(() => {
-    if (!shareOpen && !endOpen && !deleteOpen) return
+    if (!shareOpen && !endOpen && !deleteOpen && !menuOpen) return
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setShareOpen(false)
         setEndOpen(false)
         setDeleteOpen(false)
+        setMenuOpen(false)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [shareOpen, endOpen, deleteOpen])
+  }, [shareOpen, endOpen, deleteOpen, menuOpen])
 
   // Badge split — the same first-space rule the list tiles use.
   const label = offer.discountLabel?.trim() ?? ''
@@ -232,7 +233,7 @@ export default function BusinessOfferDetail({
   const small =
     label === '' ? 'Draft' : splitAt === -1 ? '' : label.slice(splitAt + 1)
   const tileColor =
-    status === 'ended' || status === 'changes'
+    status === 'ended' || status === 'changes' || status === 'draft'
       ? 'gray'
       : (offer.tileColor ?? 'yellow')
 
@@ -260,13 +261,15 @@ export default function BusinessOfferDetail({
                 ? `Ends ${fmtWhen(offer.endsAt)}`
                 : ''
 
-  async function act(next: OfferStatus): Promise<void> {
+  async function act(next: OfferStatus): Promise<boolean> {
     setWorking(true)
     setError('')
     try {
       await setOfferStatus(uid, offer.id, next)
+      return true
     } catch {
       setError('Could not update the offer. Try again.')
+      return false
     } finally {
       setWorking(false)
     }
@@ -281,10 +284,10 @@ export default function BusinessOfferDetail({
     await act(over ? 'ended' : 'live')
   }
 
-  /** End confirmed from the dialog; act() reports any failure on the page. */
+  /** End confirmed from the dialog — a failed write keeps the dialog up so
+      the message lands where the merchant is looking. */
   async function confirmEnd(): Promise<void> {
-    await act('ended')
-    setEndOpen(false)
+    if (await act('ended')) setEndOpen(false)
   }
 
   // The shared link lands directly on this offer:
@@ -370,6 +373,10 @@ export default function BusinessOfferDetail({
   const isScheduled = status === 'scheduled'
   const isEnded = status === 'ended'
   const isChanges = status === 'changes'
+  const isDraft = status === 'draft'
+  // A share link only resolves while the offer has a public mirror — drafts
+  // and in-review offers have none, so the button would hand out a dead link.
+  const shareable = isLive || isPaused || isScheduled || isEnded
 
   return (
     <div className="biz-detail">
@@ -385,6 +392,7 @@ export default function BusinessOfferDetail({
         <h1 className="biz-ob-title">{isChanges ? 'Needs changes' : 'Offer'}</h1>
         {!isChanges && (
         <div className="biz-detail-toprow">
+          {shareable && (
           <button
             type="button"
             className="biz-detail-circle"
@@ -395,6 +403,7 @@ export default function BusinessOfferDetail({
           >
             <ShareSvg />
           </button>
+          )}
           <div className="biz-detail-menuwrap">
             <button
               type="button"
@@ -562,7 +571,7 @@ export default function BusinessOfferDetail({
         </div>
       )}
 
-      {!isChanges && (
+      {(isLive || isPaused || isEnded) && (
       <section className="biz-detail-section">
         <h2 className="biz-dash-h2">{isEnded ? 'Final results' : 'Performance'}</h2>
         <p className="biz-detail-sub">Since it went live</p>
@@ -711,7 +720,7 @@ export default function BusinessOfferDetail({
               Delete this offer?
             </h2>
             <p className="biz-modal-body">
-              Permanently deletes this rejected offer. This can’t be undone.
+              Permanently deletes this offer. This can’t be undone.
             </p>
             <div className="biz-modal-actions">
               <button
@@ -740,7 +749,7 @@ export default function BusinessOfferDetail({
         </div>
       )}
 
-      {(isLive || isPaused || isScheduled || isEnded || isChanges) && (
+      {(isLive || isPaused || isScheduled || isEnded || isChanges || isDraft) && (
         <div className="biz-ob-foot biz-detail-foot">
           {isLive && (
             <>
@@ -791,6 +800,25 @@ export default function BusinessOfferDetail({
             >
               End offer now
             </button>
+          )}
+          {isDraft && (
+            <>
+              <button
+                type="button"
+                className="btn-secondary biz-btn biz-detail-half"
+                disabled={working}
+                onClick={() => setDeleteOpen(true)}
+              >
+                <TrashSvg /> Delete
+              </button>
+              <button
+                type="button"
+                className="btn-primary biz-btn biz-detail-half"
+                onClick={() => onRunAgain(offer)}
+              >
+                <PencilSvg /> Edit draft
+              </button>
+            </>
           )}
           {isEnded && (
             <button

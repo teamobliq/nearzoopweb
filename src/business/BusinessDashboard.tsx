@@ -28,8 +28,8 @@ type Props = {
 
 type View = 'home' | 'offers' | 'create' | 'detail' | 'insights' | 'shop' | 'notifications'
 
-/** Sections that live in the address bar. Detail needs an offer id, so it
-    has no URL of its own; anything unknown falls back to Home. */
+/** Sections that live in the address bar. An offer's page is
+    `/business/offers/<offerId>`; anything unknown falls back to Home. */
 const VIEW_NAMES: View[] = [
   'home',
   'offers',
@@ -39,13 +39,30 @@ const VIEW_NAMES: View[] = [
   'notifications',
 ]
 
-/** The section a `/business/<view>` URL names — Home for anything else. */
-function readViewFromPath(): View {
+type RouteState = { view: View; detailId: string | null }
+
+/** The section (and offer) a `/business/...` URL names — Home for anything
+    else. Detail keeps its id in the path so a reload, a remount or a shared
+    tab lands back on the same offer instead of the list. */
+function readRouteFromPath(): RouteState {
   const segments = window.location.pathname.split('/').filter(Boolean)
   const at = segments.findIndex((s) => s.toLowerCase() === 'business')
-  if (at === -1) return 'home'
+  if (at === -1) return { view: 'home', detailId: null }
   const name = (segments[at + 1] ?? '').toLowerCase()
-  return (VIEW_NAMES as string[]).includes(name) ? (name as View) : 'home'
+  const maybeId = segments[at + 2]
+  if (name === 'offers' && maybeId) {
+    let detailId = maybeId
+    try {
+      detailId = decodeURIComponent(maybeId)
+    } catch {
+      /* keep the raw segment */
+    }
+    return { view: 'detail', detailId }
+  }
+  return {
+    view: (VIEW_NAMES as string[]).includes(name) ? (name as View) : 'home',
+    detailId: null,
+  }
 }
 
 /** Canonical URL for a section: Home is `/busdash`, the rest are
@@ -53,6 +70,12 @@ function readViewFromPath(): View {
 function viewUrl(view: View): string {
   const base = import.meta.env.BASE_URL
   return base + (view === 'home' ? 'busdash' : `business/${view}`)
+}
+
+/** An offer's own page — the detail view's address. */
+function detailUrl(offerId: string): string {
+  const base = import.meta.env.BASE_URL
+  return `${base}business/offers/${encodeURIComponent(offerId)}`
 }
 
 type NavKind = 'home' | 'offers' | 'scan' | 'insights' | 'shop' | 'bell'
@@ -247,10 +270,16 @@ export default function BusinessDashboard({
   const [shop, setShop] = useState<ShopRecord | null>(null)
   const [shopReady, setShopReady] = useState(false)
   const [offers, setOffers] = useState<OfferRecord[] | null>(null)
-  const [view, setView] = useState<View>(readViewFromPath)
+  const [route, setRoute] = useState<RouteState>(readRouteFromPath)
+  const view = route.view
   // The details screen holds only the id — the record is read live from the
   // offers array, so a status change updates the screen in place.
-  const [detailId, setDetailId] = useState<string | null>(null)
+  const detailId = route.detailId
+
+  /** Section switches clear any open detail. */
+  function setView(next: View): void {
+    setRoute({ view: next, detailId: null })
+  }
   // "Run it again" — the offer the builder opens prefilled with.
   const [runAgain, setRunAgain] = useState<OfferRecord | null>(null)
   // The scan flow overlay — opened from every Scan entry point.
@@ -292,26 +321,26 @@ export default function BusinessDashboard({
     shellRef.current?.scrollTo(0, 0)
   }, [view])
 
-  // The address bar follows the section, so `/business/shop` survives a
-  // reload and can be linked to; Back/Forward step through sections like
-  // pages. Detail is transient and stays out of the URL.
+  // The address bar follows the section (and the open offer), so a reload
+  // or a shared tab lands back on the same screen. Back/Forward step
+  // through pages. Detail ids live in the path: `/business/offers/<id>`.
   useEffect(() => {
-    if (view === 'detail') return
-    const target = viewUrl(view)
+    const target =
+      view === 'detail' && detailId ? detailUrl(detailId) : viewUrl(view)
     const here = window.location.pathname.replace(/\/+$/, '') || '/'
     if (here !== target.replace(/\/+$/, '')) {
       try {
-        window.history.pushState({}, '', target)
+        window.history.pushState({ nzDetail: view === 'detail' }, '', target)
       } catch {
         // History can be unavailable in sandboxed contexts; the section
         // still switched, the URL just doesn't follow.
       }
     }
-  }, [view])
+  }, [view, detailId])
 
   useEffect(() => {
     function onPop(): void {
-      setView(readViewFromPath())
+      setRoute(readRouteFromPath())
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
@@ -343,8 +372,18 @@ export default function BusinessDashboard({
     detailId === null ? null : (offers.find((o) => o.id === detailId) ?? null)
 
   function openDetail(offerId: string): void {
-    setDetailId(offerId)
-    setView('detail')
+    setRoute({ view: 'detail', detailId: offerId })
+  }
+
+  /** Back from an offer's page — step through history when the page was
+      pushed, otherwise return to the list (a directly-loaded detail). */
+  function closeDetail(): void {
+    const state = window.history.state as { nzDetail?: boolean } | null
+    if (state?.nzDetail) {
+      window.history.back()
+      return
+    }
+    setView('offers')
   }
 
   function openCreate(): void {
@@ -415,18 +454,26 @@ export default function BusinessDashboard({
               uid={uid}
               shopName={shop.name || 'Your shop'}
               offer={detailOffer}
-              onBack={() => setView('offers')}
+              onBack={closeDetail}
               onRunAgain={(source) => {
                 setRunAgain(source)
                 setView('create')
               }}
             />
           ) : (
-            <BusinessOffers
-              offers={offers}
-              onCreate={openCreate}
-              onOpen={openDetail}
-            />
+            <section className="biz-missing">
+              <h1 className="biz-detail-name">This offer isn’t here anymore.</h1>
+              <p className="biz-detail-when">
+                It may have been deleted from another tab or device.
+              </p>
+              <button
+                type="button"
+                className="btn-secondary biz-btn biz-missing-back"
+                onClick={() => setView('offers')}
+              >
+                Back to offers
+              </button>
+            </section>
           ))}
         {view === 'home' && (
           <>
@@ -529,16 +576,17 @@ export default function BusinessDashboard({
               </button>
             </div>
 
-            {offers.some((o) => o.reviewNote) && (
+            {offers.some((o) => o.status === 'changes') && (
               <section className="biz-dash-attention">
                 <h3 className="biz-dash-h3">Needs your attention</h3>
                 {offers
-                  .filter((o) => o.reviewNote)
+                  .filter((o) => o.status === 'changes')
                   .map((o) => (
                     <button
                       key={o.id}
                       type="button"
                       className="biz-attention"
+                      onClick={() => openDetail(o.id)}
                     >
                       <span className="biz-attention-icon">
                         <InfoSvg />
@@ -547,7 +595,9 @@ export default function BusinessDashboard({
                         <span className="biz-attention-title">
                           “{o.title ?? 'Offer'}” needs changes
                         </span>
-                        <span className="biz-attention-sub">{o.reviewNote}</span>
+                        <span className="biz-attention-sub">
+                          {o.reviewNote || 'The review team left a note.'}
+                        </span>
                       </span>
                       <span className="biz-attention-chev">
                         <ChevronSvg />

@@ -1618,6 +1618,16 @@
   padding-bottom: 6.5rem;
 }
 
+/* A detail URL whose offer has vanished — honest empty state. */
+.biz-missing {
+  padding-top: 4rem;
+}
+
+.biz-missing-back {
+  width: auto;
+  margin-top: 1.4rem;
+}
+
 .biz-detail-hero {
   display: flex;
   align-items: center;
@@ -3781,9 +3791,21 @@
   transform: rotate(-4deg);
 }
 
-.biz-scan-sheeticon svg {
-  width: 1.6rem;
-  height: 1.6rem;
+.biz-scan-sheeticon.is-ok {
+  background: var(--color-green);
+}
+
+.biz-scan-metacode {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.16);
+  border-radius: 0.6rem;
+  padding: 0.35rem 0.7rem;
+  display: inline-block;
 }
 
 .biz-scan-sheet h2 {
