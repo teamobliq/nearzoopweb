@@ -13,6 +13,7 @@ import {
   type CouponRecord,
 } from '../business/coupons'
 import { maskPhone } from './AuthFlow'
+import EditProfile from './EditProfile'
 import './profile.css'
 
 /** Profile screen — the "You" tab. */

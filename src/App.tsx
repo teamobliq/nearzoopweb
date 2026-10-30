@@ -15,7 +15,7 @@ const AdminPanel = lazy(() => import('./admin/AdminPanel'))
 
 type Screen = 'splash' | 'onboard' | 'auth' | 'locate' | 'home' | 'profile' | 'editProfile'
 type Route = 'customer' | 'business' | 'admin'
-type Session = { variant: 'guest' | 'signed-in'; label?: string; uid?: string }
+type Session = { variant: 'guest' | 'signed-in'; label?: string; uid?: string; user?: User }
 type DeepLink = { uid: string; offerId: string }
 
 /** First-run check: onboarding shows once, then `nz.onboarded` skips it. */

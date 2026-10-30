@@ -32,8 +32,6 @@ const ACCURACY_LIMIT = 500
 
 const MIN_KM = 0.5
 const MAX_KM = 10
-const DEFAULT_KM = 2
-
 /** "±800 m" style — metres rounded to the nearest hundred, kilometres past
     a thousand. Matches the design's accuracy banner. */
 function fmtAccuracy(meters: number): string {

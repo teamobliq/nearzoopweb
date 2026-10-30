@@ -158,8 +158,8 @@ export default function VerifyCode({
             onChange={(event) => handleChange(index, event.target.value)}
             onKeyDown={(event) => handleKeyDown(index, event)}
             onPaste={(event) => handlePaste(index, event)}
-            onFocus={(event) => event.target.select()}
-            onClick={(event) => event.target.select()}
+            onFocus={(event) => (event.target as HTMLInputElement).select()}
+            onClick={(event) => (event.target as HTMLInputElement).select()}
           />
         ))}
       </div>

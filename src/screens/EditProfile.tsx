@@ -90,7 +90,7 @@ export default function EditProfile({
     setError('')
     setSaving(true)
     try {
-      const patch: { name?: string; email?: string } = {}
+      const patch: { name?: string | null; email?: string | null } = {}
       const nameTrimmed = name.trim()
       if (nameTrimmed !== (profile?.name ?? '').trim()) patch.name = nameTrimmed || null
       const emailTrimmed = email.trim()

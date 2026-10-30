@@ -10,6 +10,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocFromServer,
   increment,
   onSnapshot,
   serverTimestamp,
@@ -153,7 +154,7 @@ export async function saveShop(uid: string, patch: ShopPatch): Promise<void> {
     throws (unreachable) instead of serving the cache — the callers show a
     reload prompt for that, which is the right outcome anyway. */
 export async function fetchShop(uid: string): Promise<ShopRecord | null> {
-  const snap = await getDoc(doc(db, 'shops', uid), { source: 'server' })
+  const snap = await getDocFromServer(doc(db, 'shops', uid))
   return snap.exists() ? (snap.data() as ShopRecord) : null
 }
 
@@ -590,8 +591,9 @@ export async function saveOffer(
   offer: OfferWrite,
   id?: string,
 ): Promise<string> {
-  let offerId = id
+  let offerId: string
   if (id) {
+    offerId = id
     // Merge, not replace: counters, insight buckets and the admin's review
     // fields survive an edit unless the write names them.
     await setDoc(doc(db, 'shops', uid, 'offers', id), offer, { merge: true })

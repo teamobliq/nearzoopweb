@@ -123,9 +123,9 @@ export function resolveAddress(lat: number, lng: number): Promise<string | null>
       })
     }, wait)
   }
-  queued.lat = lat
-  queued.lng = lng
-  return new Promise((resolve) => queued.resolvers.push(resolve))
+  queued!.lat = lat
+  queued!.lng = lng
+  return new Promise((resolve) => queued!.resolvers.push(resolve))
 }
 
 /** Reverse-geocodes a point into a locality name (neighbourhood first,

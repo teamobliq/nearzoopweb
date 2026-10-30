@@ -17,6 +17,7 @@ import {
 import { watchFeed, type FeedRecord } from '../business/feed'
 import { fmtDay } from '../business/when'
 import Profile from './Profile'
+import type { User } from 'firebase/auth'
 import './customer.css'
 // The feed cards reuse the merchant list's deal tile (biz-otile) for the
 // discount, so business.css must ship in this bundle too.
@@ -33,7 +34,7 @@ import '../business/business.css'
 type Props = {
   session: { variant: 'guest' | 'signed-in'; label?: string }
   /** The signed-in Firebase user, or null when browsing as guest. */
-  user: { uid: string; phoneNumber?: string | null; displayName?: string | null } | null
+  user: User | null
   /** The location chip — re-runs the Locate step. */
   onEditLocation: () => void
   /** Opens one offer's detail page — `<shopUid>/<offerId>` — from a card. */
@@ -218,7 +219,7 @@ export default function CustomerHome({
 }: Props) {
   // The fix, radius and locality label come from the Locate step's cache.
   const [fix, setFix] = useState<Coords | null>(() => cachedCoords())
-  const [radiusKm, setRadiusKm] = useState<number>(cachedRadiusKm)
+  const [radiusKm] = useState<number>(cachedRadiusKm)
   const [locality, setLocality] = useState<string | null>(cachedLocality)
   const [view, setView] = useState<View>('nearby')
   // The sheet's two positions: resting over the map, or raised so the list

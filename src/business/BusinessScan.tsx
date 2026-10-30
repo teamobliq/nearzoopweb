@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ChangeEvent, KeyboardEvent } from 'react'
+import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent } from "react"
 import type { OfferRecord } from './shop'
 import { markOfferRedeemed, unmarkOfferRedeemed } from './shop'
 import {
@@ -311,7 +311,7 @@ export default function BusinessScan({
     setPart2(value)
   }
 
-  function onPart2Key(event: KeyboardEvent<HTMLInputElement>): void {
+  function onPart2Key(event: ReactKeyboardEvent<HTMLInputElement>): void {
     if (event.key === 'Backspace' && part2 === '') {
       const input = event.currentTarget.form?.elements[0] as
         | HTMLInputElement
