@@ -123,23 +123,27 @@ function repaint(style: StyleSpecification): StyleSpecification {
 /** Named point-of-interest label layer — shops, eateries, services, ATMs.
     Positron ships no POI layers at all, but the vector tiles carry them;
     this draws every POI that has a name, text-only (no sprite icons), in
-    the design's olive-on-cream label style. Shows from zoom 16 — the
-    picker opens at 17, so shop names are visible immediately. */
+    the design's olive-on-cream label style. Shows from zoom 15 so the
+    offer preview (15.5) gets shop names too; the picker opens at 17.
+    `rank` is OpenMapTiles' importance score (2 = landmark, rising for
+    minor places) — sorting by it lets a hospital or a big shop keep its
+    name when a minor POI would otherwise win the collision. */
 function poiLabelLayer(): SymbolLayerSpecification {
   return {
     id: 'nz-poi-label',
     type: 'symbol',
     source: 'openmaptiles',
     'source-layer': 'poi',
-    minzoom: 16,
+    minzoom: 15,
     filter: ['has', 'name'],
     layout: {
       'text-field': ['get', 'name'],
       'text-font': ['Noto Sans Regular'],
-      'text-size': ['interpolate', ['linear'], ['zoom'], 16, 10.5, 19, 13],
+      'text-size': ['interpolate', ['linear'], ['zoom'], 15, 10, 19, 14],
       'text-max-width': 9,
       'text-letter-spacing': 0.05,
-      'text-padding': 3,
+      'text-padding': 2,
+      'symbol-sort-key': ['coalesce', ['get', 'rank'], 100],
     },
     paint: {
       'text-color': LABEL,

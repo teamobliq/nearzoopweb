@@ -70,10 +70,30 @@ async function geocodeNow(lat: number, lng: number): Promise<string | null> {
     const street = [parts.house_number, parts.road]
       .filter((value) => Boolean(value))
       .join(' ')
-    const area =
-      parts.neighbourhood ?? parts.suburb ?? parts.quarter ?? parts.village
+    // Finest locality OSM has. Towns and cities matter for rural pins,
+    // where OSM often has no street or suburb at all — without them the
+    // line collapses to a bare postcode.
+    const locality =
+      parts.neighbourhood ??
+      parts.suburb ??
+      parts.quarter ??
+      parts.hamlet ??
+      parts.village ??
+      parts.town ??
+      parts.city ??
+      parts.municipality
+    // Street and locality both missing? Add the district and state so the
+    // line still says where the shop is, not just its PIN.
+    const region =
+      street && locality
+        ? null
+        : [parts.state_district ?? parts.county, parts.state]
+            .filter((value) => Boolean(value))
+            .join(', ')
     const pin = parts.postcode
-    const line = [street, area, pin].filter((value) => Boolean(value)).join(', ')
+    const line = [street, locality, region, pin]
+      .filter((value) => Boolean(value))
+      .join(', ')
     return line || null
   } catch {
     return null
@@ -106,4 +126,124 @@ export function resolveAddress(lat: number, lng: number): Promise<string | null>
   queued.lat = lat
   queued.lng = lng
   return new Promise((resolve) => queued.resolvers.push(resolve))
+}
+
+/** Reverse-geocodes a point into a locality name (neighbourhood first,
+    city as the last resort) — the short label the customer screens show
+    ("Gariahat"), not the full street line. Throttled to Nominatim's
+    one-call-per-second public policy on its own clock. Returns null on
+    any failure — callers just skip the label. */
+let lastLocalityAt = 0
+
+export async function resolveLocalityName(
+  lat: number,
+  lng: number,
+): Promise<string | null> {
+  const wait = 1100 - (Date.now() - lastLocalityAt)
+  if (wait > 0) await new Promise((resolve) => window.setTimeout(resolve, wait))
+  lastLocalityAt = Date.now()
+  const query = new URLSearchParams({
+    format: 'jsonv2',
+    lat: lat.toFixed(6),
+    lon: lng.toFixed(6),
+    zoom: '16',
+    addressdetails: '1',
+    'accept-language': 'en',
+  })
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?${query.toString()}`,
+      { signal: AbortSignal.timeout(4000) },
+    )
+    if (!res.ok) return null
+    const data = (await res.json()) as {
+      address?: Partial<Record<string, string>>
+    }
+    const parts = data.address ?? {}
+    return (
+      parts.neighbourhood ??
+      parts.suburb ??
+      parts.quarter ??
+      parts.city_district ??
+      parts.village ??
+      parts.town ??
+      parts.city ??
+      null
+    )
+  } catch {
+    return null
+  }
+}
+
+/* ---- Customer location cache ----
+   The customer flow (Splash → Locate → Home) shares three localStorage
+   values: the fix, the chosen search radius and the locality label. These
+   helpers are the single writer/reader contract for them — everything is
+   JSON, and every call tolerates blocked storage. */
+
+export function cacheCoords(coords: { lat: number; lng: number }): void {
+  try {
+    localStorage.setItem('nz.coords', JSON.stringify(coords))
+  } catch {
+    // Storage blocked — navigation still proceeds.
+  }
+}
+
+/** The chosen search radius in km — snapped to the Locate slider's 0.5 km
+    steps so the slider never fights a stored value. Defaults to 2. */
+export function cachedRadiusKm(): number {
+  try {
+    const raw = localStorage.getItem('nz.radius')
+    const parsed = raw === null ? NaN : Number(raw)
+    if (Number.isFinite(parsed)) {
+      return Math.min(10, Math.max(0.5, Math.round(parsed * 2) / 2))
+    }
+  } catch {
+    // Storage blocked — the default stands.
+  }
+  return 2
+}
+
+export function cacheRadiusKm(km: number): void {
+  try {
+    localStorage.setItem('nz.radius', JSON.stringify(km))
+  } catch {
+    // Storage blocked — the radius stays session-only.
+  }
+}
+
+export function cachedLocality(): string | null {
+  try {
+    const raw = localStorage.getItem('nz.locality')
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as unknown
+    return typeof parsed === 'string' && parsed.trim() !== '' ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+export function cacheLocality(name: string): void {
+  try {
+    localStorage.setItem('nz.locality', JSON.stringify(name))
+  } catch {
+    // Storage blocked — the label stays session-only.
+  }
+}
+
+/** Great-circle distance between two points, in kilometres — the feed's
+    radius filter and the cards' "1.2 km away" labels. */
+export function haversineKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const R = 6371
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180
+  const lat1 = (a.lat * Math.PI) / 180
+  const lat2 = (b.lat * Math.PI) / 180
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)))
 }

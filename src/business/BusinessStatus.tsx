@@ -4,9 +4,10 @@ type Props = {
   variant: Variant
   /** Admin's rejection reason — shown on the failed screen when present. */
   note?: string
-  /** "Draft my first offer" (checking) / "Upload another document" (failed). */
-  onPrimary: () => void
-  onDashboard: () => void
+  /** "Upload another document" (failed only) — re-opens the wizard. */
+  onPrimary?: () => void
+  /** The only way off this screen while the shop is unapproved. */
+  onSignOut: () => void
 }
 
 const COPY: Record<
@@ -15,14 +16,14 @@ const COPY: Record<
     title: string
     body: string
     state: string
-    cta: string
+    cta?: string
   }
 > = {
   checking: {
     title: 'Checking your shop.',
-    body: 'Usually under 24 hours. We’ll SMS you. Meanwhile you can draft your first offer.',
+    body:
+      'Usually under 24 hours. We’ll SMS you as soon as our team approves your shop — nothing goes live before that.',
     state: 'In progress',
-    cta: 'Draft my first offer',
   },
   failed: {
     title: 'We couldn’t verify that.',
@@ -77,14 +78,6 @@ function CrossIcon() {
   )
 }
 
-function PlusIcon() {
-  return (
-    <svg className="biz-cta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.8} strokeLinecap="round" aria-hidden="true">
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  )
-}
-
 function FileIcon() {
   return (
     <svg
@@ -108,7 +101,7 @@ export default function BusinessStatus({
   variant,
   note,
   onPrimary,
-  onDashboard,
+  onSignOut,
 }: Props) {
   const copy = COPY[variant]
   const rows = [
@@ -148,13 +141,19 @@ export default function BusinessStatus({
           ))}
         </ul>
 
-        <button type="button" className="btn-primary biz-btn biz-statuscta" onClick={onPrimary}>
-          {variant === 'checking' ? <PlusIcon /> : <FileIcon />}
-          {copy.cta}
-        </button>
+        {onPrimary && copy.cta ? (
+          <button
+            type="button"
+            className="btn-primary biz-btn biz-statuscta"
+            onClick={onPrimary}
+          >
+            <FileIcon />
+            {copy.cta}
+          </button>
+        ) : null}
 
-        <button type="button" className="biz-linkbtn" onClick={onDashboard}>
-          Go to dashboard
+        <button type="button" className="biz-linkbtn" onClick={onSignOut}>
+          Sign out
         </button>
       </div>
     </main>

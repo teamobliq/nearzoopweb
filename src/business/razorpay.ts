@@ -1,6 +1,6 @@
-/** Razorpay Checkout loader (Standard Checkout, no order — the one-time
-    verification fee is charged straight from the browser with the public
-    Key ID; the secret never ships and there is no server to create orders). */
+/** Razorpay Checkout loader (Standard Checkout, no order — the annual
+    ₹1,000 fee is charged straight from the browser with the public Key
+    ID; the secret never ships and there is no server to create orders). */
 
 export type RazorpayHandlerResponse = {
   razorpay_payment_id?: string

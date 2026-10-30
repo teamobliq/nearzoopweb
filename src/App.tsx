@@ -1,8 +1,11 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
+import type { User } from 'firebase/auth'
+import { auth } from './firebase'
 import Splash from './screens/Splash'
 import Onboarding from './screens/Onboarding'
-import AuthFlow from './screens/AuthFlow'
-import Done from './screens/Done'
+import AuthFlow, { maskPhone } from './screens/AuthFlow'
+import Locate from './screens/Locate'
+import CustomerHome from './screens/CustomerHome'
 import BusinessSignIn from './business/BusinessSignIn'
 import CustomerOffer from './screens/CustomerOffer'
 import './App.css'
@@ -10,9 +13,9 @@ import './App.css'
 // The admin console ships as its own chunk — absent from the main bundle.
 const AdminPanel = lazy(() => import('./admin/AdminPanel'))
 
-type Screen = 'splash' | 'onboard' | 'auth' | 'done'
+type Screen = 'splash' | 'onboard' | 'auth' | 'locate' | 'home' | 'profile' | 'editProfile'
 type Route = 'customer' | 'business' | 'admin'
-type Session = { variant: 'guest' | 'signed-in'; label?: string }
+type Session = { variant: 'guest' | 'signed-in'; label?: string; uid?: string }
 type DeepLink = { uid: string; offerId: string }
 
 /** First-run check: onboarding shows once, then `nz.onboarded` skips it. */
@@ -24,13 +27,28 @@ function hasOnboarded(): boolean {
   }
 }
 
-/** `/busdash` (optional trailing slash) opens the merchant flow; `/nz-admin`
-    (also unlinked) opens the ops console. */
+/** Chip label for a restored Firebase session — the same shapes the auth
+    flow emits: a masked +91 number for phone sign-ins, "Name · email" for
+    Google. */
+function sessionLabel(user: User): string {
+  if (user.phoneNumber) return maskPhone(user.phoneNumber.replace(/^\+91/, ''))
+  const name = user.displayName ?? ''
+  if (user.email) return name ? `${name} · ${user.email}` : user.email
+  return name || 'Signed in'
+}
+
+/** `/busdash` or a `/business/<section>` URL (the dashboard keeps its own
+    section in the address bar) opens the merchant flow; `/nz-admin` (also
+    unlinked) opens the ops console. */
 function readRoute(): Route {
-  if (/(^|\/)busdash\/?$/i.test(window.location.pathname)) {
+  const path = window.location.pathname
+  if (/(^|\/)busdash\/?$/i.test(path)) {
     return 'business'
   }
-  if (/(^|\/)nz-admin\/?$/i.test(window.location.pathname)) {
+  if (/(^|\/)business(\/[^/]+)?\/?$/i.test(path)) {
+    return 'business'
+  }
+  if (/(^|\/)nz-admin\/?$/i.test(path)) {
     return 'admin'
   }
   return 'customer'
@@ -50,6 +68,11 @@ function readDeepLink(): DeepLink | null {
   }
   const segments = path.split('/').filter(Boolean)
   if (segments.length !== 2) return null
+  // Merchant/admin paths are two segments too — never read them as a
+  // `<uid>/<offerId>` pair.
+  if (['business', 'busdash', 'nz-admin'].includes(segments[0].toLowerCase())) {
+    return null
+  }
   try {
     return {
       uid: decodeURIComponent(segments[0]),
@@ -65,6 +88,9 @@ function App() {
   const [deepLink, setDeepLink] = useState<DeepLink | null>(readDeepLink)
   const [screen, setScreen] = useState<Screen>('splash')
   const [session, setSession] = useState<Session>({ variant: 'guest' })
+  // Where the auth flow hands back to: the first run continues into the
+  // location step; signing in from Home's You tab returns straight home.
+  const [authReturn, setAuthReturn] = useState<'locate' | 'home'>('locate')
 
   useEffect(() => {
     function sync() {
@@ -125,8 +151,21 @@ function App() {
   }
 
   if (screen === 'splash') {
-    // Splash gates navigation: it calls onProceed only on location grant.
-    return <Splash onProceed={() => setScreen(hasOnboarded() ? 'auth' : 'onboard')} />
+    // Splash gates navigation: it calls onProceed only on location grant,
+    // handing back the session Firebase restored while it ran. Returning
+    // users skip onboarding and auth — straight Home.
+    return (
+      <Splash
+        onProceed={(_coords, user) => {
+          if (user) {
+            setSession({ variant: 'signed-in', label: sessionLabel(user), uid: user.uid, user })
+            setScreen('home')
+            return
+          }
+          setScreen(hasOnboarded() ? 'auth' : 'onboard')
+        }}
+      />
+    )
   }
 
   if (screen === 'onboard') {
@@ -136,24 +175,33 @@ function App() {
   if (screen === 'auth') {
     return (
       <AuthFlow
-        onSignedIn={(label) => {
-          setSession({ variant: 'signed-in', label })
-          setScreen('done')
+        onSignedIn={(label, uid) => {
+          setSession({ variant: 'signed-in', label, uid })
+          setScreen(authReturn)
         }}
         onSkip={() => {
           setSession({ variant: 'guest' })
-          setScreen('done')
+          setScreen(authReturn)
         }}
         onBusiness={goBusiness}
       />
     )
   }
 
+  if (screen === 'locate') {
+    return <Locate onDone={() => setScreen('home')} />
+  }
+
   return (
-    <Done
-      variant={session.variant}
-      label={session.label}
-      onSignOut={() => setScreen('auth')}
+    <CustomerHome
+      session={session}
+      user={session.variant === 'signed-in' ? auth.currentUser : null}
+      onEditLocation={() => setScreen('locate')}
+      onSignIn={() => {
+        setAuthReturn('home')
+        setScreen('auth')
+      }}
+      onSignOut={() => setSession({ variant: 'guest' })}
     />
   )
 }

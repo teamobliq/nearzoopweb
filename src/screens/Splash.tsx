@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
+import { onAuthStateChanged, type User } from 'firebase/auth'
+import { auth } from '../firebase'
 import logoUrl from '../assets/logo.svg'
+import { cacheCoords } from '../business/geocode'
 
 type Coords = { lat: number; lng: number }
 
 type Props = {
-  /** Called only when location permission is granted. */
-  onProceed: (coords?: Coords) => void
+  /** Called only when location permission is granted: the fix, plus the
+      Firebase session restored while the splash ran (null for guests). */
+  onProceed: (coords: Coords, user: User | null) => void
 }
 
 /** Splash asks for location access once its hold timer runs out. */
@@ -67,6 +71,19 @@ function Splash({ onProceed }: Props) {
   const [locality, setLocality] = useState<string | null>(null)
   const [showFound, setShowFound] = useState(false)
   const asking = useRef(false)
+  // Firebase restores the session asynchronously — buffer the first auth
+  // resolution so the handoff routes on the real session instead of peeking
+  // at `auth.currentUser` before it exists.
+  const authReady = useRef<Promise<User | null> | null>(null)
+
+  useEffect(() => {
+    let resolve!: (user: User | null) => void
+    authReady.current = new Promise((r) => {
+      resolve = r
+    })
+    const unsubscribe = onAuthStateChanged(auth, (user) => resolve(user))
+    return unsubscribe
+  }, [])
 
   // Hold for a random beat (3–6 s), then ask for location access.
   useEffect(() => {
@@ -109,19 +126,19 @@ function Splash({ onProceed }: Props) {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           }
-          try {
-            // Cache for the upcoming location/map screens.
-            localStorage.setItem('nz.coords', JSON.stringify(coords))
-          } catch {
-            // Storage blocked — navigation still proceeds.
-          }
+          // Cache for the upcoming location/map screens.
+          cacheCoords(coords)
           asking.current = false
           // Celebrate the fix: arc morphs to the tick, the locality name
           // resolves in the background, then hand over to the next screen.
           setPhase('found')
           void resolveLocality(coords, setLocality)
           window.setTimeout(() => setShowFound(true), 900)
-          window.setTimeout(() => onProceed(coords), 2300)
+          window.setTimeout(() => {
+            // Route only once the session restore has resolved — it lands
+            // well inside the celebration beat.
+            void authReady.current?.then((user) => onProceed(coords, user))
+          }, 2300)
         },
         (error) => {
           asking.current = false

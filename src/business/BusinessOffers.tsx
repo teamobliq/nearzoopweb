@@ -209,6 +209,14 @@ export default function BusinessOffers({ offers, onCreate, onOpen }: Props) {
           <PlusSvg />
         </button>
         <h1 className="biz-offers-title">Your offers</h1>
+        <button
+          type="button"
+          className="btn-primary biz-btn biz-offers-create"
+          onClick={onCreate}
+        >
+          <PlusSvg />
+          Create an offer
+        </button>
       </header>
 
       {offers.length === 0 ? (

@@ -1,0 +1,429 @@
+/* Profile screens — the "You" tab and its Edit profile step. Follow the
+   app's design: cream page, ink text, hard-offset shadows, orange brand.
+   Shared token names live in index.css; screen-specific layout below. */
+
+.profile {
+  min-height: 100dvh;
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+  padding: 1.5rem clamp(1.4rem, 5vw, 2rem) 5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 0.9rem 1.1rem;
+  background-color: var(--color-yellow);
+  border: 2.5px solid var(--color-ink);
+  border-radius: 1.6rem;
+  box-shadow: 5px 6px 0 0 var(--color-ink);
+}
+
+.profile-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 4.4rem;
+  height: 4.4rem;
+  background-color: var(--color-orange);
+  color: #ffffff;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 1.1rem;
+  box-shadow: 3px 4px 0 0 var(--color-ink);
+  font-weight: 900;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.profile-identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-name {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.profile-mobile {
+  margin: 0.15rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-stone);
+}
+
+.profile-edit {
+  flex: none;
+  width: 3.4rem;
+  height: 3.4rem;
+  display: grid;
+  place-items: center;
+  background-color: #ffffff;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 50%;
+  box-shadow: 3px 4px 0 0 var(--color-ink);
+  cursor: pointer;
+  transition: translate 0.08s ease, box-shadow 0.08s ease;
+}
+
+.profile-edit svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.profile-edit:hover {
+  translate: 1px 1px;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
+}
+
+.profile-edit:active {
+  translate: 3px 4px;
+  box-shadow: 0 0 0 0 var(--color-ink);
+}
+
+/* Stats chips — Saved / Coupons / Following, three across. */
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.9rem;
+}
+
+.profile-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 1.1rem 0.7rem;
+  background-color: #ffffff;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 1.35rem;
+  box-shadow: 4px 5px 0 0 var(--color-ink);
+}
+
+.profile-stat-big {
+  font-size: 2.1rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.profile-stat-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-stone);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+/* Section headers — ACTIVITY / PREFERENCES eyebrow. */
+.profile-section-title {
+  margin: 0 0 0.6rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+/* List rows — each a full-width tappable card. */
+.profile-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.profile-list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.9rem 1.1rem;
+  background-color: #ffffff;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 1.25rem;
+  cursor: pointer;
+  transition: translate 0.08s ease, box-shadow 0.08s ease;
+}
+
+.profile-list-item + .profile-list-item {
+  border-top: none;
+  margin-top: 0.6rem;
+}
+
+.profile-list-item:hover {
+  translate: 1px 1px;
+  box-shadow: 3px 4px 0 0 var(--color-ink);
+}
+
+.profile-list-item:active {
+  translate: 3px 4px;
+  box-shadow: 0 0 0 0 var(--color-ink);
+}
+
+.profile-list-icon {
+  flex: none;
+  width: 2.35rem;
+  height: 2.35rem;
+  display: grid;
+  place-items: center;
+  background-color: var(--color-paper);
+  border: 2.5px solid var(--color-ink);
+  border-radius: 0.95rem;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
+}
+
+.profile-list-icon svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.profile-list-label-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.profile-list-label {
+  font-size: 1.06rem;
+  font-weight: 800;
+  color: var(--color-ink);
+  letter-spacing: -0.01em;
+}
+
+.profile-list-sub {
+  font-size: 0.92rem;
+  color: var(--color-stone);
+  font-weight: 500;
+}
+
+.profile-list-chevron {
+  flex: none;
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+.profile-list-chevron svg {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+/* ---------- Edit profile screen ---------- */
+
+.prof-edit {
+  min-height: 100dvh;
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+  padding: 1.5rem clamp(1.4rem, 5vw, 2rem) 5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.prof-edit-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.6rem;
+}
+
+.prof-back {
+  width: 3.4rem;
+  height: 3.4rem;
+  display: grid;
+  place-items: center;
+  background-color: #ffffff;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 50%;
+  box-shadow: 3px 4px 0 0 var(--color-ink);
+  cursor: pointer;
+  transition: translate 0.08s ease, box-shadow 0.08s ease;
+}
+
+.prof-back svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.prof-back:hover {
+  translate: 1px 1px;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
+}
+
+.prof-back:active {
+  translate: 3px 4px;
+  box-shadow: 0 0 0 0 var(--color-ink);
+}
+
+.prof-edit-title {
+  margin: 0;
+  font-size: 1.9rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  flex: 1;
+}
+
+.prof-edit-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.prof-field-label {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+.prof-field {
+  width: 100%;
+  min-height: 3.75rem;
+  padding-inline: 1.15rem;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--color-ink);
+  background-color: #ffffff;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 1.35rem;
+  box-shadow: 3px 4px 0 0 var(--color-ink);
+}
+
+.prof-field:focus-visible {
+  outline: none;
+  box-shadow: 3px 4px 0 0 var(--color-amber);
+}
+
+.prof-mobile {
+  width: 100%;
+  min-height: 3.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 1.15rem;
+  background-color: #ffffff;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 1.35rem;
+  box-shadow: 3px 4px 0 0 var(--color-ink);
+  gap: 0.8rem;
+}
+
+.prof-mobile-value {
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--color-ink);
+  min-width: 0;
+}
+
+.prof-verified {
+  flex: none;
+  padding: 0.18rem 0.7rem;
+  background-color: rgba(31, 168, 85, 0.16);
+  border: 2px solid rgba(31, 168, 85, 0.45);
+  border-radius: 999px;
+  color: var(--color-green);
+  font-weight: 800;
+  font-size: 0.88rem;
+  letter-spacing: 0.04em;
+  text-transform: capitalize;
+}
+
+.prof-fine {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--color-stone);
+  max-width: 40rem;
+}
+
+.prof-error {
+  margin: 0;
+  color: var(--color-red);
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.prof-loading {
+  margin-top: 4rem;
+  font-family: var(--font-mono);
+  color: var(--color-stone);
+}
+
+.prof-save {
+  margin-top: auto;
+  width: 100%;
+  min-height: 3.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  padding-inline: 1.6rem;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: clamp(1.2rem, 3vw, 1.4rem);
+  background-color: var(--color-orange);
+  color: #ffffff;
+  border: 3px solid var(--color-ink);
+  border-radius: 1.2rem;
+  box-shadow: 4px 6px 0 0 var(--color-ink);
+  cursor: pointer;
+  transition: translate 0.08s ease, box-shadow 0.08s ease;
+}
+
+.prof-save:hover:not(:disabled) {
+  translate: 1px 1px;
+  box-shadow: 3px 5px 0 0 var(--color-ink);
+}
+
+.prof-save:active:not(:disabled) {
+  translate: 4px 6px;
+  box-shadow: 0 0 0 0 var(--color-ink);
+}
+
+.prof-save:disabled {
+  opacity: 0.65;
+  box-shadow: none;
+  cursor: default;
+}
+
+/* Desktop: widen the body column and cap its measure so long screens
+   don't stretch the form across the whole viewport. */
+@media (min-width: 900px) {
+  .profile,
+  .prof-edit {
+    padding-left: clamp(3rem, 8vw, 6rem);
+    padding-right: clamp(3rem, 8vw, 6rem);
+    max-width: 72rem;
+    margin-inline: auto;
+  }
+
+  .profile-head {
+    padding: 1.1rem 1.5rem;
+  }
+
+  .profile-stats {
+    gap: 1.1rem;
+  }
+
+  .profile-stat {
+    padding: 1.3rem 0.9rem;
+  }
+
+  .profile-list-item {
+    padding: 1.05rem 1.4rem;
+  }
+}

@@ -29,6 +29,17 @@ service cloud.firestore {
         ];
     }
 
+    // Customer profiles — one doc per signed-in customer (auth uid = doc id).
+    // Fields: name, mobile, email (optional). The customer owns their own
+    // doc; admins may read all. Nothing else is reachable here.
+    match /customers/{uid} {
+      allow get, list: if signedIn()
+        && (request.auth.uid == uid || isAdmin());
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+
     match /shops/{uid} {
       allow get, list: if signedIn()
         && (request.auth.uid == uid || isAdmin());
@@ -44,8 +55,23 @@ service cloud.firestore {
           && (request.auth.uid == uid || isAdmin());
         allow create: if signedIn() && request.auth.uid == uid;
         // Admins may set status / reviewNote; merchants may edit their own.
+        // One public exception: the shared-link landing's lifetime view
+        // counter — anyone may bump `views` by exactly one and touch
+        // nothing else (the day/hour buckets ride in shops/{uid}/views,
+        // where the write shape can be checked properly).
         allow update: if signedIn()
-          && (request.auth.uid == uid || isAdmin());
+          && (request.auth.uid == uid || isAdmin())
+          || (
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['views'])
+            && request.resource.data.views is int
+            && (
+              (!('views' in resource.data)
+                && request.resource.data.views == 1)
+              || (resource.data.views is int
+                && request.resource.data.views == resource.data.views + 1)
+            )
+          );
         // Removal is permanent: the owner or an admin, never anyone else.
         allow delete: if signedIn()
           && (request.auth.uid == uid || isAdmin());
@@ -110,6 +136,48 @@ service cloud.firestore {
         allow update, delete: if signedIn()
           && (request.auth.uid == uid || isAdmin());
       }
+
+      // Raw view events from the public landing — one append-only doc per
+      // open, the day + weekday-hour buckets the insights ranges aggregate.
+      // Creates are open (visitors are usually signed out) but shape-checked
+      // and clock-locked: `at` must be the server's own write time, so
+      // nothing can forge when a view happened. Readable by the shop or an
+      // admin; immutable once written.
+      match /views/{eventId} {
+        allow create: if request.resource.data.keys().hasAll([
+            'offerId', 'day', 'hour', 'at',
+          ])
+          && request.resource.data.offerId is string
+          && request.resource.data.offerId.size() > 0
+          && request.resource.data.offerId.size() < 128
+          && request.resource.data.day is string
+          && request.resource.data.day.matches('^\\d{4}-\\d{2}-\\d{2}$')
+          && request.resource.data.hour is string
+          && request.resource.data.hour.matches('^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)-(0?[0-9]|1[0-9]|2[0-3])$')
+          && request.resource.data.at == request.time;
+        allow get, list: if signedIn()
+          && (request.auth.uid == uid || isAdmin());
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
+    }
+
+    // The public feed mirror — one doc per offer a customer may see,
+    // maintained by the owning merchant (or an admin) through feed.ts.
+    // Carries marketing fields only: shop name/category/photo, the deal,
+    // terms, dates and the pin coordinates — no phones, no owner names,
+    // no GSTIN, no review notes. Anyone at all may read it (guests browse
+    // the customer app); writes stay with the mirror's own shop or an
+    // admin. Views are counted in shops/{uid}/views, never here.
+    match /feed/{mirrorId} {
+      allow read: if true;
+      // The owning merchant writes their own mirrors; admins may create
+      // mirrors when they approve an offer (the doc did not exist before),
+      // which the owning-merchant-only create rule used to block.
+      allow create: if signedIn()
+        && (isAdmin() || request.resource.data.shopUid == request.auth.uid);
+      allow update, delete: if signedIn()
+        && (isAdmin() || resource.data.shopUid == request.auth.uid);
     }
 
     // Nothing outside the shops tree is reachable — and note: this wildcard

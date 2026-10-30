@@ -2,20 +2,57 @@ import { useEffect, useRef, useState } from 'react'
 import BusinessOfferCreate from './BusinessOfferCreate'
 import BusinessOfferDetail from './BusinessOfferDetail'
 import BusinessInsights from './BusinessInsights'
+import BusinessNotifications from './BusinessNotifications'
 import BusinessOffers from './BusinessOffers'
 import BusinessShop from './BusinessShop'
 import BusinessScan from './BusinessScan'
+import { syncShopFeed } from './feed'
 import { fmtDay } from './when'
 import {
+  feeDaysLeft,
+  watchNotificationsUnread,
   watchOffers,
   watchShop,
+  watchViewEvents,
   type OfferRecord,
   type ShopRecord,
+  type ViewEvent,
 } from './shop'
 
 type Props = {
   uid: string
   onSignOut: () => void
+  /** Opens the wizard's payment step to renew the yearly listing. */
+  onRenew: () => void
+}
+
+type View = 'home' | 'offers' | 'create' | 'detail' | 'insights' | 'shop' | 'notifications'
+
+/** Sections that live in the address bar. Detail needs an offer id, so it
+    has no URL of its own; anything unknown falls back to Home. */
+const VIEW_NAMES: View[] = [
+  'home',
+  'offers',
+  'create',
+  'insights',
+  'shop',
+  'notifications',
+]
+
+/** The section a `/business/<view>` URL names — Home for anything else. */
+function readViewFromPath(): View {
+  const segments = window.location.pathname.split('/').filter(Boolean)
+  const at = segments.findIndex((s) => s.toLowerCase() === 'business')
+  if (at === -1) return 'home'
+  const name = (segments[at + 1] ?? '').toLowerCase()
+  return (VIEW_NAMES as string[]).includes(name) ? (name as View) : 'home'
+}
+
+/** Canonical URL for a section: Home is `/busdash`, the rest are
+    `/business/<view>` — prefixed with the deploy base for sub-path hosts. */
+function viewUrl(view: View): string {
+  const base = import.meta.env.BASE_URL
+  return base + (view === 'home' ? 'busdash' : `business/${view}`)
 }
 
 type NavKind = 'home' | 'offers' | 'scan' | 'insights' | 'shop' | 'bell'
@@ -202,13 +239,15 @@ function NavIcon({ kind }: { kind: NavKind }) {
  * offers yet it shows the "Post your first offer" empty state — no invented
  * numbers anywhere.
  */
-export default function BusinessDashboard({ uid, onSignOut }: Props) {
+export default function BusinessDashboard({
+  uid,
+  onSignOut,
+  onRenew,
+}: Props) {
   const [shop, setShop] = useState<ShopRecord | null>(null)
   const [shopReady, setShopReady] = useState(false)
   const [offers, setOffers] = useState<OfferRecord[] | null>(null)
-  const [view, setView] = useState<
-    'home' | 'offers' | 'create' | 'detail' | 'insights' | 'shop'
-  >('home')
+  const [view, setView] = useState<View>(readViewFromPath)
   // The details screen holds only the id — the record is read live from the
   // offers array, so a status change updates the screen in place.
   const [detailId, setDetailId] = useState<string | null>(null)
@@ -216,6 +255,8 @@ export default function BusinessDashboard({ uid, onSignOut }: Props) {
   const [runAgain, setRunAgain] = useState<OfferRecord | null>(null)
   // The scan flow overlay — opened from every Scan entry point.
   const [scanOpen, setScanOpen] = useState(false)
+  // Unread inbox count — feeds the bell's badge in the nav.
+  const [unread, setUnread] = useState<number | null>(null)
   const shellRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(
@@ -229,12 +270,52 @@ export default function BusinessDashboard({ uid, onSignOut }: Props) {
 
   useEffect(() => watchOffers(uid, setOffers), [uid])
 
+  useEffect(() => watchNotificationsUnread(uid, setUnread), [uid])
+
+  // Raw view events — insights aggregates them into every views number.
+  // Starts empty rather than blocking the whole dashboard on this stream;
+  // the numbers fill in the moment the first snapshot lands.
+  const [viewEvents, setViewEvents] = useState<ViewEvent[]>([])
+  useEffect(() => watchViewEvents(uid, setViewEvents), [uid])
+
+  // Mirror reconcile on entry — re-syncs every public mirror this shop
+  // owns, self-healing any drift (rules deployed late, offers approved
+  // before the mirror existed) without waiting for a state transition.
+  useEffect(() => {
+    void syncShopFeed(uid).catch((err) => console.warn('feed sync', err))
+  }, [uid])
+
   // Switching sections starts at the top — on desktop the shell is its own
   // scroll pane, on mobile the page itself scrolls.
   useEffect(() => {
     window.scrollTo(0, 0)
     shellRef.current?.scrollTo(0, 0)
   }, [view])
+
+  // The address bar follows the section, so `/business/shop` survives a
+  // reload and can be linked to; Back/Forward step through sections like
+  // pages. Detail is transient and stays out of the URL.
+  useEffect(() => {
+    if (view === 'detail') return
+    const target = viewUrl(view)
+    const here = window.location.pathname.replace(/\/+$/, '') || '/'
+    if (here !== target.replace(/\/+$/, '')) {
+      try {
+        window.history.pushState({}, '', target)
+      } catch {
+        // History can be unavailable in sandboxed contexts; the section
+        // still switched, the URL just doesn't follow.
+      }
+    }
+  }, [view])
+
+  useEffect(() => {
+    function onPop(): void {
+      setView(readViewFromPath())
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   if (!shopReady || offers === null || !shop) {
     return (
@@ -271,11 +352,30 @@ export default function BusinessDashboard({ uid, onSignOut }: Props) {
     setView('create')
   }
 
+  const daysLeft = shop ? feeDaysLeft(shop) : null
+  const renewSoon = shop?.paymentDone === true && daysLeft !== null && daysLeft <= 30
+
   return (
     <main
       className={`biz-dash${view === 'create' || view === 'detail' ? ' is-create' : ''}`}
     >
       <div className="biz-dash-shell" ref={shellRef}>
+        {renewSoon && daysLeft !== null && (
+          <div className="biz-renewbar" role="status">
+            <span className="biz-renewbar-text">
+              {daysLeft > 0
+                ? `Your yearly listing renews in ${daysLeft} day${daysLeft === 1 ? '' : 's'} — ₹1,000 keeps you visible for another year.`
+                : 'Your yearly listing has lapsed — customers can’t see your offers until you renew.'}
+            </span>
+            <button
+              type="button"
+              className="btn-danger biz-btn biz-renewbar-btn"
+              onClick={onRenew}
+            >
+              Renew · ₹1,000
+            </button>
+          </div>
+        )}
         {view === 'offers' && (
           <BusinessOffers
             offers={offers}
@@ -287,9 +387,20 @@ export default function BusinessDashboard({ uid, onSignOut }: Props) {
           <BusinessInsights
             shopName={shop.name || 'Your shop'}
             offers={offers}
+            views={viewEvents}
           />
         )}
-        {view === 'shop' && <BusinessShop uid={uid} shop={shop} offers={offers} />}
+        {view === 'shop' && (
+          <BusinessShop
+            uid={uid}
+            shop={shop}
+            unread={unread}
+            onOpenInbox={() => setView('notifications')}
+          />
+        )}
+        {view === 'notifications' && (
+          <BusinessNotifications uid={uid} offers={offers} />
+        )}
         {view === 'create' && (
           <BusinessOfferCreate
             uid={uid}
@@ -531,14 +642,6 @@ export default function BusinessDashboard({ uid, onSignOut }: Props) {
           <NavIcon kind="offers" />
           <span>Offers</span>
         </button>
-        <button
-          type="button"
-          className={`biz-navitem biz-navitem-create${view === 'create' ? ' is-active' : ''}`}
-          onClick={openCreate}
-        >
-          <PlusSvg />
-          <span>Create an offer</span>
-        </button>
         <button type="button" className="biz-navscan" onClick={() => setScanOpen(true)}>
           <span className="biz-navscan-chip">
             <NavIcon kind="scan" />
@@ -561,9 +664,20 @@ export default function BusinessDashboard({ uid, onSignOut }: Props) {
           <NavIcon kind="shop" />
           <span>Shop</span>
         </button>
-        <button type="button" className="biz-navitem">
+        <button
+          type="button"
+          className={`biz-navitem${view === 'notifications' ? ' is-active' : ''}`}
+          onClick={() => setView('notifications')}
+        >
           <NavIcon kind="bell" />
-          <span>Notifications</span>
+          <span>
+            Notifications
+            {unread !== null && unread > 0 && (
+              <b className="biz-navdot" aria-label={`${unread} unread`}>
+                {unread}
+              </b>
+            )}
+          </span>
         </button>
         <button type="button" className="biz-navsignout" onClick={onSignOut}>
           <LogoutSvg />

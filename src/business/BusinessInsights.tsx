@@ -1,18 +1,22 @@
 import { useState } from 'react'
-import type { OfferRecord, OfferStatus } from './shop'
+import type { OfferRecord, OfferStatus, ViewEvent } from './shop'
 
 /** Insights — the design's page, scoped to what the data layer truly
-    records. Views carry day + weekday-hour buckets (written by every
-    deep-link landing), redemptions carry day buckets (written by the scan
-    flow), saves ship with the same bucketing for when the customer app
-    arrives. Range chips filter everything through those buckets; the
-    busiest-time chart reads the weekday-hour map, which has no dates in
-    it — so it stays an all-time view and says so. "Where viewers are"
-    stays out — nothing records viewer geography. */
+    records. Views arrive as raw events (one doc per landing open, written
+    by the public landing — the only view write the rules let a visitor
+    make), and every views number on this page aggregates them. Redemptions
+    carry day buckets written by the scan flow, saves ship with the same
+    bucketing for when the customer app arrives. Range chips filter
+    everything through those buckets; the busiest-time chart reads the
+    event stream's weekday-hour pairs, which have no dates in them — so it
+    stays an all-time view and says so. "Where viewers are" stays out —
+    nothing records viewer geography. */
 
 type Props = {
   shopName: string
   offers: OfferRecord[]
+  /** Raw view events from the shop's own stream. */
+  views: ViewEvent[]
 }
 
 type RangeKind = '7d' | '30d' | 'puja'
@@ -121,16 +125,30 @@ function hour12(hour: number): string {
   return String(hour % 12 === 0 ? 12 : hour % 12)
 }
 
-export default function BusinessInsights({ shopName, offers }: Props) {
+/** Bar-chart tile for the empty state — the page's promise, not fake data. */
+function ChartSvg() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 20h18" />
+      <path d="M7 20v-6" />
+      <path d="M12 20V9" />
+      <path d="M17 20v-9" />
+    </svg>
+  )
+}
+
+export default function BusinessInsights({ shopName, offers, views }: Props) {
   const [range, setRange] = useState<RangeKind>('7d')
   const { start, end } = rangeWindow(range)
   const prev = prevWindow(range)
   const windowDays = windowLength(start, end)
 
-  const opened = offers.reduce(
-    (sum, o) => sum + sumDays(o.viewDays, start, end),
-    0,
-  )
+  // Views are raw events — the public landing writes one doc per open,
+  // and every views number on this page aggregates them. Saves and
+  // redemptions stay on the offer's own day buckets, written by the
+  // merchant's own flows.
+  const inWindow = views.filter((e) => e.day >= start && e.day <= end)
+  const opened = inWindow.length
   const saved = offers.reduce(
     (sum, o) => sum + sumDays(o.saveDays, start, end),
     0,
@@ -139,10 +157,15 @@ export default function BusinessInsights({ shopName, offers }: Props) {
     (sum, o) => sum + sumDays(o.redeemDays, start, end),
     0,
   )
-  const prevOpened = offers.reduce(
-    (sum, o) => sum + sumDays(o.viewDays, prev.start, prev.end),
-    0,
-  )
+  const prevOpened = views.filter(
+    (e) => e.day >= prev.start && e.day <= prev.end,
+  ).length
+
+  // All-time views — the first event every deep-link landing writes. Zero
+  // across every offer means nothing has been measured yet, so the page
+  // says so instead of showing a wall of zeros and dashes.
+  const everViews = views.length
+  const collecting = everViews === 0
 
   const rows = [
     { label: 'Opened details', value: opened, kind: 'gold' },
@@ -161,13 +184,10 @@ export default function BusinessInsights({ shopName, offers }: Props) {
     perDay >= 10 ? String(Math.round(perDay)) : perDay.toFixed(1)
 
   const dowTotals = [0, 0, 0, 0, 0, 0, 0]
-  for (const offer of offers) {
-    for (const [key, value] of Object.entries(offer.viewDays ?? {})) {
-      if (key < start || key > end) continue
-      const [y, m, d] = key.split('-').map(Number)
-      if (!y || !m || !d) continue
-      dowTotals[new Date(y, m - 1, d).getDay()] += value ?? 0
-    }
+  for (const event of inWindow) {
+    const [y, m, d] = event.day.split('-').map(Number)
+    if (!y || !m || !d) continue
+    dowTotals[new Date(y, m - 1, d).getDay()] += 1
   }
   const busiestTotal = Math.max(...dowTotals)
   const busiest =
@@ -195,13 +215,13 @@ export default function BusinessInsights({ shopName, offers }: Props) {
   /* Per-offer breakdown for the same window. */
   const offerRows = offers
     .map((offer) => {
-      const views = sumDays(offer.viewDays, start, end)
+      const opens = inWindow.filter((e) => e.offerId === offer.id).length
       const reds = sumDays(offer.redeemDays, start, end)
       return {
         offer,
-        views,
+        views: opens,
         redeemed: reds,
-        conv: views > 0 ? `${Math.round((reds / views) * 100)}%` : null,
+        conv: opens > 0 ? `${Math.round((reds / opens) * 100)}%` : null,
       }
     })
     .sort((a, b) => b.views - a.views || b.redeemed - a.redeemed)
@@ -209,16 +229,8 @@ export default function BusinessInsights({ shopName, offers }: Props) {
 
   /* Chart — views per hour-of-day across the whole range (weekday-hour
       buckets merged), plus the single busiest weekday-hour slot. */
-  const hourTotals = CHART_HOURS.map((hour) =>
-    offers.reduce(
-      (sum, o) =>
-        sum +
-        WEEKDAYS.reduce(
-          (acc, dow) => acc + (o.viewHours?.[`${dow}-${hour}`] ?? 0),
-          0,
-        ),
-      0,
-    ),
+  const hourTotals = CHART_HOURS.map(
+    (hour) => views.filter((e) => Number(e.hour.split('-')[1]) === hour).length,
   )
   const chartMax = Math.max(...hourTotals)
   const empty = chartMax === 0
@@ -226,20 +238,26 @@ export default function BusinessInsights({ shopName, offers }: Props) {
 
   let peak = '—'
   if (!empty) {
-    let best = { dow: '', hour: 0, value: 0 }
-    for (const offer of offers) {
-      for (const [key, value] of Object.entries(offer.viewHours ?? {})) {
-        const [dow, hourPart] = key.split('-')
-        const hour = Number(hourPart)
-        if (!WEEKDAYS.includes(dow) || Number.isNaN(hour)) continue
-        if (hour >= 10 && hour <= 20 && (value ?? 0) > best.value) {
-          best = { dow, hour, value: value ?? 0 }
-        }
-      }
+    // Count every weekday-hour slot the events touch, then take the
+    // busiest — the same call the old bucket map made, from raw events.
+    const slots = new Map<string, number>()
+    for (const event of views) {
+      const [dow, hourPart] = event.hour.split('-')
+      const hour = Number(hourPart)
+      if (!WEEKDAYS.includes(dow) || Number.isNaN(hour)) continue
+      if (hour < 10 || hour > 20) continue
+      const key = `${dow}-${hour}`
+      slots.set(key, (slots.get(key) ?? 0) + 1)
     }
-    if (best.value > 0) {
-      peak = `${best.dow} ${hour12(best.hour)}–${hour12(best.hour + 1)} ${
-        best.hour + 1 >= 12 ? 'PM' : 'AM'
+    let best: { key: string; value: number } | null = null
+    for (const [key, value] of slots) {
+      if (!best || value > best.value) best = { key, value }
+    }
+    if (best) {
+      const [dow, hourPart] = best.key.split('-')
+      const hour = Number(hourPart)
+      peak = `${dow} ${hour12(hour)}–${hour12(hour + 1)} ${
+        hour + 1 >= 12 ? 'PM' : 'AM'
       }`
     }
   }
@@ -249,29 +267,46 @@ export default function BusinessInsights({ shopName, offers }: Props) {
       <h1 className="biz-insights-title">Insights</h1>
       <p className="biz-insights-sub">{shopName || 'Your shop'} · all offers</p>
 
-      <div className="biz-insights-chips" role="tablist" aria-label="Date range">
-        {RANGES.map((item) => (
-          <button
-            key={item.kind}
-            type="button"
-            role="tab"
-            aria-selected={range === item.kind}
-            className={`biz-insights-chip${range === item.kind ? ' is-on' : ''}`}
-            onClick={() => setRange(item.kind)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      {offers.length === 0 ? (
-        <div className="biz-detailcard biz-insights-card">
-          <p className="biz-insights-empty">
-            No offers yet — insights appear once your first offer is live.
-          </p>
+      {collecting ? (
+        <div className="biz-first biz-insights-hero">
+          <div className="biz-first-tile biz-insights-tile" aria-hidden="true">
+            <ChartSvg />
+          </div>
+          <div className="biz-first-main">
+            <h2 className="biz-dash-h2">
+              {offers.length === 0
+                ? 'Nothing to measure yet.'
+                : 'We’re collecting stats.'}
+            </h2>
+            <p className="biz-dash-body">
+              {offers.length === 0
+                ? 'Insights appear once your first offer is live and people start opening it.'
+                : 'Every view, save and redemption from your shared links is counted here. Once people start opening your offers, the numbers appear.'}
+            </p>
+            <p className="biz-dash-tip">
+              {offers.length === 0
+                ? 'Tip: shops with a live offer get seen on the NearZoop map.'
+                : 'Tip: share your offer links — every open counts as a view here.'}
+            </p>
+          </div>
         </div>
       ) : (
         <>
+          <div className="biz-insights-chips" role="tablist" aria-label="Date range">
+            {RANGES.map((item) => (
+              <button
+                key={item.kind}
+                type="button"
+                role="tab"
+                aria-selected={range === item.kind}
+                className={`biz-insights-chip${range === item.kind ? ' is-on' : ''}`}
+                onClick={() => setRange(item.kind)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
           <div className="biz-insights-stats">
             <div className="biz-detailcard biz-insights-stat">
               <span className="biz-insights-statvalue">

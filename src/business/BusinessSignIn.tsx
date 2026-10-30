@@ -14,7 +14,15 @@ import BusinessLanding from './BusinessLanding'
 import BusinessPhone from './BusinessPhone'
 import BusinessSetup from './BusinessSetup'
 import BusinessStatus from './BusinessStatus'
-import { fetchShop, saveShop, watchShop, type ShopPatch, type ShopRecord } from './shop'
+import {
+  feeExpired,
+  fetchShop,
+  nextFeeExpiry,
+  saveShop,
+  watchShop,
+  type ShopPatch,
+  type ShopRecord,
+} from './shop'
 import '../screens/auth.css'
 import './business.css'
 
@@ -87,7 +95,6 @@ export default function BusinessSignIn() {
   const [bootError, setBootError] = useState('')
   const [setupError, setSetupError] = useState('')
   const [savedShop, setSavedShop] = useState<ShopRecord | null>(null)
-  const [autoVerified, setAutoVerified] = useState(false)
   /** True once the fee is settled this session — covers merchants whose shop
       doc was never fetched (fresh sign-ups), where savedShop stays null. */
   const [hasPaid, setHasPaid] = useState(false)
@@ -103,13 +110,25 @@ export default function BusinessSignIn() {
    */
   function routeSignedIn(shop: ShopRecord | null): void {
     setSavedShop(shop)
-    setAutoVerified(shop?.verification === 'verified')
     if (shop?.setupDone) {
       // A rejected shop re-opens on the failed screen — the merchant sees the
       // admin's reason and the "Upload another document" path instead of a
       // silently unbadged dashboard.
       if (shop.verification === 'failed') {
         setStep('failed')
+        return
+      }
+      // A lapsed paid year re-opens the wizard at its payment step — the
+      // renewal is the same ₹1,000 checkout, nothing else to redo.
+      if (feeExpired(shop)) {
+        setSetupStart(3)
+        setStep('setup')
+        return
+      }
+      // Paid but unapproved — GSTIN-checked or not — stays on the waiting
+      // screen until a person sets the verdict. Reloading can't skip it.
+      if (shop.verification !== 'verified') {
+        setStep('checking')
         return
       }
       setStep('dash')
@@ -309,15 +328,11 @@ export default function BusinessSignIn() {
           ? paid
             ? {
                 setupDone: true,
-                verification: patch.verification ?? ('pending' as const),
+                // Every submission waits for a person's verdict — the GSTIN
+                // check alone never puts a shop live.
+                verification: 'pending' as const,
               }
-            : {
-                // First submission: verification opens only once the fee is
-                // paid; an auto-verified GSTIN is kept for after payment.
-                ...(patch.verification
-                  ? { verification: patch.verification }
-                  : {}),
-              }
+            : {}
           : {}),
       })
     } catch {
@@ -326,24 +341,19 @@ export default function BusinessSignIn() {
       )
       throw new Error('save failed')
     }
-    if (completedStep === 2) {
-      if (patch.verification === 'verified') {
-        setAutoVerified(true)
-      }
-      if (paid) {
-        // Re-submission after a failed check — the fee is settled, so the
-        // checking screen takes over again.
-        setStep(patch.verification === 'verified' ? 'dash' : 'checking')
-      }
-      // Unpaid: stay in setup — the wizard advances to its payment step.
+    if (completedStep === 2 && paid) {
+      // Re-submission after a failed check — the fee is settled, so the
+      // waiting screen takes over again until the admin re-reviews.
+      setStep('checking')
     }
   }
 
   /**
-   * Saves a successful ₹1,000 payment: records the reference, flips setupDone
-   * and opens verification — unless the GSTIN was already auto-verified, in
-   * which case the dashboard is next. Throws on save failure so the wizard's
-   * payment step can retry with the same payment id.
+   * Saves a successful ₹1,000 payment: records the reference, extends the
+   * paid year by twelve months and flips setupDone. A first payment puts the
+   * shop in the admin queue — nothing goes live without a person's verdict.
+   * A renewal keeps the verdict the shop already earned. Throws on save
+   * failure so the wizard's payment step can retry with the same payment id.
    */
   async function completePayment(paymentId: string): Promise<void> {
     const user = auth.currentUser
@@ -351,19 +361,36 @@ export default function BusinessSignIn() {
       setStep('landing')
       return
     }
+    // Renewal of an already-approved shop — its verdict carries over.
+    const alreadyVerified = savedShop?.verification === 'verified'
+    const feeExpiresAt = nextFeeExpiry()
     await saveShop(user.uid, {
       paymentDone: true,
       paymentId,
+      feeExpiresAt,
       setupDone: true,
-      ...(autoVerified ? {} : { verification: 'pending' as const }),
+      ...(alreadyVerified ? {} : { verification: 'pending' as const }),
     })
     setHasPaid(true)
     setSavedShop((current) =>
       current
-        ? { ...current, paymentDone: true, paymentId, setupDone: true }
+        ? {
+            ...current,
+            paymentDone: true,
+            paymentId,
+            feeExpiresAt,
+            setupDone: true,
+            ...(alreadyVerified ? {} : { verification: 'pending' as const }),
+          }
         : current,
     )
-    setStep(autoVerified ? 'dash' : 'checking')
+    setStep(alreadyVerified ? 'dash' : 'checking')
+  }
+
+  /** Jumps a merchant back to the wizard's payment step to renew. */
+  function startRenewal(): void {
+    setSetupStart(3)
+    setStep('setup')
   }
 
   /** Signs the merchant back out and returns to the landing screen. */
@@ -421,7 +448,13 @@ export default function BusinessSignIn() {
         </main>
       )
     }
-    return <BusinessDashboard uid={user.uid} onSignOut={leaveAuth} />
+    return (
+      <BusinessDashboard
+        uid={user.uid}
+        onSignOut={leaveAuth}
+        onRenew={startRenewal}
+      />
+    )
   }
 
   if (step === 'setup') {
@@ -443,16 +476,16 @@ export default function BusinessSignIn() {
       <BusinessStatus
         variant={step}
         note={watchedShop?.reviewNote ?? savedShop?.reviewNote}
-        onPrimary={() => {
-          if (step === 'checking') {
-            setStep('dash')
-          } else {
-            // "Upload another document" re-enters the wizard at verification.
-            setSetupStart(2)
-            setStep('setup')
-          }
-        }}
-        onDashboard={() => setStep('dash')}
+        onPrimary={
+          step === 'failed'
+            ? () => {
+                // "Upload another document" re-enters the wizard at verification.
+                setSetupStart(2)
+                setStep('setup')
+              }
+            : undefined
+        }
+        onSignOut={leaveAuth}
       />
     )
   }

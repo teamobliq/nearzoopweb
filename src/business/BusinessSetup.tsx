@@ -51,7 +51,7 @@ const DOCS: Array<{
   sub: string
   recommended?: boolean
 }> = [
-  { id: 'gstin', name: 'GSTIN', sub: 'Fastest — verified automatically', recommended: true },
+  { id: 'gstin', name: 'GSTIN', sub: 'Fastest — checked against the GST portal', recommended: true },
   { id: 'licence', name: 'Trade licence (KMC)', sub: 'Photo of your licence' },
   { id: 'udyam', name: 'Udyam registration', sub: 'MSME certificate' },
   { id: 'signboard', name: 'Shop photo with signboard', sub: 'If you have none of the above' },
@@ -413,7 +413,7 @@ export default function BusinessSetup({
     setHours((current) => ({ ...current, [day]: value }))
   }
 
-  /** Opens Razorpay's checkout for the one-time ₹1,000 fee. The handler
+  /** Opens Razorpay's checkout for the annual ₹1,000 fee. The handler
       fires when the payment succeeds; a closed sheet or a failed attempt
       just returns here — nothing is charged unless Razorpay reports
       success. */
@@ -436,7 +436,7 @@ export default function BusinessSetup({
       amount: 100000, // ₹1,000 in paise
       currency: 'INR',
       name: 'NearZoop',
-      description: 'One-time shop verification fee',
+      description: 'Annual shop verification fee — ₹1,000 / year',
       ...(ownerName || phone
         ? {
             prefill: {
@@ -550,14 +550,14 @@ export default function BusinessSetup({
           return
         }
         if (check.ok) {
-          // Verified on the spot — the parent skips the checking screen.
+          // Checked against the GST portal — but a person still approves
+          // the shop, so the verdict stays 'pending' until the admin acts.
           await onSave(
             {
               docKind: 'gstin',
               gstin,
               docPhotoUrl: null,
               gstinLegalName: check.legalName,
-              verification: 'verified',
             },
             2,
           )
@@ -697,7 +697,8 @@ export default function BusinessSetup({
                   )}
                 </div>
                 <p className="biz-hint">
-                  15 characters. We match the legal name with your shop.
+                  15 characters. The GST portal’s legal name goes to our
+                  review team with your shop details.
                 </p>
               </>
             ) : (
@@ -880,12 +881,12 @@ export default function BusinessSetup({
         {substep === 3 ? (
           <>
             <p className="biz-intro">
-              A one-time ₹1,000 verification fee activates
-              {shopName ? ` “${shopName}”` : ' your shop'} for customers.
-              GSTINs are verified on the spot; photo documents are checked by
-              hand within 24 hours. The fee is non-refundable — but if your
-              shop is rejected at verification, it's refunded automatically
-              within 2 days.
+              A ₹1,000 yearly fee activates{shopName ? ` “${shopName}”` : ' your shop'}
+              {' '}for customers and keeps it listed for a year. GSTINs are
+              checked against the GST portal instantly; every shop is then
+              approved by a person within 24 hours. The fee is non-refundable —
+              but if your shop is rejected at verification, it's refunded
+              automatically within 2 days.
             </p>
 
             <ul className="biz-checklist">
@@ -908,7 +909,7 @@ export default function BusinessSetup({
                   <ClockSmallIcon />
                 </span>
                 <span className="biz-checklabel">Verification fee</span>
-                <span className="biz-checkstate">₹1,000 · due now</span>
+                <span className="biz-checkstate">₹1,000 / year · due now</span>
               </li>
             </ul>
 
@@ -932,8 +933,8 @@ export default function BusinessSetup({
             )}
 
             <p className="biz-payfine">
-              One-time · Non-refundable · Rejected? Auto-refunded in 2 days ·
-              Secured by Razorpay
+              ₹1,000 a year · Non-refundable · Rejected? Auto-refunded in 2
+              days · Secured by Razorpay
             </p>
 
             {!razorpayKeyId() && (

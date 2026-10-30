@@ -1,21 +1,26 @@
 import { useEffect, useState } from 'react'
-import type { OfferRecord, OfferStatus, ShopRecord } from '../business/shop'
+import type { FeedRecord } from '../business/feed'
 import {
   countOfferView,
-  fetchOffer,
-  fetchShop,
   REPORT_REASONS,
   saveReport,
 } from '../business/shop'
+import {
+  fetchFeedOffer,
+  feedDisplayStatus,
+  feedFeeLapsed,
+} from '../business/feed'
 import { fmtWhen } from '../business/when'
 import './customer.css'
 
 /** The shared-offer landing — `<base>/<shopUid>/<offerId>?source=…` lands
-    here. Shows the offer with the app's own visual language (the tile,
-    chip and detail-card classes come from business.css, which ships in the
-    main bundle). Claiming needs an account, so the CTA routes to sign-in.
-    Internal-only statuses (draft, review, changes, paused) resolve to an
-    honest "not available" screen instead of pretending the offer is live. */
+    here. Reads the offer's public feed mirror (feed.ts): the only copy of
+    an offer a visitor is allowed to see. Shows the offer with the app's
+    own visual language (the tile, chip and detail-card classes come from
+    business.css, which ships in the main bundle). Claiming needs an
+    account, so the CTA routes to sign-in. Internal statuses never get a
+    mirror, so they resolve to an honest "not available" screen instead of
+    pretending the offer is live. */
 
 type Props = {
   uid: string
@@ -24,7 +29,7 @@ type Props = {
 }
 
 const CHIP: Partial<
-  Record<OfferStatus, { label: string; kind: string; dot?: boolean }>
+  Record<'live' | 'scheduled' | 'ended', { label: string; kind: string; dot?: boolean }>
 > = {
   live: { label: 'Live', kind: 'live', dot: true },
   scheduled: { label: 'Scheduled', kind: 'scheduled' },
@@ -33,7 +38,9 @@ const CHIP: Partial<
 
 /** How the customer proves the offer, phrased for the visitor (the
     merchant screen's wording is staff-facing). */
-function customerRedeemLine(offer: OfferRecord): string | null {
+function customerRedeemLine(
+  offer: Pick<FeedRecord, 'redeemKind' | 'redeemCode' | 'redeemCustom'>,
+): string | null {
   switch (offer.redeemKind) {
     case 'screen':
       return 'Show this offer at the counter.'
@@ -49,7 +56,9 @@ function customerRedeemLine(offer: OfferRecord): string | null {
 }
 
 /** The terms the merchant set — same rule as the merchant screen. */
-function termsLine(offer: OfferRecord): string | null {
+function termsLine(
+  offer: Pick<FeedRecord, 'minBill' | 'inStoreOnly' | 'newCustomersOnly'>,
+): string | null {
   const bits: string[] = []
   if (offer.minBill && offer.minBill > 0) {
     bits.push(`min bill ₹${offer.minBill.toLocaleString('en-IN')}`)
@@ -60,10 +69,10 @@ function termsLine(offer: OfferRecord): string | null {
 }
 
 export default function CustomerOffer({ uid, offerId, onSignIn }: Props) {
-  const [offer, setOffer] = useState<OfferRecord | null>(null)
-  const [shop, setShop] = useState<ShopRecord | null>(null)
+  const [item, setItem] = useState<FeedRecord | null>(null)
   const [missing, setMissing] = useState(false)
   const [paused, setPaused] = useState(false)
+  const [inactive, setInactive] = useState(false)
   // Report flow — the one way a visitor can flag a bad offer back to the
   // shop. Declared up here with the other hooks; the dialog renders only
   // for public offers.
@@ -78,23 +87,27 @@ export default function CustomerOffer({ uid, offerId, onSignIn }: Props) {
     let alive = true
     void (async () => {
       try {
-        const [offerData, shopData] = await Promise.all([
-          fetchOffer(uid, offerId),
-          fetchShop(uid),
-        ])
+        const data = await fetchFeedOffer(uid, offerId)
         if (!alive) return
-        if (!offerData || !shopData) {
+        // No mirror: a dead link, an offer that was never approved, or a
+        // shop that lost its verification — all say the same honest thing.
+        if (!data) {
           setMissing(true)
           return
         }
         // Holiday mode — the shop paused its offers, so the link shows
         // that instead of the offer (and no view is counted).
-        if (shopData.holidayMode) {
+        if (data.shopPaused) {
           setPaused(true)
           return
         }
-        setOffer(offerData)
-        setShop(shopData)
+        // A lapsed yearly subscription, judged from the copied expiry —
+        // the shop's listing isn't active, so the link says so.
+        if (feedFeeLapsed(data)) {
+          setInactive(true)
+          return
+        }
+        setItem(data)
       } catch {
         if (alive) setMissing(true)
       }
@@ -104,20 +117,12 @@ export default function CustomerOffer({ uid, offerId, onSignIn }: Props) {
     }
   }, [uid, offerId])
 
-  const status: OfferStatus = offer?.status ?? 'live'
-  const isPublic =
-    status === 'live' || status === 'scheduled' || status === 'ended'
+  const status = item ? feedDisplayStatus(item) : 'live'
 
   // One view per landing, and only for offers a customer can actually see.
   useEffect(() => {
-    const visible =
-      offer !== null &&
-      (offer.status ?? 'live') !== 'draft' &&
-      (offer.status ?? 'live') !== 'review' &&
-      (offer.status ?? 'live') !== 'changes' &&
-      (offer.status ?? 'live') !== 'paused'
-    if (visible) countOfferView(uid, offerId)
-  }, [offer, uid, offerId])
+    if (item && status !== 'paused') countOfferView(uid, offerId)
+  }, [item, status, uid, offerId])
 
   if (missing) {
     return (
@@ -149,7 +154,21 @@ export default function CustomerOffer({ uid, offerId, onSignIn }: Props) {
     )
   }
 
-  if (!offer || !shop) {
+  if (inactive) {
+    return (
+      <div className="cust-page">
+        <div className="cust-shell">
+          <p className="cust-brand">NearZoop</p>
+          <div className="cust-missing">
+            <h1>This offer isn’t available right now.</h1>
+            <p>This shop’s listing isn’t active — check back later.</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!item) {
     return (
       <div className="cust-page">
         <div className="cust-shell">
@@ -160,7 +179,7 @@ export default function CustomerOffer({ uid, offerId, onSignIn }: Props) {
     )
   }
 
-  if (!isPublic) {
+  if (status === 'paused') {
     return (
       <div className="cust-page">
         <div className="cust-shell">
@@ -175,15 +194,15 @@ export default function CustomerOffer({ uid, offerId, onSignIn }: Props) {
   }
 
   // Badge split — the same first-space rule the list tiles use.
-  const label = offer.discountLabel?.trim() ?? ''
+  const label = item.discountLabel?.trim() ?? ''
   const splitAt = label.indexOf(' ')
   const big = label === '' ? '—' : splitAt === -1 ? label : label.slice(0, splitAt)
-  const small = label === '' ? '' : splitAt === -1 ? '' : label.slice(splitAt + 1)
+  const small = label === '' ? '' : label.slice(splitAt + 1)
   const chip = CHIP[status]
-  const redeem = customerRedeemLine(offer)
-  const terms = termsLine(offer)
-  const exclusions = offer.exclusions ?? []
-  const photos = offer.photos ?? []
+  const redeem = customerRedeemLine(item)
+  const terms = termsLine(item)
+  const exclusions = item.exclusions ?? []
+  const photos = item.photos ?? []
 
   async function sendReport(): Promise<void> {
     if (reportBusy || !reportReason) return
@@ -192,7 +211,7 @@ export default function CustomerOffer({ uid, offerId, onSignIn }: Props) {
     try {
       await saveReport(uid, {
         offerId,
-        offerTitle: offer.title,
+        offerTitle: item?.title,
         reason: reportReason,
         note: reportNote,
       })
@@ -218,7 +237,7 @@ export default function CustomerOffer({ uid, offerId, onSignIn }: Props) {
 
         <section className="biz-detail-hero cust-hero">
           <span
-            className={`biz-otile biz-otile-${offer.tileColor ?? 'yellow'}`}
+            className={`biz-otile biz-otile-${item.tileColor ?? 'yellow'}`}
             aria-hidden="true"
           >
             <span className="biz-otile-big">{big}</span>
@@ -232,22 +251,22 @@ export default function CustomerOffer({ uid, offerId, onSignIn }: Props) {
               </span>
             )}
             <h1 className="biz-detail-name">
-              {offer.title ?? 'Untitled offer'}
+              {item.title ?? 'Untitled offer'}
             </h1>
-            <p className="biz-detail-when">at {shop.name}</p>
+            <p className="biz-detail-when">at {item.shopName}</p>
           </div>
         </section>
 
-        {offer.description && <p className="cust-desc">{offer.description}</p>}
+        {item.description && <p className="cust-desc">{item.description}</p>}
 
         <div className="biz-detailcard cust-card">
-          {offer.endsAt && (
+          {item.endsAt && (
             <div className="biz-detailrow">
               <span className="biz-detailrow-label">
                 {status === 'ended' ? 'Ended' : 'Valid till'}
               </span>
               <span className="biz-detailrow-value">
-                {fmtWhen(offer.endsAt)}
+                {fmtWhen(item.endsAt)}
               </span>
             </div>
           )}

@@ -19,6 +19,7 @@ import {
   type Timestamp,
 } from 'firebase/firestore'
 import { db } from '../firebase'
+import { removeOfferFeed, syncOffer, syncShopFeed } from './feed'
 
 export type DocKind = 'gstin' | 'licence' | 'udyam' | 'signboard'
 
@@ -51,8 +52,8 @@ export type ShopDraft = {
   shopPhotoUrl: string | null
   docKind: DocKind
   gstin: string
-  /** Legal name the GST network returned for `gstin` — set when the GSTIN
-      was auto-verified at submit time. */
+  /** Legal name the GST portal returned for `gstin` — stored at submit time
+      and shown to the admin next to the shop details they approve. */
   gstinLegalName?: string
   docPhotoUrl: string | null
 }
@@ -62,9 +63,11 @@ export type ShopPatch = Partial<ShopDraft> & {
   setupStep?: 0 | 1 | 2
   setupDone?: boolean
   verification?: Verification
-  /** One-time ₹1,000 Razorpay verification fee — settled flag + reference. */
+  /** Annual ₹1,000 Razorpay fee — settled flag + reference + the paid
+      year's end. */
   paymentDone?: boolean
   paymentId?: string
+  feeExpiresAt?: string
   /** Admin's rejection reason, shown on the merchant's failed screen. */
   reviewNote?: string
 }
@@ -77,11 +80,56 @@ export type ShopRecord = ShopDraft & {
   verification: Verification
   paymentDone?: boolean
   paymentId?: string
+  /** End of the shop's paid year (ISO) — written on every payment; one
+      year from the moment it was taken. */
+  feeExpiresAt?: string
   /** Admin's rejection reason, shown on the merchant's failed screen. */
   reviewNote?: string
   /** Server write time of the last save (set by saveShop). */
   updatedAt?: Timestamp
 }
+
+/** One year from `from` — the annual fee's period, leap day included. */
+export function nextFeeExpiry(from = new Date()): string {
+  const at = new Date(from)
+  at.setFullYear(at.getFullYear() + 1)
+  return at.toISOString()
+}
+
+/** Whether a shop's paid year has lapsed. Shops that paid before the fee
+    went annual carry no feeExpiresAt — their last profile save is the only
+    timestamp available, so that anchors the one-year fallback. A shop that
+    never paid isn't "expired": setup hasn't finished. */
+export function feeExpired(shop: ShopRecord): boolean {
+  if (!shop.paymentDone) return false
+  const expiry =
+    shop.feeExpiresAt ?? shop.updatedAt?.toDate().toISOString()
+  if (!expiry) return false
+  return expiry <= new Date().toISOString()
+}
+
+/** Days left in the paid year, floored at 0. */
+export function feeDaysLeft(shop: ShopRecord): number {
+  const expiry =
+    shop.feeExpiresAt ?? shop.updatedAt?.toDate().toISOString()
+  if (!expiry) return 0
+  const left = Date.parse(expiry) - Date.now()
+  return left > 0 ? Math.ceil(left / 86_400_000) : 0
+}
+
+/** Shop-doc fields the public feed mirrors — a patch touching any of them
+    triggers a full mirror re-sync for the shop (see feed.ts). */
+const FEED_SHOP_KEYS = [
+  'name',
+  'category',
+  'shopPhotoUrl',
+  'lat',
+  'lng',
+  'holidayMode',
+  'verification',
+  'paymentDone',
+  'feeExpiresAt',
+] as const
 
 /** Merges a partial write into the merchant's shop doc (creates it if needed). */
 export async function saveShop(uid: string, patch: ShopPatch): Promise<void> {
@@ -90,6 +138,12 @@ export async function saveShop(uid: string, patch: ShopPatch): Promise<void> {
     { ...patch, updatedAt: serverTimestamp() },
     { merge: true },
   )
+  // Mirror upkeep: a field the public feed copies changed, so re-sync
+  // every mirror this shop owns. Fire-and-forget — a failed sync (e.g.
+  // rules deploying late) must never fail the merchant's own save.
+  if (FEED_SHOP_KEYS.some((key) => key in patch)) {
+    void syncShopFeed(uid).catch((err) => console.warn('feed sync', err))
+  }
 }
 
 /** Reads one shop doc. Both call sites are routing decisions (boot check and
@@ -130,16 +184,77 @@ function hourKey(at = new Date()): string {
   return `${WEEKDAYS[at.getDay()]}-${at.getHours()}`
 }
 
-/** Counts a deep-link view. Fire-and-forget: a failed counter must never
-    break the visitor's screen. Writes the lifetime counter plus day and
-    weekday-hour buckets so the insights ranges are true from day one. */
+/** Counts a deep-link view. Two writes, each caught independently:
+    a raw event into shops/{uid}/views — the day + weekday-hour buckets the
+    insights ranges aggregate; a shaped open create is the only view write
+    the rules can offer the public, since bucket keys are dynamic — and
+    the offer's lifetime `views` counter, a rules-guarded +1-only public
+    increment. Fire-and-forget: a failed counter must never break the
+    visitor's screen. */
 export function countOfferView(uid: string, offerId: string): void {
   const now = new Date()
+  void addDoc(collection(db, 'shops', uid, 'views'), {
+    offerId,
+    day: dayKey(now),
+    hour: hourKey(now),
+    at: serverTimestamp(),
+  }).catch(() => {})
   updateDoc(doc(db, 'shops', uid, 'offers', offerId), {
     views: increment(1),
-    [`viewDays.${dayKey(now)}`]: increment(1),
-    [`viewHours.${hourKey(now)}`]: increment(1),
   }).catch(() => {})
+}
+
+/** One raw view event as stored — the insights ranges aggregate these. */
+export type ViewEvent = {
+  id: string
+  offerId: string
+  /** "2026-10-28" — the viewing device's local day. */
+  day: string
+  /** "Mon-18" — weekday + 24h hour of the view. */
+  hour: string
+  at?: Timestamp
+}
+
+/** Live subscription to the shop's raw view events. The insights page
+    aggregates them into every range; failed streams retry with backoff
+    like the other feeds — a dead stream never revives alone. */
+export function watchViewEvents(
+  uid: string,
+  onChange: (events: ViewEvent[]) => void,
+): () => void {
+  let unsub: (() => void) | null = null
+  let attempts = 0
+  let closed = false
+
+  const subscribe = () => {
+    if (closed) return
+    unsub = onSnapshot(
+      collection(db, 'shops', uid, 'views'),
+      (snap) => {
+        attempts = 0
+        onChange(
+          snap.docs.map((entry) => ({
+            id: entry.id,
+            ...(entry.data() as Omit<ViewEvent, 'id'>),
+          })),
+        )
+      },
+      (err) => {
+        console.error('watchViewEvents', err)
+        unsub?.()
+        attempts += 1
+        if (attempts <= 8) {
+          setTimeout(subscribe, Math.min(1000 * 2 ** attempts, 20000))
+        }
+      },
+    )
+  }
+  subscribe()
+
+  return () => {
+    closed = true
+    unsub?.()
+  }
 }
 
 /** Counts a save, with the same day bucketing as views. Nothing calls this
@@ -319,6 +434,17 @@ export function watchShopNotifications(
   )
 }
 
+/** Live unread count for the dashboard's bell badge — the same stream the
+    inbox page subscribes to, narrowed to a number. */
+export function watchNotificationsUnread(
+  uid: string,
+  onChange: (count: number) => void,
+): () => void {
+  return watchShopNotifications(uid, (items) =>
+    onChange(items.filter((item) => !item.read).length),
+  )
+}
+
 /** Marks the given notifications read — the Notifications screen does this
     once on open, so the bell count resets without nagging. */
 export async function markNotificationsRead(
@@ -460,6 +586,9 @@ export type OfferWrite = Omit<
     values must be defined — Firestore rejects undefined. */
 export async function saveOffer(uid: string, offer: OfferWrite): Promise<string> {
   const created = await addDoc(collection(db, 'shops', uid, 'offers'), offer)
+  // Mirror upkeep — new offers are drafts or in review, so this usually
+  // has nothing to write; the sync decides. Fire-and-forget like the rest.
+  void syncOffer(uid, created.id).catch((err) => console.warn('feed sync', err))
   return created.id
 }
 
@@ -569,6 +698,10 @@ export async function setOfferStatus(
     })
   }
   await batch.commit()
+  // Mirror upkeep — the offer's public findability follows its status
+  // (approval writes the mirror, pauses and rejections remove it).
+  // Fire-and-forget: the verdict itself must never fail on a mirror hiccup.
+  void syncOffer(uid, offerId).catch((err) => console.warn('feed sync', err))
 }
 
 /** One row of the admin panel's shops feed: the uid (doc id) plus the record. */
@@ -655,6 +788,9 @@ export async function setVerification(
     read: false,
   })
   await batch.commit()
+  // Mirror upkeep — the verdict decides whether the shop is public at all;
+  // a failed or revoked shop takes every mirror down.
+  void syncShopFeed(uid).catch((err) => console.warn('feed sync', err))
 }
 
 /** One row of the admin panel's offers feed: the owning shop's uid + offer. */
@@ -673,6 +809,9 @@ export async function deleteOffer(
 ): Promise<void> {
   if (!options.notify) {
     await deleteDoc(doc(db, 'shops', shopUid, 'offers', offerId))
+    void removeOfferFeed(shopUid, offerId).catch((err) =>
+      console.warn('feed sync', err),
+    )
     return
   }
   const batch = writeBatch(db)
@@ -685,6 +824,9 @@ export async function deleteOffer(
     read: false,
   })
   await batch.commit()
+  void removeOfferFeed(shopUid, offerId).catch((err) =>
+    console.warn('feed sync', err),
+  )
 }
 
 /** Live feed of one shop's offers — the admin subscribes per shop and the

@@ -13,7 +13,7 @@ import ArtField from './ArtField'
 import './auth.css'
 
 type Props = {
-  onSignedIn: (label: string) => void
+  onSignedIn: (label: string, uid: string) => void
   onSkip: () => void
   onBusiness: () => void
 }
@@ -51,7 +51,7 @@ function describe(err: unknown): string {
   return mapped || (code ? `${FALLBACK} (${code})` : FALLBACK)
 }
 
-function maskPhone(digits: string): string {
+export function maskPhone(digits: string): string {
   return `+91 ${digits.slice(0, 5)} ••• ${digits.slice(-2)}`
 }
 
@@ -116,7 +116,7 @@ export default function AuthFlow({ onSignedIn, onSkip, onBusiness }: Props) {
     } catch (err) {
       throw new Error(describe(err))
     }
-    onSignedIn(maskPhone(phone))
+    onSignedIn(maskPhone(phone), auth.currentUser?.uid ?? '')
   }
 
   /** Re-requests the SMS code while staying on the OTP screen. */
@@ -131,7 +131,7 @@ export default function AuthFlow({ onSignedIn, onSkip, onBusiness }: Props) {
       const result = await signInWithPopup(auth, new GoogleAuthProvider())
       const user = result.user
       const name = user.displayName ?? user.email ?? 'Google user'
-      onSignedIn(user.email ? `${name} · ${user.email}` : name)
+      onSignedIn(user.email ? `${name} · ${user.email}` : name, user.uid)
     } catch (err) {
       setError(describe(err))
     } finally {
