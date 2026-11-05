@@ -7,6 +7,7 @@ import {
   type ConfirmationResult,
 } from 'firebase/auth'
 import { auth } from '../firebase'
+import { maskPhone } from './maskPhone'
 import SignInPhone from './SignInPhone'
 import VerifyCode from './VerifyCode'
 import ArtField from './ArtField'
@@ -49,10 +50,6 @@ function describe(err: unknown): string {
   const mapped = code !== null && ERROR_MESSAGES[code]
   // Unmapped codes surface in parentheses — easiest way to debug a new one.
   return mapped || (code ? `${FALLBACK} (${code})` : FALLBACK)
-}
-
-export function maskPhone(digits: string): string {
-  return `+91 ${digits.slice(0, 5)} ••• ${digits.slice(-2)}`
 }
 
 export default function AuthFlow({ onSignedIn, onSkip, onBusiness }: Props) {
@@ -100,7 +97,7 @@ export default function AuthFlow({ onSignedIn, onSkip, onBusiness }: Props) {
       resetVerifier()
       setError(describe(err))
       if (resending) {
-        throw new Error(describe(err))
+        throw new Error(describe(err), { cause: err })
       }
     } finally {
       setSending(false)
@@ -114,7 +111,7 @@ export default function AuthFlow({ onSignedIn, onSkip, onBusiness }: Props) {
     try {
       await confirmation.confirm(code)
     } catch (err) {
-      throw new Error(describe(err))
+      throw new Error(describe(err), { cause: err })
     }
     onSignedIn(maskPhone(phone), auth.currentUser?.uid ?? '')
   }

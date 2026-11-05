@@ -7,19 +7,26 @@ import {
   type ConfirmationResult,
   type User,
 } from 'firebase/auth'
-import { auth } from '../firebase'
+import {
+  collection,
+  doc,
+  getDocFromServer,
+  getDocs,
+} from 'firebase/firestore'
+import { auth, db } from '../firebase'
 import VerifyCode from '../screens/VerifyCode'
 import BusinessDashboard from './BusinessDashboard'
 import BusinessLanding from './BusinessLanding'
 import BusinessPhone from './BusinessPhone'
 import BusinessSetup from './BusinessSetup'
 import BusinessStatus from './BusinessStatus'
+import { syncOfferFeed } from './feed'
 import {
   feeExpired,
   fetchShop,
-  nextFeeExpiry,
   saveShop,
   watchShop,
+  type OfferRecord,
   type ShopPatch,
   type ShopRecord,
 } from './shop'
@@ -221,7 +228,7 @@ export default function BusinessSignIn() {
       resetVerifier()
       setError(describe(err))
       if (resending) {
-        throw new Error(describe(err))
+        throw new Error(describe(err), { cause: err })
       }
     } finally {
       setSending(false)
@@ -241,7 +248,7 @@ export default function BusinessSignIn() {
     try {
       await confirmation.confirm(code)
     } catch (err) {
-      throw new Error(describe(err))
+      throw new Error(describe(err), { cause: err })
     }
     // confirmation.confirm() can resolve a beat before auth.currentUser is
     // set — never dump the merchant into a fresh wizard on that race; wait
@@ -304,10 +311,11 @@ export default function BusinessSignIn() {
   /**
    * Persists the wizard's progress after every Continue. Steps 1–2 store the
    * fields plus a setupStep marker; the final submit stores the documents
-   * and the wizard advances to its payment step — unless the fee is already
-   * settled (a re-submission after a failed check), in which case
-   * verification reopens and the checking screen takes over. Throws on
-   * failure so the wizard stays on its current step.
+   * and flips the shop back to 'pending' for a fresh verdict — unless the fee
+   * is already settled (a re-submission after a failed check), in which case
+   * the checking screen takes over. Throws on failure so the wizard stays on
+   * its current step. setupDone is never written here: it flips server-side
+   * when the fee settles, and the Firestore rules forbid owners writing it.
    */
   async function saveProgress(
     patch: ShopPatch,
@@ -324,15 +332,10 @@ export default function BusinessSignIn() {
       await saveShop(user.uid, {
         ...patch,
         setupStep: completedStep,
-        ...(completedStep === 2
-          ? paid
-            ? {
-                setupDone: true,
-                // Every submission waits for a person's verdict — the GSTIN
-                // check alone never puts a shop live.
-                verification: 'pending' as const,
-              }
-            : {}
+        ...(completedStep === 2 && paid
+          ? // Every re-submission waits for a person's verdict — the GSTIN
+            // check alone never puts a shop live.
+            { verification: 'pending' as const }
           : {}),
       })
     } catch {
@@ -349,11 +352,43 @@ export default function BusinessSignIn() {
   }
 
   /**
-   * Saves a successful ₹1,000 payment: records the reference, extends the
-   * paid year by twelve months and flips setupDone. A first payment puts the
-   * shop in the admin queue — nothing goes live without a person's verdict.
-   * A renewal keeps the verdict the shop already earned. Throws on save
-   * failure so the wizard's payment step can retry with the same payment id.
+   * Re-lights the public feed mirrors after a server-settled payment. The
+   * old browser-side payment write used to trigger the mirror re-sync on its
+   * own (paymentDone/feeExpiresAt were watched keys); the settlement now
+   * happens in the Vercel functions, which run no browser code — so without
+   * this, a lapsed shop that renewed would stay invisible in the feed until
+   * the next unrelated edit. Reads the settled shop doc fresh (never the
+   * cache) and re-runs the same per-offer gate. Best-effort — a failed
+   * sync never blocks the post-payment screens.
+   */
+  async function resyncShopMirrors(uid: string): Promise<void> {
+    try {
+      const snap = await getDocFromServer(doc(db, 'shops', uid))
+      if (!snap.exists()) return
+      const shop = snap.data() as ShopRecord
+      const offers = await getDocs(collection(db, 'shops', uid, 'offers'))
+      await Promise.all(
+        offers.docs.map((entry) =>
+          syncOfferFeed(uid, shop, {
+            id: entry.id,
+            ...entry.data(),
+          } as OfferRecord),
+        ),
+      )
+    } catch (err) {
+      console.warn('feed re-sync after payment failed', err)
+    }
+  }
+
+  /**
+   * Runs after Razorpay reports success and the server-side verification
+   * (api/razorpay-verify, or the webhook as backstop) has settled the fee —
+   * Firestore already holds paymentDone/paymentId/feeExpiresAt/setupDone,
+   * written by the Admin SDK. The browser deliberately does NOT write those
+   * fields (the Firestore rules forbid it); this only updates local UI state
+   * and picks the screen. A first payment puts the shop in the admin queue —
+   * nothing goes live without a person's verdict. A renewal keeps the
+   * verdict the shop already earned.
    */
   async function completePayment(paymentId: string): Promise<void> {
     const user = auth.currentUser
@@ -363,14 +398,6 @@ export default function BusinessSignIn() {
     }
     // Renewal of an already-approved shop — its verdict carries over.
     const alreadyVerified = savedShop?.verification === 'verified'
-    const feeExpiresAt = nextFeeExpiry()
-    await saveShop(user.uid, {
-      paymentDone: true,
-      paymentId,
-      feeExpiresAt,
-      setupDone: true,
-      ...(alreadyVerified ? {} : { verification: 'pending' as const }),
-    })
     setHasPaid(true)
     setSavedShop((current) =>
       current
@@ -378,13 +405,14 @@ export default function BusinessSignIn() {
             ...current,
             paymentDone: true,
             paymentId,
-            feeExpiresAt,
             setupDone: true,
             ...(alreadyVerified ? {} : { verification: 'pending' as const }),
           }
         : current,
     )
     setStep(alreadyVerified ? 'dash' : 'checking')
+    // Feed mirrors dark from a lapsed year flip back on with the renewal.
+    void resyncShopMirrors(user.uid)
   }
 
   /** Jumps a merchant back to the wizard's payment step to renew. */

@@ -4,7 +4,8 @@ import type {
   PointerEvent as ReactPointerEvent,
   ReactElement,
 } from 'react'
-import CustomerMap, { fmtKm, requestFix, type Coords, type MapPin } from './CustomerMap'
+import CustomerMap from './CustomerMap'
+import { fmtKm, requestFix, type Coords, type MapPin } from './mapUtils'
 import {
   cacheCoords,
   cacheLocality,
@@ -41,6 +42,8 @@ type Props = {
   onOpenOffer: (shopUid: string, offerId: string) => void
   /** The You tab's sign-in button — routes to the auth flow and back. */
   onSignIn: () => void
+  /** Opens the customer's coupons wallet. */
+  onOpenCoupons: () => void
   /** After sign-out completes — the session flips to guest. */
   onSignOut: () => void
 }
@@ -147,14 +150,27 @@ function distLabel(km: number): string {
     the deal tile (the same biz-otile the merchant lists wear), the title,
     the shop line, and a meta row of distance + validity. Tapping opens
     the offer's own page. */
+/** "Ends in 5h" / "Ends in 2d" — the ending-soon rail's countdown. */
+function endsInLabel(iso: string, now: number): string {
+  const ms = Date.parse(iso) - now
+  if (ms <= 0) return 'Ending now'
+  const hours = Math.floor(ms / 3_600_000)
+  if (hours < 1) return 'Ends within the hour'
+  if (hours < 24) return `Ends in ${hours}h`
+  return `Ends in ${Math.floor(hours / 24)}d`
+}
+
 function OfferCard({
   item,
   selected,
   onSelect,
+  countdown,
 }: {
   item: FeedRecord & { km: number | null }
   selected: boolean
   onSelect: () => void
+  /** Replaces the plain "till …" date — the ending-soon rail's clock. */
+  countdown?: string
 }) {
   const label = item.discountLabel?.trim() ?? ''
   const splitAt = label.indexOf(' ')
@@ -200,7 +216,11 @@ function OfferCard({
             </span>
             <span className="chome-card-meta">
               {item.km !== null && <span className="chome-card-dist">{distLabel(item.km)}</span>}
-              {item.endsAt && <span>till {fmtDay(item.endsAt)}</span>}
+              {countdown ? (
+                <span className="chome-card-ends">{countdown}</span>
+              ) : (
+                item.endsAt && <span>till {fmtDay(item.endsAt)}</span>
+              )}
             </span>
           </span>
         </button>
@@ -216,6 +236,7 @@ export default function CustomerHome({
   onOpenOffer,
   onSignIn,
   onSignOut,
+  onOpenCoupons,
 }: Props) {
   // The fix, radius and locality label come from the Locate step's cache.
   const [fix, setFix] = useState<Coords | null>(() => cachedCoords())
@@ -234,12 +255,16 @@ export default function CustomerHome({
   const [feedError, setFeedError] = useState(false)
   // The selected offer — lit on its card and its map pin.
   const [selected, setSelected] = useState<string | null>(null)
+  // The clock the feed filter runs against — refreshed on every snapshot so
+  // scheduled offers wake up without a render-time Date.now().
+  const [now, setNow] = useState(() => Date.now())
 
   // The public feed mirror — the only offer data a customer can read.
   useEffect(
     () =>
       watchFeed(
         (items) => {
+          setNow(Date.now())
           setFeed(items)
           setFeedError(false)
         },
@@ -334,7 +359,6 @@ export default function CustomerHome({
   // shop not on holiday, subscription not lapsed, inside its date window.
   // Everything is judged from the mirror's own copied fields — the client
   // re-derives dates live, so scheduled offers wake up without a write.
-  const now = Date.now()
   const live = (feed ?? []).filter((item) => {
     if (item.status !== 'live' || item.shopPaused) return false
     if (item.feeExpiresAt && item.feeExpiresAt <= new Date().toISOString()) {
@@ -364,6 +388,18 @@ export default function CustomerHome({
     (a, b) =>
       (a.km ?? Number.POSITIVE_INFINITY) - (b.km ?? Number.POSITIVE_INFINITY) ||
       (a.endsAt ?? '9999').localeCompare(b.endsAt ?? '9999'),
+  )
+
+  // Ending soon: live offers closing within the next 48 hours, soonest
+  // first. A clock is the headline here, so distance takes a back seat.
+  const DAY_MS = 24 * 60 * 60 * 1000
+  const endingSoon = withDistance(
+    live
+      .filter(
+        (item) =>
+          !!item.endsAt && Date.parse(item.endsAt) - now < 2 * DAY_MS,
+      )
+      .sort((a, b) => (a.endsAt ?? '').localeCompare(b.endsAt ?? '')),
   )
 
   // Pins ride only for offers inside the radius — the map is framed to the
@@ -398,7 +434,7 @@ export default function CustomerHome({
           className="chome-canvas"
           pins={pins}
           onSelectPin={selectOffer}
-          attributionCorner="top-right"
+          attributionCorner="bottom-left"
         />
         <div className="chome-top">
           <LocationChip
@@ -519,6 +555,22 @@ export default function CustomerHome({
                 </p>
               </>
             )}
+            {!feedError && feed !== null && endingSoon.length > 0 && (
+              <section className="chome-ending" aria-label="Ending soon">
+                <h2 className="chome-ending-head">Ending soon</h2>
+                <ul className="chome-ending-rail">
+                  {endingSoon.map((item) => (
+                    <OfferCard
+                      key={item.offerId}
+                      item={item}
+                      selected={selected === item.offerId}
+                      onSelect={() => openOffer(item)}
+                      countdown={endsInLabel(item.endsAt as string, now)}
+                    />
+                  ))}
+                </ul>
+              </section>
+            )}
           </div>
         )}
 
@@ -549,6 +601,22 @@ export default function CustomerHome({
                     />
                   ))}
                 </ul>
+                {endingSoon.length > 0 && (
+                  <section className="chome-ending" aria-label="Ending soon">
+                    <h2 className="chome-ending-head">Ending soon</h2>
+                    <ul className="chome-ending-rail">
+                      {endingSoon.map((item) => (
+                        <OfferCard
+                          key={item.offerId}
+                          item={item}
+                          selected={selected === item.offerId}
+                          onSelect={() => openOffer(item)}
+                          countdown={endsInLabel(item.endsAt as string, now)}
+                        />
+                      ))}
+                    </ul>
+                  </section>
+                )}
               </>
             ) : (
               <>
@@ -574,7 +642,11 @@ export default function CustomerHome({
         {view === 'you' && (
           <div className="chome-body">
             {session.variant === 'signed-in' && user ? (
-              <Profile user={user} onSignOut={onSignOut} />
+              <Profile
+                user={user}
+                onSignOut={onSignOut}
+                onOpenCoupons={onOpenCoupons}
+              />
             ) : (
               <div className="chome-you">
                 <span className="chome-avatar" aria-hidden="true">

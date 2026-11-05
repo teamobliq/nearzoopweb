@@ -171,11 +171,13 @@ export default function CustomerOffer({
   // A claimed coupon — when one exists the pass replaces the claim button,
   // so a reload never loses what the customer already owns.
   const [coupon, setCoupon] = useState<CouponRecord | null>(null)
-  const [couponQr, setCouponQr] = useState('')
+  // QR svg keyed by the code it was generated for — a stale QR never
+  // renders against a different coupon, and no sync reset is needed.
+  const [couponQr, setCouponQr] = useState<{ code: string; svg: string } | null>(null)
   const [claiming, setClaiming] = useState(false)
   const [claimError, setClaimError] = useState('')
   const [claimDialog, setClaimDialog] = useState<CouponRecord | null>(null)
-  const [claimDialogQr, setClaimDialogQr] = useState('')
+  const [claimDialogQr, setClaimDialogQr] = useState<{ code: string; svg: string } | null>(null)
 
   // Already claimed? Read it back once the offer is known. Declared before
   // any early return so the hook order never changes.
@@ -198,17 +200,15 @@ export default function CustomerOffer({
   // The pass's QR. The encoder is imported lazily so guests — the majority
   // of shared-link visitors — never download it.
   useEffect(() => {
-    if (!coupon) {
-      setCouponQr('')
-      return
-    }
+    if (!coupon) return
+    const code = coupon.code
     let alive = true
     void import('qrcode')
       .then((qr) =>
-        qr.toString(coupon.code, { type: 'svg', margin: 1, width: 220 }),
+        qr.toString(code, { type: 'svg', margin: 1, width: 220 }),
       )
       .then((svg) => {
-        if (alive) setCouponQr(svg)
+        if (alive) setCouponQr({ code, svg })
       })
       .catch(() => {
         // The printed code below works without the QR.
@@ -220,17 +220,15 @@ export default function CustomerOffer({
 
   // The claim dialog's QR — same code, generated once when the dialog opens.
   useEffect(() => {
-    if (!claimDialog) {
-      setClaimDialogQr('')
-      return
-    }
+    if (!claimDialog) return
+    const code = claimDialog.code
     let alive = true
     void import('qrcode')
       .then((qr) =>
-        qr.toString(claimDialog.code, { type: 'svg', margin: 1, width: 220 }),
+        qr.toString(code, { type: 'svg', margin: 1, width: 220 }),
       )
       .then((svg) => {
-        if (alive) setClaimDialogQr(svg)
+        if (alive) setClaimDialogQr({ code, svg })
       })
       .catch(() => {})
     return () => {
@@ -273,6 +271,10 @@ export default function CustomerOffer({
   }, [uid, offerId])
 
   const status = item ? feedDisplayStatus(item) : 'live'
+  // Only render the QR that belongs to the coupon/dialog currently shown.
+  const shownCouponQr = coupon && couponQr?.code === coupon.code ? couponQr.svg : ''
+  const shownClaimDialogQr =
+    claimDialog && claimDialogQr?.code === claimDialog.code ? claimDialogQr.svg : ''
 
   // One view per landing, and only for offers a customer can actually see.
   useEffect(() => {
@@ -457,7 +459,7 @@ export default function CustomerOffer({
               {item.title ?? 'Untitled offer'}
             </h1>
             <p className="cust-id-sub">
-              <span className="cust-id-shop">at {item.shopName}</span>
+              at {item.shopName}
               {chip && (
                 <span className={`biz-ochip biz-ochip-${chip.kind}`}>
                   {chip.dot && <span className="biz-offer-dot" />}
@@ -517,10 +519,10 @@ export default function CustomerOffer({
 
         {item.description && <p className="cust-desc">{item.description}</p>}
 
-        {coupon && <CouponPass coupon={coupon} qr={couponQr} />}
+        {coupon && <CouponPass coupon={coupon} qr={shownCouponQr} />}
 
         <div className={`cust-cols${rest.length > 0 ? '' : ' is-single'}`}>
-          <section className="cust-panel">
+          <section>
             <h2 className="cust-panel-title">Offer details</h2>
             <div className="biz-detailcard cust-card">
               {item.endsAt && (
@@ -559,7 +561,7 @@ export default function CustomerOffer({
           </section>
 
           {rest.length > 0 && (
-            <section className="cust-panel">
+            <section>
               <h2 className="cust-panel-title">More photos</h2>
               <div className="cust-photos">
                 {rest.map((url) => (
@@ -596,8 +598,8 @@ export default function CustomerOffer({
             </header>
             <div className="cust-claimdialog-pass">
               <div className="cust-claimdialog-qr">
-                {claimDialogQr ? (
-                  <span dangerouslySetInnerHTML={{ __html: claimDialogQr }} />
+                {shownClaimDialogQr ? (
+                  <span dangerouslySetInnerHTML={{ __html: shownClaimDialogQr }} />
                 ) : (
                   <span className="cust-pass-qrwait" aria-hidden="true" />
                 )}

@@ -127,6 +127,19 @@
   flex-direction: column;
 }
 
+/* The copy block inside .biz-side: headline + pitch, pitched over the
+   artwork on the left column. */
+.biz-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  max-width: 34rem;
+}
+
+.biz-copy > .biz-body {
+  margin-top: 0;
+}
+
 .biz-title {
   margin: 0;
   font-weight: 900;
@@ -1941,6 +1954,13 @@
   text-align: center;
 }
 
+.biz-offerbadge-big {
+  font-size: 1.75rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
 .biz-offer-main {
   flex: 1;
   min-width: 0;
@@ -3711,6 +3731,38 @@
   line-height: 1.5;
 }
 
+.biz-scan-manualfields {
+  display: flex;
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+}
+
+.biz-scan-manualvalue,
+.biz-scan-manualnote {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.9rem;
+  padding-inline: 0.85rem;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 1rem;
+  background-color: var(--color-paper);
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+}
+
+.biz-scan-manualvalue:focus-visible,
+.biz-scan-manualnote:focus-visible {
+  outline: 3px solid var(--color-amber);
+  outline-offset: 2px;
+}
+
+.biz-scan-manualvalue::placeholder,
+.biz-scan-manualnote::placeholder {
+  color: #b9ad92;
+  font-weight: 500;
+}
+
 .biz-scan-mark {
   display: flex;
   align-items: center;
@@ -4051,6 +4103,10 @@
 
 /* Empty state: the dashboard's hero treatment — rotated amber tile with a
    bar-chart mark, pitch beside it on desktop. */
+.biz-insights-hero .biz-dash-tip {
+  margin-top: 1.4rem;
+}
+
 .biz-insights-tile svg {
   width: 4.4rem;
   height: 4.4rem;
@@ -4106,6 +4162,12 @@
 
 .biz-insights-vbar.is-peak {
   background: var(--color-red);
+}
+
+/* A slot with no views sits as a ghost bar, same mute the empty
+   hour-row uses — not a filled one. */
+.biz-insights-vbar.is-zero {
+  opacity: 0.55;
 }
 
 .biz-insights-collabel {
@@ -4387,6 +4449,24 @@
   padding: 0.2rem 1.1rem;
 }
 
+/* The settings column next to the hero — Shop card, then Account card.
+   Stacks under the hero on phones; a proper grid cell on desktop. */
+.biz-shop-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-width: 0;
+}
+
+.biz-shop-side > .biz-shopcard,
+.biz-shop-side > .biz-scan-err {
+  margin-top: 0;
+}
+
+.biz-shop-side > .biz-shopcard + .biz-shop-h2 {
+  margin-top: 1.2rem;
+}
+
 .biz-shoprow {
   display: flex;
   align-items: center;
@@ -4605,6 +4685,12 @@ button.biz-shoprow {
   font-weight: 800;
   font-size: 1.08rem;
   letter-spacing: -0.01em;
+}
+
+/* A day toggled off reads as closed at a glance — the same stone tone
+   the "Closed all day" label uses. */
+.biz-hourrow.is-closed .biz-hourrow-day {
+  color: var(--color-stone);
 }
 
 .biz-hourrow-body {

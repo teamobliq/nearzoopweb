@@ -1,19 +1,24 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type { User } from 'firebase/auth'
 import { auth } from './firebase'
+import type { CouponRecord } from './business/coupons'
 import Splash from './screens/Splash'
 import Onboarding from './screens/Onboarding'
-import AuthFlow, { maskPhone } from './screens/AuthFlow'
+import AuthFlow from './screens/AuthFlow'
+import { maskPhone } from './screens/maskPhone'
 import Locate from './screens/Locate'
 import CustomerHome from './screens/CustomerHome'
 import BusinessSignIn from './business/BusinessSignIn'
 import CustomerOffer from './screens/CustomerOffer'
+import MyCoupons from './screens/MyCoupons'
+import CouponPass from './screens/CouponPass'
+import { cachedCoords } from './business/geocode'
 import './App.css'
 
 // The admin console ships as its own chunk — absent from the main bundle.
 const AdminPanel = lazy(() => import('./admin/AdminPanel'))
 
-type Screen = 'splash' | 'onboard' | 'auth' | 'locate' | 'home' | 'profile' | 'editProfile'
+type Screen = 'splash' | 'onboard' | 'auth' | 'locate' | 'home' | 'profile' | 'editProfile' | 'myCoupons' | 'couponPass'
 type Route = 'customer' | 'business' | 'admin'
 type Session = { variant: 'guest' | 'signed-in'; label?: string; uid?: string; user?: User }
 type DeepLink = { uid: string; offerId: string }
@@ -24,6 +29,35 @@ function hasOnboarded(): boolean {
     return localStorage.getItem('nz.onboarded') === '1'
   } catch {
     return false
+  }
+}
+
+/** Set when the visitor chooses to browse without an account. It lets a
+    reload resume as the same guest instead of throwing the sign-in wall
+    back up, and is cleared the moment a real session starts. */
+const GUEST_KEY = 'nz.guest'
+
+function prefersGuest(): boolean {
+  try {
+    return localStorage.getItem(GUEST_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function rememberGuest(): void {
+  try {
+    localStorage.setItem(GUEST_KEY, '1')
+  } catch {
+    // Storage blocked — the guest simply has to skip again next visit.
+  }
+}
+
+function forgetGuest(): void {
+  try {
+    localStorage.removeItem(GUEST_KEY)
+  } catch {
+    // Storage blocked — nothing to clear.
   }
 }
 
@@ -41,14 +75,17 @@ function sessionLabel(user: User): string {
     section in the address bar) opens the merchant flow; `/nz-admin` (also
     unlinked) opens the ops console. */
 function readRoute(): Route {
-  const path = window.location.pathname
-  if (/(^|\/)busdash\/?$/i.test(path)) {
+  // Normalise: a trailing slash is meaningless here, and matching on it
+  // would make `/business` and `/business/` diverge.
+  const path = window.location.pathname.replace(/\/+$/, '') || '/'
+  // Exact merchant entry points only. A prefix match on `/business` used to
+  // swallow every `/business/<uid>/<offerId>` share link, so those fell into
+  // the merchant landing instead of the offer. The offer path is two
+  // segments, which this can no longer collide with.
+  if (/\/(busdash|business)$/i.test(path)) {
     return 'business'
   }
-  if (/(^|\/)business(\/.*)?\/?$/i.test(path)) {
-    return 'business'
-  }
-  if (/(^|\/)nz-admin\/?$/i.test(path)) {
+  if (/\/nz-admin$/i.test(path)) {
     return 'admin'
   }
   return 'customer'
@@ -91,11 +128,51 @@ function App() {
   // Where the auth flow hands back to: the first run continues into the
   // location step; signing in from Home's You tab returns straight home.
   const [authReturn, setAuthReturn] = useState<'locate' | 'home'>('locate')
+  /** The coupon the customer tapped in My Coupons — opened as its own pass
+      screen so the QR is full-screen and shareable. */
+  const [couponToOpen, setCouponToOpen] = useState<CouponRecord | null>(null)
+  /** The screen stack behind the back button. React state drives rendering,
+      but the *browser's* history is what a phone's back gesture actually
+      pops — without a parallel entry per screen, back jumped out of the app
+      entirely. `screenStack` mirrors the pushed entries so popstate knows
+      which screen to restore. */
+  const screenStack = useRef<Screen[]>(['splash'])
+  /** Mirror of the stack's depth. The ref holds the ids; this lets render
+      decide whether a screen has anything behind it without reading a ref
+      mid-render. */
+  const [screenDepth, setScreenDepth] = useState(1)
+
+  /** Navigate to a screen and push a history entry for it, so the browser's
+      back gesture returns here rather than leaving the app. */
+  function go(next: Screen) {
+    if (next === screen) return
+    screenStack.current.push(next)
+    setScreenDepth(screenStack.current.length)
+    setScreen(next)
+    try {
+      // A state marker keeps `busdash` / offer URLs intact: the path is not
+      // rewritten for in-app screens, only an entry is added.
+      window.history.pushState({ nzScreen: next }, '')
+    } catch {
+      // History unavailable in some sandboxed contexts; state still flips.
+    }
+  }
 
   useEffect(() => {
     function sync() {
       setRoute(readRoute())
       setDeepLink(readDeepLink())
+      // A back gesture popped one of our screen entries: drop it from the
+      // local stack and restore the screen that is now on top. Deep-link and
+      // merchant/admin URLs carry no marker, so they are left to the route
+      // logic above.
+      const state = window.history.state as { nzScreen?: Screen } | null
+      if (!state?.nzScreen && screenStack.current.length > 1) {
+        screenStack.current.pop()
+        setScreenDepth(screenStack.current.length)
+        const previous = screenStack.current[screenStack.current.length - 1]
+        if (previous) setScreen(previous)
+      }
     }
     window.addEventListener('popstate', sync)
     return () => window.removeEventListener('popstate', sync)
@@ -138,7 +215,7 @@ function App() {
       }
     }
     setDeepLink(null)
-    setScreen('home')
+    go('home')
   }
 
   /** "Sign in to claim" on an offer page — the auth flow takes over, then
@@ -151,7 +228,7 @@ function App() {
       // State still switches below.
     }
     setDeepLink(null)
-    setScreen('auth')
+    go('auth')
   }
 
   if (route === 'business') {
@@ -204,29 +281,40 @@ function App() {
         onProceed={(_coords, user) => {
           if (user) {
             setSession({ variant: 'signed-in', label: sessionLabel(user), uid: user.uid, user })
-            setScreen('home')
+            go('home')
             return
           }
-          setScreen(hasOnboarded() ? 'auth' : 'onboard')
+          // A returning guest with a saved fix lands straight on Home — the
+          // reload used to re-arm the sign-in wall every time.
+          if (hasOnboarded() && prefersGuest() && cachedCoords()) {
+            go('home')
+            return
+          }
+          go(hasOnboarded() ? 'auth' : 'onboard')
         }}
       />
     )
   }
 
   if (screen === 'onboard') {
-    return <Onboarding onExit={() => setScreen('auth')} />
+    return <Onboarding onExit={() => go('auth')} />
   }
 
   if (screen === 'auth') {
     return (
       <AuthFlow
         onSignedIn={(label, uid) => {
+          // A real session supersedes a previous browse-as-guest choice.
+          forgetGuest()
           setSession({ variant: 'signed-in', label, uid })
-          setScreen(authReturn)
+          go(authReturn)
         }}
         onSkip={() => {
+          // Remembered so a reload resumes as the same guest instead of
+          // showing the sign-in wall again.
+          rememberGuest()
           setSession({ variant: 'guest' })
-          setScreen(authReturn)
+          go(authReturn)
         }}
         onBusiness={goBusiness}
       />
@@ -234,18 +322,55 @@ function App() {
   }
 
   if (screen === 'locate') {
-    return <Locate onDone={() => setScreen('home')} />
+    // Cancel is offered only when Home is actually behind this screen — on
+    // the first run there is nothing to return to and the step is mandatory.
+    return (
+      <Locate
+        onDone={() => go('home')}
+        onBack={
+          screenDepth > 1 && authReturn === 'home'
+            ? () => go('home')
+            : undefined
+        }
+      />
+    )
+  }
+
+  if (screen === 'myCoupons') {
+    return (
+      <MyCoupons
+        user={session.variant === 'signed-in' ? auth.currentUser : null}
+        onBack={() => go('home')}
+        onOpenPass={(c) => {
+          setCouponToOpen(c)
+          go('couponPass')
+        }}
+      />
+    )
+  }
+
+  if (screen === 'couponPass') {
+    return (
+      <CouponPass
+        coupon={couponToOpen!}
+        onBack={() => {
+          setCouponToOpen(null)
+          go('myCoupons')
+        }}
+      />
+    )
   }
 
   return (
     <CustomerHome
       session={session}
       user={session.variant === 'signed-in' ? auth.currentUser : null}
-      onEditLocation={() => setScreen('locate')}
+      onEditLocation={() => go('locate')}
       onOpenOffer={openOffer}
+      onOpenCoupons={() => go('myCoupons')}
       onSignIn={() => {
         setAuthReturn('home')
-        setScreen('auth')
+        go('auth')
       }}
       onSignOut={() => setSession({ variant: 'guest' })}
     />

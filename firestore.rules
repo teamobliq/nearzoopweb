@@ -58,8 +58,15 @@ service cloud.firestore {
       // Only the merchant creates their shop; admins may update review
       // fields (verification / reviewNote) but never create or delete.
       allow create: if signedIn() && request.auth.uid == uid;
-      allow update: if signedIn()
-        && (request.auth.uid == uid || isAdmin());
+      // Admins keep full update; the owner may update everything EXCEPT
+      // the payment fields — those are written only by the server
+      // functions (Admin SDK bypasses these rules), never by the browser,
+      // so a merchant can't forge paymentDone/feeExpiresAt from the console.
+      allow update: if signedIn() && isAdmin()
+        || (signedIn() && request.auth.uid == uid
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+              'paymentDone', 'paymentId', 'feeExpiresAt', 'setupDone',
+            ]));
       allow delete: if false;
 
       match /offers/{offerId} {
@@ -222,6 +229,39 @@ service cloud.firestore {
         && request.resource.data.offerId == resource.data.offerId
         && request.resource.data.claimedAt == resource.data.claimedAt;
       allow delete: if false;
+    }
+
+    // Confirmed redemptions — the log the customer's history reads. The
+    // shop writes a row when it redeems a coupon (or marks one by hand);
+    // the undo window deletes the row it just wrote. Rows are otherwise
+    // immutable — the counts live on the offer, not here.
+    match /redemptions/{id} {
+      allow get, list: if signedIn()
+        && (resource.data.customerUid == request.auth.uid
+          || resource.data.shopUid == request.auth.uid
+          || isAdmin());
+      allow create: if signedIn()
+        && (request.resource.data.shopUid == request.auth.uid || isAdmin())
+        && request.resource.data.confirmedBy is string;
+      // Only the undo window deletes — and only the shop's own row.
+      allow delete: if signedIn()
+        && (resource.data.shopUid == request.auth.uid || isAdmin());
+      allow update: if false;
+    }
+
+    // A customer reporting a redemption the shop never confirmed. The
+    // customer files it; the shop it names (and admin) reads and resolves.
+    match /redemption_reports/{id} {
+      allow get, list: if signedIn()
+        && (resource.data.customerUid == request.auth.uid
+          || resource.data.shopUid == request.auth.uid
+          || isAdmin());
+      allow create: if signedIn()
+        && request.resource.data.customerUid == request.auth.uid
+        && request.resource.data.status == 'open';
+      allow update: if signedIn()
+        && (resource.data.shopUid == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
     }
 
     // Nothing outside the shops tree is reachable — and note: this wildcard

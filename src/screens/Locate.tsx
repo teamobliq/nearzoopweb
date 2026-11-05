@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import CustomerMap, { fmtKm, type Coords } from './CustomerMap'
+import CustomerMap from './CustomerMap'
+import { fmtKm, type Coords } from './mapUtils'
 import {
   cacheCoords,
   cacheLocality,
@@ -23,6 +24,9 @@ import './customer.css'
 type Props = {
   /** Confirmation either way — the flow moves on to the home screen. */
   onDone: () => void
+  /** Present only when a screen sits behind this one (Home, via the location
+      chip). Withholding it keeps the first run's location step mandatory. */
+  onBack?: () => void
 }
 
 /** Fixes coarser than this get the honesty banner instead of a silent,
@@ -105,15 +109,25 @@ function LocalityPicker({
   // a newer one's results.
   const seqRef = useRef(0)
 
-  useEffect(() => {
-    const q = query.trim()
+  // Reset lives in the change path (event handlers), not the effect —
+  // short queries clear synchronously there; the effect only searches.
+  function applyQuery(next: string) {
+    setQuery(next)
+    const q = next.trim()
     if (q.length < 3) {
       setResults(null)
       setStatus('idle')
       return
     }
-    const seq = ++seqRef.current
     setStatus('searching')
+  }
+
+  useEffect(() => {
+    const q = query.trim()
+    if (q.length < 3) {
+      return
+    }
+    const seq = ++seqRef.current
     // Debounce past Nominatim's one-call-per-second comfort zone.
     const timer = window.setTimeout(() => {
       searchLocalities(q)
@@ -155,18 +169,17 @@ function LocalityPicker({
         <div className="loc-searchrow">
           <SearchSvg />
           <input
-            /* eslint-disable-next-line jsx-a11y/no-autofocus */
             autoFocus
             type="text"
             placeholder="Locality, city or PIN code"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => applyQuery(event.target.value)}
           />
           {query !== '' && (
             <button
               type="button"
               className="loc-pick-clear"
-              onClick={() => setQuery('')}
+              onClick={() => applyQuery('')}
               aria-label="Clear search"
             >
               ×
@@ -233,7 +246,7 @@ function BackSvg() {
 
 export { BackSvg }
 
-export default function Locate({ onDone }: Props) {
+export default function Locate({ onDone, onBack }: Props) {
   // Splash's cached fix opens the map in the right neighbourhood instantly;
   // the quiet re-fix below refreshes it and measures accuracy.
   const [fix, setFix] = useState<Coords | null>(() => cachedCoords())
@@ -293,7 +306,9 @@ export default function Locate({ onDone }: Props) {
   // First paint quietly re-fixes — splash's cached coords can be minutes
   // old, and its fix was low accuracy by design. Never advances on its own.
   useEffect(() => {
-    runFix(false)
+    // Deferred a tick so the effect body itself sets no state.
+    const timer = window.setTimeout(() => runFix(false), 0)
+    return () => window.clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -349,7 +364,17 @@ export default function Locate({ onDone }: Props) {
   return (
     <main className="loc">
       <section className="loc-map" aria-label="Map of your area">
-        <CustomerMap fix={fix} radiusKm={radiusKm} fitKey={fitKey} className="loc-canvas" />
+        <CustomerMap fix={fix} radiusKm={radiusKm} fitKey={fitKey} className="loc-canvas" attributionCorner="top-right" />
+        {onBack && (
+          <button
+            type="button"
+            className="loc-back"
+            onClick={onBack}
+            aria-label="Cancel and go back"
+          >
+            <BackSvg />
+          </button>
+        )}
         <div className="loc-brand">
           <span className="loc-brand-mark" aria-hidden="true">
             Z

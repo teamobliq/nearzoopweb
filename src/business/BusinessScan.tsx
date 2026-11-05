@@ -8,8 +8,10 @@ import {
   lookupCoupon,
   markCouponUsed,
   releaseCoupon,
+  revokeCoupon,
   type CouponRecord,
 } from './coupons'
+import { logRedemption, deleteRedemption } from './redemptions'
 import './business.css'
 
 /** The Scan flow — opened from the sidebar button, the mobile scan chip and
@@ -39,7 +41,7 @@ type Mode = 'scan' | 'code'
 
 type SheetState = {
   code: string
-  state: 'valid' | 'used' | 'expired' | 'notfound' | 'foreign'
+  state: 'valid' | 'used' | 'expired' | 'revoked' | 'notfound' | 'foreign'
   coupon: CouponRecord | null
 }
 
@@ -128,6 +130,7 @@ export default function BusinessScan({
   const [done, setDone] = useState<{
     offerId: string
     code?: string
+    redemptionId?: string
     line: string
     at: Date
   } | null>(null)
@@ -136,11 +139,20 @@ export default function BusinessScan({
   const [error, setError] = useState('')
   const [part1, setPart1] = useState('')
   const [part2, setPart2] = useState('')
+  const [manualValue, setManualValue] = useState('')
+  const [manualNote, setManualNote] = useState('')
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const part2Ref = useRef<HTMLInputElement | null>(null)
   const lockedRef = useRef(false)
+  /* The scan loop lives inside the camera effect, which must not re-subscribe
+     when `busy` flips — so the effect reaches the latest `resolve` through
+     this ref instead of closing over it. */
+  const resolveRef = useRef<(raw: string) => Promise<void>>(async () => undefined)
+  useEffect(() => {
+    resolveRef.current = resolve
+  })
 
   /* Camera + detection loop — runs only in scan mode; torn down on every
      mode change so the stream never outlives the view showing it. */
@@ -198,7 +210,7 @@ export default function BusinessScan({
               if (found.length > 0 && !lockedRef.current) {
                 lockedRef.current = true
                 setSheet(null)
-                void resolve(found[0].rawValue)
+                void resolveRef.current(found[0].rawValue)
               }
             } catch {
               /* frame not ready — next tick retries */
@@ -339,10 +351,30 @@ export default function BusinessScan({
       } catch {
         // The coupon is already spent; the count is secondary.
       }
+      // The customer's history reads this log — the scanned path knows
+      // exactly who claimed the coupon, so it files it under them.
+      let redemptionId: string | undefined
+      try {
+        const ref = await logRedemption({
+          code: coupon.code,
+          shopUid: uid,
+          shopName: ownerName,
+          offerId: coupon.offerId,
+          offerTitle: coupon.offerTitle,
+          discountLabel: coupon.discountLabel,
+          customerUid: coupon.customerUid,
+          value: coupon.discountLabel,
+          confirmedBy: ownerName,
+        })
+        redemptionId = ref.id
+      } catch {
+        // The count already moved; the history is best-effort.
+      }
       setSheet(null)
       setDone({
         offerId: coupon.offerId,
         code: coupon.code,
+        redemptionId,
         line: giveLine(coupon.discountLabel),
         at: new Date(),
       })
@@ -353,13 +385,52 @@ export default function BusinessScan({
     setBusy(false)
   }
 
+  /** The shop kills a live coupon — refused at the counter. The pass keeps
+      its code but the counter will never accept it again. */
+  async function revoke(coupon: CouponRecord): Promise<void> {
+    if (busy) return
+    setBusy(true)
+    setError('')
+    try {
+      await revokeCoupon(coupon.code, uid)
+      setSheet({ code: coupon.code, state: 'revoked', coupon })
+    } catch {
+      setError("Couldn't revoke that. Check the connection and try again.")
+    }
+    setBusy(false)
+  }
+
   async function markManual(offer: OfferRecord): Promise<void> {
     if (busy) return
     setBusy(true)
     setError('')
     try {
       await markOfferRedeemed(uid, offer.id)
-      setDone({ offerId: offer.id, line: giveLine(offer.discountLabel), at: new Date() })
+      // Staff marked this by hand — the shop knows the deal, not the
+      // customer, so the log is filed without one. The customer's history
+      // only ever shows redemptions a shop confirmed with their own uid,
+      // which is exactly what this is not.
+      try {
+        await logRedemption({
+          code: '',
+          shopUid: uid,
+          shopName: ownerName,
+          offerId: offer.id,
+          offerTitle: offer.title ?? 'Offer',
+          discountLabel: offer.discountLabel,
+          customerUid: '',
+          value: manualValue.trim() || undefined,
+          note: manualNote.trim() || undefined,
+          confirmedBy: ownerName,
+        })
+      } catch {
+        // Count moved; history is best-effort.
+      }
+      setDone({
+        offerId: offer.id,
+        line: giveLine(offer.discountLabel),
+        at: new Date(),
+      })
       setUndoLeft(120)
     } catch {
       setError('Couldn’t mark that. Check the connection and try again.')
@@ -372,6 +443,13 @@ export default function BusinessScan({
     setBusy(true)
     try {
       if (done.code) await releaseCoupon(done.code)
+      if (done.redemptionId) {
+        try {
+          await deleteRedemption(done.redemptionId)
+        } catch {
+          // The count already moved back; the log is best-effort.
+        }
+      }
       await unmarkOfferRedeemed(uid, done.offerId)
       setDone(null)
       setMode('scan')
@@ -506,6 +584,22 @@ export default function BusinessScan({
                   Customer showed the offer or said the code? Mark it below so
                   your count stays true. This doesn’t affect the customer.
                 </p>
+                <div className="biz-scan-manualfields">
+                  <input
+                    className="biz-scan-manualvalue"
+                    value={manualValue}
+                    onChange={(event) => setManualValue(event.target.value)}
+                    placeholder="Value, e.g. ₹80 off"
+                    aria-label="Redemption value"
+                  />
+                  <input
+                    className="biz-scan-manualnote"
+                    value={manualNote}
+                    onChange={(event) => setManualNote(event.target.value)}
+                    placeholder="Note, e.g. from bill"
+                    aria-label="Staff note"
+                  />
+                </div>
                 {manualOffers.map((offer) => (
                   <button
                     key={offer.id}
@@ -579,9 +673,11 @@ export default function BusinessScan({
                   ? 'Coupon already used'
                   : sheet.state === 'expired'
                     ? 'Coupon expired'
-                    : sheet.state === 'foreign'
-                      ? 'Not this shop’s coupon'
-                      : 'Coupon not found'
+                    : sheet.state === 'revoked'
+                      ? 'Coupon revoked'
+                      : sheet.state === 'foreign'
+                        ? 'Not this shop’s coupon'
+                        : 'Coupon not found'
             }
           >
             <span
@@ -597,9 +693,11 @@ export default function BusinessScan({
                   ? 'Already used'
                   : sheet.state === 'expired'
                     ? 'Expired'
-                    : sheet.state === 'foreign'
-                      ? 'Not this shop’s'
-                      : 'Coupon not found'}
+                    : sheet.state === 'revoked'
+                      ? 'Revoked'
+                      : sheet.state === 'foreign'
+                        ? 'Not this shop’s'
+                        : 'Coupon not found'}
             </h2>
             <p className="biz-scan-sheetcode">{sheet.code}</p>
             {sheet.state === 'valid' && sheet.coupon && (
@@ -619,7 +717,13 @@ export default function BusinessScan({
             )}
             {sheet.state === 'expired' && (
               <p className="biz-scan-sheetbody">
-                This coupon’s offer has ended. It can no longer be redeemed.
+                This coupon's offer has ended. It can no longer be redeemed.
+              </p>
+            )}
+            {sheet.state === 'revoked' && (
+              <p className="biz-scan-sheetbody">
+                This coupon was revoked — it can no longer be redeemed. The
+                customer's pass shows the same.
               </p>
             )}
             {sheet.state === 'foreign' && sheet.coupon && (
@@ -642,6 +746,16 @@ export default function BusinessScan({
                 disabled={busy}
               >
                 {busy ? 'Redeeming…' : 'Redeem coupon'}
+              </button>
+            )}
+            {sheet.state === 'valid' && sheet.coupon && (
+              <button
+                type="button"
+                className="biz-scan-sheetlink"
+                onClick={() => void revoke(sheet.coupon!)}
+                disabled={busy}
+              >
+                Refuse it — revoke the coupon
               </button>
             )}
             <button

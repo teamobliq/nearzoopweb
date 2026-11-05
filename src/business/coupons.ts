@@ -32,6 +32,9 @@ export type CouponRecord = {
   endsAt: string | null
   usedAt: string | null
   usedBy: string | null
+  /** Set when the shop kills a coupon without redeeming it — the pass
+      stays but the counter will never accept it. */
+  revokedAt: string | null
 }
 
 /** No 0/O or 1/I — the code is read off a phone and typed by hand when
@@ -73,6 +76,7 @@ function toRecord(code: string, data: Record<string, unknown>): CouponRecord {
     endsAt: typeof data.endsAt === 'string' ? data.endsAt : null,
     usedAt: typeof data.usedAt === 'string' ? data.usedAt : null,
     usedBy: typeof data.usedBy === 'string' ? data.usedBy : null,
+    revokedAt: typeof data.revokedAt === 'string' ? data.revokedAt : null,
   }
 }
 
@@ -107,32 +111,28 @@ export async function claimCoupon(input: ClaimInput): Promise<CouponRecord> {
       endsAt: input.endsAt ?? null,
       usedAt: null,
       usedBy: null,
+      revokedAt: null,
     }
-    let created = false
-    try {
-      created = await runTransaction(db, async (tx) => {
-        const existing = await tx.get(ref)
-        if (existing.exists()) return false
-        tx.set(ref, {
-          shopUid: record.shopUid,
-          shopName: record.shopName,
-          offerId: record.offerId,
-          offerTitle: record.offerTitle,
-          ...(record.discountLabel
-            ? { discountLabel: record.discountLabel }
-            : {}),
-          customerUid: record.customerUid,
-          claimedAt: record.claimedAt,
-          endsAt: record.endsAt,
-          usedAt: null,
-          usedBy: null,
-        })
-        return true
+    const created = await runTransaction(db, async (tx) => {
+      const existing = await tx.get(ref)
+      if (existing.exists()) return false
+      tx.set(ref, {
+        shopUid: record.shopUid,
+        shopName: record.shopName,
+        offerId: record.offerId,
+        offerTitle: record.offerTitle,
+        ...(record.discountLabel
+          ? { discountLabel: record.discountLabel }
+          : {}),
+        customerUid: record.customerUid,
+        claimedAt: record.claimedAt,
+        endsAt: record.endsAt,
+        usedAt: null,
+        usedBy: null,
+        revokedAt: null,
       })
-    } catch (error) {
-      // A rules denial is final — retrying would just fail identically.
-      throw error
-    }
+      return true
+    })
     if (created) return record
   }
   throw new Error('Could not allocate a coupon code')
@@ -175,12 +175,14 @@ export async function lookupCoupon(code: string): Promise<CouponRecord | null> {
   return toRecord(snap.id, snap.data())
 }
 
-export type CouponState = 'valid' | 'used' | 'expired'
+export type CouponState = 'valid' | 'used' | 'expired' | 'revoked'
 
 /** `used` wins over `expired`: a coupon that was redeemed stays used even
-    after the offer's window closes. */
+    after the offer's window closes. `revoked` beats everything but a
+    redemption — the shop killed it while it was still live. */
 export function couponState(record: CouponRecord, now = Date.now()): CouponState {
   if (record.usedAt) return 'used'
+  if (record.revokedAt) return 'revoked'
   if (record.endsAt && Date.parse(record.endsAt) < now) return 'expired'
   return 'valid'
 }
@@ -205,4 +207,18 @@ export async function releaseCoupon(code: string): Promise<void> {
   const snap = await getDoc(ref)
   if (!snap.exists()) return
   await updateDoc(ref, { usedAt: null, usedBy: null })
+}
+
+/** The shop kills a live coupon — refused at the counter, offer pulled,
+    issued in error. Final: the pass keeps its code but can never redeem. */
+export async function revokeCoupon(code: string, revokedBy: string): Promise<void> {
+  await runTransaction(db, async (tx) => {
+    const ref = doc(db, 'coupons', code)
+    const snap = await tx.get(ref)
+    if (!snap.exists()) throw new Error('Coupon not found')
+    const data = snap.data()
+    if (data.usedAt) throw new Error('Coupon already used')
+    if (data.revokedAt) return
+    tx.update(ref, { revokedAt: new Date().toISOString(), revokedBy })
+  })
 }

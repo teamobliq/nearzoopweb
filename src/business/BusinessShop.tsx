@@ -6,7 +6,7 @@ import {
   type ShopRecord,
 } from './shop'
 import { uploadToImgbb } from './imgbb'
-import { validateHours } from './BusinessSetup'
+import { validateHours } from './setupShared'
 
 /** The Shop screen — the merchant's public profile plus the settings that
     are real today: opening hours and the holiday switch. The notification

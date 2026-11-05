@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import type { AdminShopEntry } from '../business/shop'
+import { StatusChip } from './bits'
 import {
   DOC_LABEL,
-  StatusChip,
   formatWhen,
   hoursText,
   statusOf,
   truncate,
-} from './bits'
+} from './bitsShared'
 
 type Verdict = 'verified' | 'failed'
 

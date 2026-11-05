@@ -12,7 +12,7 @@ import {
   type ShopRecord,
 } from './shop'
 import { uploadToImgbb } from './imgbb'
-import { nzMapStyle } from './MaplibrePicker'
+import { nzMapStyle } from './maplibreUtils'
 import { fmtDay, fmtWhen } from './when'
 
 /** The offer builder — four steps plus the sent screen. Lives inside the

@@ -9,7 +9,14 @@ import ImageCropDialog from './ImageCropDialog'
 import LocationPicker, { type LocationFix } from './LocationPicker'
 import { verifyGstin } from './gstin'
 import { uploadToImgbb } from './imgbb'
-import { loadCheckout, razorpayKeyId } from './razorpay'
+import {
+  createOrder,
+  loadCheckout,
+  razorpayKeyId,
+  verifyPayment,
+  type RazorpayOrder,
+} from './razorpay'
+import { hoursLabel, validateHours } from './setupShared'
 import type { DayHours, OpeningHours, ShopPatch } from './shop'
 
 type Props = {
@@ -27,9 +34,10 @@ type Props = {
   shopName?: string
   /** Merchant's name — prefills Razorpay's contact details. */
   ownerName?: string
-  /** Runs after Razorpay reports success: saves the payment, flips setupDone
-      and navigates. Throws on save failure so the save can be retried with
-      the same payment id — the money is already taken. */
+  /** Runs after Razorpay reports success AND the server-side verification
+      settles the fee: updates the UI and navigates. Throws on failure so
+      the payment step can retry verification with the same signature —
+      the money is already taken and verification is idempotent. */
   onPaid: (paymentId: string) => Promise<void>
 }
 
@@ -215,33 +223,6 @@ function stagePhoto(
   }
 }
 
-/** Row summary for an hours group: the window, "Closed", or "Not set". */
-/** Formats a day group for display — shared with the shop-page editor. */
-export function hoursLabel(value: DayHours): string {
-  if (value === 'closed') return 'Closed'
-  if (value === null || !value.opens || !value.closes) return 'Not set'
-  return `${value.opens} – ${value.closes}`
-}
-
-/** Validates the hours editor — returns an error message or ''. Shared
-    with the shop-page editor. */
-export function validateHours(hours: OpeningHours): string {
-  const groups: Array<[string, DayHours]> = [
-    ['Mon — Sat', hours.monSat],
-    ['Sunday', hours.sunday],
-  ]
-  for (const [label, value] of groups) {
-    if (value === null || value === 'closed') continue
-    if (!value.opens || !value.closes) {
-      return `Set both opening and closing times for ${label}.`
-    }
-    if (value.opens >= value.closes) {
-      return `Closing time must be after opening time for ${label}.`
-    }
-  }
-  return ''
-}
-
 /** One expandable opening-hours group — a summary row that opens into
     opens/closes time inputs with a "closed all day" switch. */
 function HoursGroup({
@@ -356,7 +337,13 @@ export default function BusinessSetup({
   const [payOpening, setPayOpening] = useState(false)
   const [payConfirming, setPayConfirming] = useState(false)
   const [payError, setPayError] = useState('')
-  const [payConfirmId, setPayConfirmId] = useState('')
+  /** Full payload kept when verification fails, so "try again" can re-run
+      the (idempotent) server-side verification with the same signature. */
+  const [payRetry, setPayRetry] = useState<{
+    paymentId: string
+    orderId: string
+    signature: string
+  } | null>(null)
   const gstinValid = GSTIN_RE.test(gstin)
 
   useEffect(() => {
@@ -413,13 +400,13 @@ export default function BusinessSetup({
     setHours((current) => ({ ...current, [day]: value }))
   }
 
-  /** Opens Razorpay's checkout for the annual ₹1,000 fee. The handler
-      fires when the payment succeeds; a closed sheet or a failed attempt
-      just returns here — nothing is charged unless Razorpay reports
-      success. */
+  /** Opens Razorpay's checkout for the annual ₹1,000 fee. An order is
+      created server-side first (the amount can only move there); the
+      handler verifies the result with the server before anything is
+      settled — a closed sheet just returns here, and nothing is charged
+      unless Razorpay reports success. */
   async function startPayment(): Promise<void> {
-    const keyId = razorpayKeyId()
-    if (!keyId || payOpening || payConfirming) return
+    if (payOpening || payConfirming) return
     setPayError('')
     setPayOpening(true)
     const loaded = await loadCheckout()
@@ -431,10 +418,29 @@ export default function BusinessSetup({
       )
       return
     }
+    let order: RazorpayOrder
+    try {
+      order = await createOrder()
+    } catch {
+      setPayOpening(false)
+      setPayError(
+        "Couldn't start the payment — check your connection and try again.",
+      )
+      return
+    }
+    const keyId = order.keyId || razorpayKeyId()
+    if (!keyId) {
+      setPayOpening(false)
+      setPayError(
+        "Couldn't start the payment — check your connection and try again.",
+      )
+      return
+    }
     const checkout = new Razorpay({
       key: keyId,
-      amount: 100000, // ₹1,000 in paise
-      currency: 'INR',
+      amount: order.amount,
+      currency: order.currency,
+      order_id: order.orderId,
       name: 'NearZoop',
       description: 'Annual shop verification fee — ₹1,000 / year',
       ...(ownerName || phone
@@ -448,31 +454,55 @@ export default function BusinessSetup({
       theme: { color: '#fb4b32' },
       handler: (response) => {
         setPayOpening(false)
-        const id = response.razorpay_payment_id
-        if (!id) {
+        const paymentId = response.razorpay_payment_id
+        const orderId = response.razorpay_order_id
+        const signature = response.razorpay_signature
+        if (!paymentId || !orderId || !signature) {
+          // Checkout reported success but gave us nothing verifiable — never
+          // fabricate the details. Ask for help instead of settling.
           setPayError(
-            'Payment went through but no reference came back — contact support before paying again.',
+            `Payment went through but no signature came back — contact support with reference ${paymentId ?? 'unknown'}`,
           )
           return
         }
-        void confirmPayment(id)
+        void confirmPayment({ paymentId, orderId, signature })
       },
       modal: { ondismiss: () => setPayOpening(false) },
     })
     checkout.open()
   }
 
-  /** Saves the payment result via the parent. On failure the reference is
-      kept so the save (never the payment) can be retried. */
-  async function confirmPayment(paymentId: string): Promise<void> {
+  /** Verifies the payment server-side (idempotent, safe to retry) and only
+      then tells the parent to settle the local state. On failure the
+      signature is kept so the verification — never the payment — can be
+      retried with the same reference. */
+  async function confirmPayment(args: {
+    paymentId: string
+    orderId: string
+    signature: string
+  }): Promise<void> {
     setPayConfirming(true)
-    setPayConfirmId('')
+    setPayRetry(null)
     try {
-      await onPaid(paymentId)
+      await verifyPayment({
+        razorpay_order_id: args.orderId,
+        razorpay_payment_id: args.paymentId,
+        razorpay_signature: args.signature,
+      })
+    } catch {
+      setPayConfirming(false)
+      setPayRetry(args)
+      setPayError(
+        `Payment could not be verified server-side. If money was deducted, contact support with reference ${args.paymentId}.`,
+      )
+      return
+    }
+    try {
+      await onPaid(args.paymentId)
       // Success: the parent navigates away and the wizard unmounts.
     } catch {
       setPayConfirming(false)
-      setPayConfirmId(paymentId)
+      setPayRetry(args)
     }
   }
 
@@ -881,12 +911,12 @@ export default function BusinessSetup({
         {substep === 3 ? (
           <>
             <p className="biz-intro">
-              A ₹1,000 yearly fee activates{shopName ? ` “${shopName}”` : ' your shop'}
-              {' '}for customers and keeps it listed for a year. GSTINs are
-              checked against the GST portal instantly; every shop is then
-              approved by a person within 24 hours. The fee is non-refundable —
-              but if your shop is rejected at verification, it's refunded
-              automatically within 2 days.
+              An annual listing fee of ₹1,000 activates{shopName ? ` “${shopName}”` : ' your shop'}
+              {' '}for customers and keeps it listed for one year. GSTIN details
+              are verified instantly against the GST portal; every application is
+              personally reviewed and approved within 24 hours. The fee is
+              non-refundable — if your shop is not approved at verification, it
+              is refunded automatically within two days.
             </p>
 
             <ul className="biz-checklist">
@@ -915,17 +945,17 @@ export default function BusinessSetup({
 
             {payError && <p className="biz-photoerror">{payError}</p>}
 
-            {payConfirmId && (
+            {payRetry && (
               <>
                 <p className="biz-photoerror">
-                  Payment {payConfirmId} was received but confirming it
+                  Payment {payRetry.paymentId} was received but confirming it
                   failed. Check your connection, then try again — you won't
                   be charged twice.
                 </p>
                 <button
                   type="button"
                   className="biz-linkbtn"
-                  onClick={() => void confirmPayment(payConfirmId)}
+                  onClick={() => payRetry && void confirmPayment(payRetry)}
                 >
                   Try confirming again
                 </button>
@@ -933,8 +963,8 @@ export default function BusinessSetup({
             )}
 
             <p className="biz-payfine">
-              ₹1,000 a year · Non-refundable · Rejected? Auto-refunded in 2
-              days · Secured by Razorpay
+              ₹1,000 per year · Non-refundable · Auto-refunded within 2 days
+              if verification is rejected · Secured by Razorpay
             </p>
 
             {!razorpayKeyId() && (

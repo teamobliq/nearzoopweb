@@ -33,10 +33,16 @@
   align-self: center;
 }
 
-#nz-recaptcha {
+#nz-recaptcha,
+#nz-biz-recaptcha {
+  /* Visually hidden but still renderable — reCAPTCHA needs a non-zero
+     box to inject its iframe. Zero width/height breaks the verification
+     and surfaces as "Verification check failed" (invalid-app-credential). */
   position: absolute;
-  width: 0;
-  height: 0;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
   overflow: hidden;
 }
 

@@ -12,20 +12,9 @@ import {
   Marker,
   type GeoJSONSource,
 } from 'maplibre-gl'
-import { nzMapStyle } from '../business/MaplibrePicker'
+import { nzMapStyle } from '../business/maplibreUtils'
 import { FALLBACK_FIX } from '../business/geocode'
-
-export type Coords = { lat: number; lng: number }
-
-/** One offer pin on the customer map. */
-export type MapPin = {
-  id: string
-  lat: number
-  lng: number
-  selected?: boolean
-  /** Discount label shown on the map chip (e.g. "40%"). */
-  label?: string
-}
+import type { Coords, MapPin } from './mapUtils'
 
 /** Source ids for the radius circle, the user dot and the offer pins. */
 const RADIUS_SRC = 'nz-cust-radius'
@@ -87,37 +76,6 @@ function dotData(center: Coords | null): GeoCollection {
   }
 }
 
-/** "2 km" / "2.5 km" — the Locate slider's value and Home's location chip
-    share it so the two screens always say the radius the same way. */
-export function fmtKm(km: number): string {
-  const value = Math.round(km * 2) / 2
-  return `${value % 1 === 0 ? String(value) : value.toFixed(1)} km`
-}
-
-/** One fresh high-accuracy GPS fix, no cache. Resolves null when the
-    device, the network or the permission says no — callers show their own
-    honest failure state. */
-export function requestFix(): Promise<{
-  coords: Coords
-  accuracy: number
-} | null> {
-  return new Promise((resolve) => {
-    if (!('geolocation' in navigator)) return resolve(null)
-    navigator.geolocation.getCurrentPosition(
-      (position) =>
-        resolve({
-          coords: {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          },
-          accuracy: position.coords.accuracy,
-        }),
-      () => resolve(null),
-      { timeout: 12000, enableHighAccuracy: true, maximumAge: 0 },
-    )
-  })
-}
-
 type Props = {
   fix: Coords | null
   radiusKm: number
@@ -130,8 +88,10 @@ type Props = {
   /** A pin was tapped. */
   onSelectPin?: (id: string) => void
   /** Corner for the OSM attribution — kept clear of each screen's own
-      overlays (Locate's map is bare; Home's chip sits top-left). */
-  attributionCorner?: 'top-right' | 'bottom-right'
+      overlays: Locate's status banner sits bottom-left/right on phones, and
+      Home's location chip owns the top edge, so both screens avoid those
+      corners rather than letting the credit land under their chrome. */
+  attributionCorner?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 }
 
 export default function CustomerMap({
@@ -154,7 +114,9 @@ export default function CustomerMap({
     pins,
     onSelectPin,
   })
-  liveRef.current = { fix, radiusKm, pins, onSelectPin }
+  useEffect(() => {
+    liveRef.current = { fix, radiusKm, pins, onSelectPin }
+  })
 
   /** Reconcile the DOM offer chips with the current pin set: add new ones,
       drop removed ones, refresh position + selected state. */
@@ -204,6 +166,7 @@ export default function CustomerMap({
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
+    const markers = markersRef.current
     let cancelled = false
 
     void (async () => {
@@ -281,8 +244,8 @@ export default function CustomerMap({
 
     return () => {
       cancelled = true
-      for (const marker of markersRef.current.values()) marker.remove()
-      markersRef.current.clear()
+      for (const marker of markers.values()) marker.remove()
+      markers.clear()
       mapRef.current?.remove()
       mapRef.current = null
     }
@@ -327,7 +290,6 @@ export default function CustomerMap({
       { padding: 64, duration: 650 },
     )
     // fitKey intentionally drives this effect — see comment above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, fitKey])
 
   return <div ref={hostRef} className={className} />

@@ -153,7 +153,7 @@ function Splash({ onProceed }: Props) {
         },
         { timeout: 15000, enableHighAccuracy: false, maximumAge: 300000 },
       )
-    } catch (error) {
+    } catch {
       asking.current = false
       setReason('denied')
       setPhase('blocked')

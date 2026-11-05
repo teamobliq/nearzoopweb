@@ -513,9 +513,96 @@
   border-bottom: var(--border-mid) solid var(--color-ink);
 }
 
-.loc-canvas {
+/* Chained to .maplibregl-map on purpose: MapLibre adds that class to this
+   same element and its stylesheet (loaded after this one) sets
+   `position: relative` at equal specificity. Relative wins the tie, which
+   kills `inset: 0` and collapses the canvas to zero height — the map area
+   renders as a blank rectangle. The extra class raises specificity to 0,2,0
+   so absolute positioning holds. `.biz-map .maplibregl-map` does the same
+   for the merchant picker. */
+.loc-canvas.maplibregl-map {
   position: absolute;
   inset: 0;
+  width: auto;
+  height: auto;
+}
+
+/* Map credit: keep it hugging its corner instead of stretching across the
+   top edge. At phone widths a full-width attribution ran under the brand
+   mark and the location chip; capping the width makes MapLibre's own
+   compact button kick in, and the credit stays tappable. */
+.loc-canvas .maplibregl-ctrl-attrib,
+.chome-canvas .maplibregl-ctrl-attrib {
+  max-width: calc(100vw - 4.5rem);
+  font-size: 0.6rem;
+  line-height: 1.5;
+}
+
+/* MapLibre opens the compact credit expanded. On a phone that strip is wide
+   enough to sit under the brand mark, so start it collapsed: the (i) toggle
+   stays visible and one tap still shows the full credit. Desktop has the
+   room to show it outright. */
+@media (max-width: 899.98px) {
+  .loc-canvas .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-inner,
+  .chome-canvas .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-inner {
+    display: none;
+  }
+
+  /* Compact shell sized around the 24px toggle so the credit control is a
+     real touch target rather than a collapsed sliver. */
+  .loc-canvas .maplibregl-ctrl-attrib.maplibregl-compact,
+  .chome-canvas .maplibregl-ctrl-attrib.maplibregl-compact {
+    min-height: 24px;
+    padding: 0 24px 0 0;
+    margin: 8px;
+  }
+
+  .loc-canvas .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button,
+  .chome-canvas .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button {
+    width: 24px;
+    height: 24px;
+    min-height: 24px;
+  }
+}
+
+.loc-canvas .maplibregl-ctrl-attrib a,
+.chome-canvas .maplibregl-ctrl-attrib a {
+  color: inherit;
+}
+
+/* Cancel affordance — only rendered when a screen sits behind Locate (the
+   Home location chip). Sits opposite the brand so the two never collide. */
+.loc-back {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 999px;
+  box-shadow: var(--shadow-pill);
+  cursor: pointer;
+}
+
+.loc-back svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.loc-back:hover {
+  translate: 1px 1px;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
+}
+
+.loc-back:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 3px;
 }
 
 .loc-brand {
@@ -667,17 +754,41 @@
 .loc-slider {
   appearance: none;
   -webkit-appearance: none;
+  /* .loc-sheet is a flex column, so an input with no intrinsic height is a
+     shrinkable flex item: without flex:none it gets squeezed to the track's
+     ~13px and the declared height is ignored. */
+  flex: none;
   width: 100%;
-  height: 0.8rem;
-  margin: 1rem 0 0;
-  border: 2.5px solid var(--color-ink);
+  /* The track stays 0.8rem visually; the element itself is a full 40px band
+     so the drag target matches a thumb, not the hairline. The track paints
+     from the background gradient, so the extra height reads as breathing
+     room rather than a thicker bar. */
+  height: 2.5rem;
+  margin: 0.2rem 0 0;
+  border: none;
   border-radius: 999px;
   background: linear-gradient(
-    to right,
-    var(--color-orange) var(--pct),
-    #eeddb8 var(--pct)
-  );
+      to right,
+      var(--color-orange) var(--pct),
+      #eeddb8 var(--pct)
+    )
+    center / 100% 0.8rem no-repeat;
   cursor: pointer;
+}
+
+/* The inset track ring sits behind the gradient band. */
+.loc-slider::-webkit-slider-runnable-track {
+  height: 0.8rem;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 999px;
+  background: transparent;
+}
+
+.loc-slider::-moz-range-track {
+  height: 0.8rem;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 999px;
+  background: transparent;
 }
 
 .loc-slider:focus-visible {
@@ -703,10 +814,6 @@
   background-color: #ffffff;
   border: 2.5px solid var(--color-ink);
   box-shadow: 2px 3px 0 0 var(--color-ink);
-}
-
-.loc-slider::-moz-range-track {
-  background: transparent;
 }
 
 .loc-scale {
@@ -1002,9 +1109,12 @@
   transition: height 0.35s ease;
 }
 
-.chome-canvas {
+/* Same specificity fix as .loc-canvas — see the comment there. */
+.chome-canvas.maplibregl-map {
   position: absolute;
   inset: 0;
+  width: auto;
+  height: auto;
 }
 
 .chome-top {
@@ -1775,4 +1885,319 @@
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--color-ink);
+}
+
+/* Ending soon — a horizontal rail of offers closing within 48 hours.
+    Lives under the nearby list (and the explore list); each card wears
+    a live countdown instead of the plain till-date. */
+
+.chome-ending {
+  margin-top: 1.5rem;
+}
+
+.chome-ending-head {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-orange, var(--color-ink));
+}
+
+.chome-ending-rail {
+  list-style: none;
+  margin: 0.7rem 0 0;
+  padding: 0 0.1rem 0.2rem;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(15.5rem, 1fr);
+  gap: 0.7rem;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+}
+
+.chome-ending-rail > li {
+  scroll-snap-align: start;
+}
+
+.chome-card-ends {
+  font-weight: 700;
+  color: var(--color-orange, var(--color-ink));
+}
+
+/* ---- My Coupons wallet (design 26) --------------------------------------- */
+
+.myc-page {
+  min-height: 100dvh;
+  background-color: var(--color-cream);
+  padding: 1.5rem clamp(1.5rem, 5vw, 2rem) 4rem;
+}
+
+.myc-shell {
+  max-width: 30rem;
+  margin-inline: auto;
+}
+
+.myc-topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.2rem;
+}
+
+.myc-back {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 999px;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+}
+
+.myc-back svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.myc-title {
+  margin: 0;
+  font-size: clamp(1.5rem, 5vw, 1.9rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.myc-sub {
+  margin: 0.35rem 0 0;
+  color: var(--color-stone);
+  font-size: 1rem;
+}
+
+.myc-chips {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1.5rem 0 1rem;
+  flex-wrap: wrap;
+}
+
+.myc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.95rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 999px;
+  background-color: #ffffff;
+  color: var(--color-ink);
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+}
+
+.myc-chip.is-on {
+  background-color: var(--color-ink);
+  color: #ffffff;
+}
+
+.myc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.myc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.15rem;
+  background-color: #ffffff;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.35rem;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: translate 0.08s ease, box-shadow 0.08s ease;
+}
+
+.myc-row:active {
+  translate: 2px 3px;
+  box-shadow: 1px 1px 0 0 var(--color-ink);
+}
+
+.myc-row.is-past {
+  opacity: 0.62;
+}
+
+.myc-row-main {
+  min-width: 0;
+}
+
+.myc-row-code {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+}
+
+.myc-row-meta {
+  margin-top: 0.2rem;
+  font-size: 0.95rem;
+  color: var(--color-stone);
+}
+
+.myc-row-state {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.18rem 0.6rem;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.myc-row-state.state-valid {
+  color: var(--color-green);
+}
+
+.myc-row-state.state-used,
+.myc-row-state.state-expired,
+.myc-row-state.state-revoked {
+  color: var(--color-stone);
+}
+
+.myc-empty {
+  padding: 4rem 1rem;
+  text-align: center;
+}
+
+.myc-empty h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.myc-empty p {
+  margin: 0;
+  color: var(--color-stone);
+}
+
+/* ---- Coupon pass (design 27) -------------------------------------------- */
+
+.cpass-page {
+  min-height: 100dvh;
+  background-color: var(--color-cream);
+  padding: 1.5rem clamp(1.5rem, 5vw, 2rem) 4rem;
+}
+
+.cpass-shell {
+  max-width: 22rem;
+  margin-inline: auto;
+}
+
+.cpass-topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.cpass-back {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 999px;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+}
+
+.cpass-back svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.cpass-title {
+  margin: 0;
+  font-size: clamp(1.5rem, 5vw, 1.9rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.cpass-card {
+  position: relative;
+  background-color: var(--color-yellow);
+  border: 2.5px solid var(--color-ink);
+  border-radius: 1.6rem;
+  box-shadow: 6px 8px 0 0 var(--color-ink);
+  overflow: hidden;
+}
+
+.cpass-brand {
+  padding: 1rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+.cpass-qrwrap {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.cpass-qr {
+  margin: 0;
+}
+
+.cpass-qrwait {
+  width: 5rem;
+  height: 5rem;
+  border: 2px dashed var(--color-stone);
+  border-radius: 0.6rem;
+}
+
+.cpass-code {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.cpass-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.92rem;
+  color: var(--color-stone);
+  text-align: center;
+}
+
+.cpass-meta {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--color-ink);
+}
+
+.cpass-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 0.75rem;
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { BackSvg } from './Locate'
-import { maskPhone } from './AuthFlow'
+import { maskPhone } from './maskPhone'
 import {
   fetchCustomer,
   saveCustomer,
@@ -25,7 +25,11 @@ function storedMobile(raw: string | null | undefined): string | null {
 
     A customer doc only exists after the first save, so a missing doc is a
     normal state: the form opens empty (mobile filled from the signed-in
-    account) instead of waiting on a snapshot that will never carry data. */
+    account) instead of waiting on a snapshot that will never carry data.
+
+    The form mounts only once the initial load settles, so its field state
+    initializes from the profile directly — no effect copies it in and
+    later overwrites edits in flight. */
 
 type Props = {
   uid: string
@@ -51,11 +55,6 @@ export default function EditProfile({
 }: Props) {
   const [profile, setProfile] = useState<CustomerProfile | null>(null)
   const [loading, setLoading] = useState(true)
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -81,10 +80,57 @@ export default function EditProfile({
     }
   }, [uid])
 
-  useEffect(() => {
-    setName(profile?.name ?? accountName ?? '')
-    setEmail(profile?.email ?? accountEmail ?? '')
-  }, [profile, accountName, accountEmail])
+  if (loading) {
+    return (
+      <div className="prof-edit">
+        <header className="prof-edit-head">
+          <button type="button" className="prof-back" onClick={onDone} aria-label="Back">
+            <BackSvg />
+          </button>
+          <h1 className="prof-edit-title">Edit profile</h1>
+        </header>
+        <p className="prof-loading">Loading…</p>
+      </div>
+    )
+  }
+
+  return (
+    <EditProfileForm
+      uid={uid}
+      profile={profile}
+      accountName={accountName}
+      accountEmail={accountEmail}
+      mobile={mobile}
+      verified={verified}
+      onDone={onDone}
+    />
+  )
+}
+
+type FormProps = {
+  uid: string
+  profile: CustomerProfile | null
+  accountName?: string
+  accountEmail?: string
+  mobile?: string | null
+  verified?: boolean
+  onDone: () => void
+}
+
+function EditProfileForm({
+  uid,
+  profile,
+  accountName,
+  accountEmail,
+  mobile,
+  verified,
+  onDone,
+}: FormProps) {
+  const [name, setName] = useState(() => profile?.name ?? accountName ?? '')
+  const [email, setEmail] = useState(() => profile?.email ?? accountEmail ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(false)
 
   const handleSave = useCallback(async () => {
     setError('')
@@ -106,20 +152,6 @@ export default function EditProfile({
       setSaving(false)
     }
   }, [uid, name, email, profile, onDone])
-
-  if (loading) {
-    return (
-      <div className="prof-edit">
-        <header className="prof-edit-head">
-          <button type="button" className="prof-back" onClick={onDone} aria-label="Back">
-            <BackSvg />
-          </button>
-          <h1 className="prof-edit-title">Edit profile</h1>
-        </header>
-        <p className="prof-loading">Loading…</p>
-      </div>
-    )
-  }
 
   const shownMobile = storedMobile(profile?.mobile) ?? mobile ?? null
   const shownVerified = verified === true || profile?.verified === true

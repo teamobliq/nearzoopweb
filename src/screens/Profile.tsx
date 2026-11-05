@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { signOut } from 'firebase/auth'
 import type { User } from 'firebase/auth'
 import { auth } from '../firebase'
@@ -8,11 +8,11 @@ import {
   type CustomerProfile,
 } from '../business/customer'
 import {
-  couponState,
-  listMyCoupons,
-  type CouponRecord,
-} from '../business/coupons'
-import { maskPhone } from './AuthFlow'
+  listMyRedemptions,
+  reportRedemption,
+  type RedemptionRecord,
+} from '../business/redemptions'
+import { maskPhone } from './maskPhone'
 import EditProfile from './EditProfile'
 import './profile.css'
 
@@ -21,6 +21,8 @@ import './profile.css'
 type Props = {
   user: User | null
   onSignOut: () => void
+  /** Opens the customer's coupons wallet (full page). */
+  onOpenCoupons: () => void
 }
 
 function EditSvg() {
@@ -51,280 +53,313 @@ function TicketSvg() {
   )
 }
 
-export default function Profile({ user, onSignOut }: Props) {
+function FlagSvg() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 4h16v16H4Z" />
+      <path d="M7 7h10l-2 5 2 5-5-3-5 3 1-5-1-5Z" />
+    </svg>
+  )
+}
+
+/** "31 Oct, 4:20 pm" — the history row's timestamp. */
+function fmtRedAt(r: RedemptionRecord): string {
+  const d = new Date(r.at.seconds * 1000)
+  if (Number.isNaN(d.getTime())) return ''
+  const day = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  const time = d
+    .toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
+    .toLowerCase()
+  return `${day}, ${time}`
+}
+
+export default function Profile({ user, onSignOut, onOpenCoupons }: Props) {
+  const uid = user?.uid ?? null
   const [profile, setProfile] = useState<CustomerProfile | null>(null)
   const [editing, setEditing] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
-  const [couponsOpen, setCouponsOpen] = useState(false)
-  const [coupons, setCoupons] = useState<CouponRecord[]>([])
-  const [loadingCoupons, setLoadingCoupons] = useState(false)
-  const [filter, setFilter] = useState<'all' | 'available' | 'used' | 'expired'>('all')
-  const [selected, setSelected] = useState<CouponRecord | null>(null)
-  const [selectedQr, setSelectedQr] = useState('')
+  const [redemptions, setRedemptions] = useState<RedemptionRecord[]>([])
+  const [loadingRedemptions, setLoadingRedemptions] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportOfferId, setReportOfferId] = useState('')
+  const [reportTitle, setReportTitle] = useState('')
+  const [reportAt, setReportAt] = useState('')
+  const [reportNote, setReportNote] = useState('')
+  const [reportBusy, setReportBusy] = useState(false)
+  const [reportDone, setReportDone] = useState(false)
+  const [reportError, setReportError] = useState('')
+  // The redemptions loader skips a refetch once a report has been filed —
+  // read via a ref so the fetch effect doesn't re-subscribe on the flag.
+  const reportDoneRef = useRef(false)
+  useEffect(() => {
+    reportDoneRef.current = reportDone
+  })
+
+  // A signed-out viewer sees the signed-out state even if a previous
+  // profile is still in state.
+  const shownProfile = user ? profile : null
 
   useEffect(() => {
-    if (!user) {
-      setProfile(null)
-      return
-    }
-    const unsub = watchCustomer(user.uid, setProfile)
-    void fetchCustomer(user.uid).then((p) => {
+    if (!uid) return
+    const unsub = watchCustomer(uid, setProfile)
+    void fetchCustomer(uid).then((p) => {
       if (p) setProfile(p)
     })
     return unsub
-  }, [user?.uid])
+  }, [uid])
 
   useEffect(() => {
-    if (!couponsOpen || !user) return
-    setLoadingCoupons(true)
-    void listMyCoupons(user.uid)
-      .then((records) => setCoupons(records))
-      .catch(() => setCoupons([]))
-      .finally(() => setLoadingCoupons(false))
-  }, [couponsOpen, user?.uid])
+    if (!uid || reportDoneRef.current) return
+    setLoadingRedemptions(true)
+    void listMyRedemptions(uid)
+      .then((records) => setRedemptions(records))
+      .catch(() => setRedemptions([]))
+      .finally(() => setLoadingRedemptions(false))
+  }, [uid])
 
-  useEffect(() => {
-    if (!selected) {
-      setSelectedQr('')
-      return
-    }
-    let alive = true
-    void import('qrcode')
-      .then((qr) => qr.toString(selected.code, { type: 'svg', margin: 1, width: 200 }))
-      .then((svg) => {
-        if (alive) setSelectedQr(svg)
+  /** Opens the report form — coupon code is pasted by hand since the wallet
+      now lives on its own page. */
+  async function reportMissing(): Promise<void> {
+    if (!user) return
+    setReportError('')
+    setReportDone(false)
+    setReportOpen(true)
+  }
+
+  async function submitReport(): Promise<void> {
+    if (!user || reportBusy) return
+    setReportBusy(true)
+    setReportError('')
+    try {
+      await reportRedemption({
+        customerUid: user.uid,
+        offerId: reportOfferId,
+        offerTitle: reportTitle,
+        shopUid: '',
+        shopName: '',
+        at: reportAt,
+        note: reportNote,
       })
-      .catch(() => {})
-    return () => {
-      alive = false
+      setReportDone(true)
+    } catch (error) {
+      setReportError(error instanceof Error ? error.message : 'Could not send.')
+    } finally {
+      setReportBusy(false)
     }
-  }, [selected])
-
-  const accountName = profile?.name ?? user?.displayName ?? ''
-  const name = accountName || 'You'
-  const email = profile?.email ?? user?.email ?? ''
-  const rawMobile = user?.phoneNumber ?? profile?.mobile ?? ''
-  const mobileDigits = rawMobile.replace(/\D/g, '')
-  const maskedMobile = mobileDigits ? maskPhone(mobileDigits.slice(-10)) : null
-  const verified = user?.phoneNumber ? true : profile?.verified === true
-  const initial = name.trim().charAt(0).toUpperCase() || 'U'
-
-  if (editing) {
-    return (
-      <EditProfile
-        uid={user?.uid ?? ''}
-        accountName={accountName}
-        accountEmail={user?.email ?? ''}
-        mobile={maskedMobile}
-        verified={verified}
-        onDone={() => setEditing(false)}
-      />
-    )
   }
 
   async function handleSignOut(): Promise<void> {
-    if (signingOut) return
     setSigningOut(true)
     try {
       await signOut(auth)
     } catch {
-      // The session callback still clears local state below.
+      // Ignore — the redirect listener will clean up anyway.
+    } finally {
+      setSigningOut(false)
+      onSignOut()
     }
-    setSigningOut(false)
-    onSignOut()
   }
 
   return (
-    <div className="profile" role="region" aria-label="Your profile">
+    <main className="profile">
       <header className="profile-head">
-        <span className="profile-avatar" aria-hidden="true">
-          {initial}
-        </span>
+        <div className="profile-avatar">{user ? user.email?.[0]?.toUpperCase() ?? 'U' : 'U'}</div>
         <div className="profile-identity">
-          <p className="profile-eyebrow">Your account</p>
-          <h1 className="profile-name">{name}</h1>
-          <p className="profile-mobile">{maskedMobile ?? 'No mobile'}</p>
+          <p className="profile-eyebrow">Account</p>
+          <h1 className="profile-name">{shownProfile?.name ?? 'Customer'}</h1>
+          <p className="profile-mobile">{shownProfile?.mobile ?? ''}</p>
+          <p className="profile-mobile">{shownProfile?.email ?? ''}</p>
         </div>
         <button
           type="button"
           className="profile-edit"
-          aria-label="Edit profile"
+          disabled={editing}
           onClick={() => setEditing(true)}
         >
           <EditSvg />
+          Edit
         </button>
       </header>
 
+      {editing && user && (
+        <div className="profile-edit-backdrop">
+          <EditProfile
+            uid={user.uid}
+            accountName={user.displayName ?? undefined}
+            accountEmail={user.email ?? undefined}
+            mobile={
+              user.phoneNumber
+                ? maskPhone(user.phoneNumber.replace(/^\+91/, ''))
+                : undefined
+            }
+            verified={user.phoneNumber ? true : undefined}
+            onDone={() => setEditing(false)}
+          />
+        </div>
+      )}
+
       <section className="profile-section">
-        <h2 className="profile-section-title">ACCOUNT</h2>
-        <dl className="profile-card">
-          <div className="profile-row">
-            <dt>Name</dt>
-            <dd>{name}</dd>
-          </div>
-          <div className="profile-row">
-            <dt>Mobile</dt>
-            <dd>
-              {maskedMobile ?? <span className="profile-muted">Not set</span>}
-              {verified && <span className="profile-badge">Verified</span>}
-            </dd>
-          </div>
-          <div className="profile-row">
-            <dt>Email</dt>
-            <dd>
-              {email || <span className="profile-muted">Not added</span>}
-            </dd>
-          </div>
-        </dl>
+        <h2 className="profile-section-title">Claimed coupons</h2>
+        <button
+          type="button"
+          className="profile-coupons"
+          onClick={onOpenCoupons}
+        >
+          <TicketSvg />
+          Open coupons wallet
+        </button>
       </section>
 
-      <button
-        type="button"
-        className="profile-coupons"
-        onClick={() => setCouponsOpen(true)}
-      >
-        <TicketSvg />
-        Claimed coupons
-      </button>
+      <section className="profile-section">
+        <h2 className="profile-section-title">Redemption history</h2>
+        {loadingRedemptions ? (
+          <p className="profile-muted">Loading…</p>
+        ) : redemptions.length === 0 ? (
+          <p className="profile-muted">No redemptions yet.</p>
+        ) : (
+          <ul className="profile-redlist">
+            {redemptions.map((r) => (
+              <li key={r.id} className="profile-redrow">
+                <div className="profile-red-main">
+                  <span className="profile-red-title">{r.offerTitle}</span>
+                  <span className="profile-red-sub">
+                    {r.shopName} · {fmtRedAt(r)}
+                  </span>
+                </div>
+                <span className="profile-red-value">{r.value ?? '—'}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
-      <button
-        type="button"
-        className="profile-signout"
-        onClick={() => void handleSignOut()}
-        disabled={signingOut}
-      >
-        <ExitSvg />
-        {signingOut ? 'Signing out…' : 'Sign out'}
-      </button>
+      <section className="profile-section">
+        <h2 className="profile-section-title">Report a missing redemption</h2>
+        <p className="profile-section-note">
+          If you used a coupon and the shop never confirmed it, tell us the
+          coupon code and what happened. We’ll pass it to the shop.
+        </p>
+        <button
+          type="button"
+          className="profile-redreport"
+          disabled={reportBusy}
+          onClick={() => void reportMissing()}
+        >
+          <FlagSvg />
+          Report a missing redemption
+        </button>
+      </section>
 
-      {couponsOpen && (
+      <section className="profile-section">
+        <button
+          type="button"
+          className="profile-signout"
+          disabled={signingOut}
+          onClick={handleSignOut}
+        >
+          <ExitSvg />
+          {signingOut ? 'Signing out…' : 'Sign out'}
+        </button>
+      </section>
+
+      {reportOpen && (
         <div
           className="profile-coupondialog-backdrop"
           onClick={(event) => {
-            if (event.target === event.currentTarget) setCouponsOpen(false)
+            if (event.target === event.currentTarget) setReportOpen(false)
           }}
         >
-          <div className="profile-coupondialog" role="dialog" aria-modal="true" aria-label="Claimed coupons">
+          <div
+            className="profile-coupondialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Report a missing redemption"
+          >
             <header className="profile-coupondialog-head">
-              <h2>Claimed coupons</h2>
+              <h2>Report a missing redemption</h2>
               <button
                 type="button"
                 className="profile-coupondialog-close"
-                onClick={() => setCouponsOpen(false)}
+                onClick={() => setReportOpen(false)}
                 aria-label="Close"
               >
                 ×
               </button>
             </header>
-            <div className="profile-couponchips">
-              {(['all', 'available', 'used', 'expired'] as const).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={`profile-couponchip${filter === key ? ' is-on' : ''}`}
-                  onClick={() => setFilter(key)}
-                >
-                  {key === 'all'
-                    ? 'All'
-                    : key === 'available'
-                      ? 'Available'
-                      : key === 'used'
-                        ? 'Used'
-                        : 'Expired'}
-                </button>
-              ))}
-            </div>
-            <div className="profile-couponlist">
-              {loadingCoupons ? (
-                <p className="profile-muted">Loading…</p>
-              ) : coupons.filter((c) => {
-                  const state = couponState(c)
-                  if (filter === 'all') return true
-                  if (filter === 'available') return state === 'valid'
-                  if (filter === 'used') return state === 'used'
-                  return state === 'expired'
-                }).length === 0 ? (
-                <p className="profile-muted">No coupons here.</p>
-              ) : (
-                coupons
-                  .filter((c) => {
-                    const state = couponState(c)
-                    if (filter === 'all') return true
-                    if (filter === 'available') return state === 'valid'
-                    if (filter === 'used') return state === 'used'
-                    return state === 'expired'
-                  })
-                  .map((c) => (
-                    <button
-                      key={c.code}
-                      type="button"
-                      className={`profile-couponrow${couponState(c) === 'valid' ? '' : ' is-past'}`}
-                      onClick={() => setSelected(c)}
-                    >
-                      <span className="profile-couponrow-code">{c.code}</span>
-                      <span className="profile-couponrow-meta">
-                        {c.offerTitle}
-                        {c.discountLabel ? ` · ${c.discountLabel}` : ''}
-                      </span>
-                      <span className={`profile-couponrow-state state-${couponState(c)}`}>
-                        {couponState(c) === 'valid'
-                          ? 'Available'
-                          : couponState(c) === 'used'
-                            ? 'Used'
-                            : 'Expired'}
-                      </span>
-                    </button>
-                  ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {selected && (
-        <div
-          className="profile-coupondialog-backdrop"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setSelected(null)
-          }}
-        >
-          <div className="profile-coupondialog" role="dialog" aria-modal="true" aria-label="Coupon">
-            <header className="profile-coupondialog-head">
-              <h2>{selected.offerTitle}</h2>
-              <button
-                type="button"
-                className="profile-coupondialog-close"
-                onClick={() => setSelected(null)}
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </header>
-            <div className="profile-couponpass">
-              <div className="profile-couponpass-qr">
-                {selectedQr ? (
-                  <span dangerouslySetInnerHTML={{ __html: selectedQr }} />
-                ) : (
-                  <span className="cust-pass-qrwait" aria-hidden="true" />
-                )}
-              </div>
-              <p className="profile-couponpass-code">{selected.code}</p>
-              <p className="profile-couponpass-note">
-                {couponState(selected) === 'used'
-                  ? `Redeemed${selected.usedAt ? ` on ${selected.usedAt.slice(0, 16).replace('T', ' ')}` : ''}.`
-                  : couponState(selected) === 'expired'
-                    ? 'This coupon expired with the offer.'
-                    : 'Single use. Show it at the counter — the shop scans it.'}
-              </p>
-              {selected.endsAt && couponState(selected) === 'valid' && (
-                <p className="profile-couponpass-meta">
-                  Valid till {selected.endsAt.slice(0, 16).replace('T', ' ')}
+            {reportDone ? (
+              <div className="profile-report-done">
+                <p>
+                  Sent. The shop will see your report and can confirm the
+                  redemption from their records.
                 </p>
-              )}
-            </div>
+                <button
+                  type="button"
+                  className="btn-secondary profile-report-btn"
+                  onClick={() => setReportOpen(false)}
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <div className="profile-report-form">
+                <label className="profile-report-field">
+                  <span>Coupon code</span>
+                  <input
+                    type="text"
+                    value={reportOfferId}
+                    onChange={(event) => setReportOfferId(event.target.value)}
+                    placeholder="Paste the coupon code, e.g. NZ-7Q4K-29XB"
+                  />
+                </label>
+                <label className="profile-report-field">
+                  <span>Offer title</span>
+                  <input
+                    type="text"
+                    value={reportTitle}
+                    onChange={(event) => setReportTitle(event.target.value)}
+                    placeholder="e.g. ₹50 off biryani"
+                  />
+                </label>
+                <label className="profile-report-field">
+                  <span>When was it redeemed?</span>
+                  <input
+                    type="date"
+                    value={reportAt}
+                    onChange={(event) => setReportAt(event.target.value)}
+                  />
+                </label>
+                <label className="profile-report-field">
+                  <span>What happened?</span>
+                  <textarea
+                    rows={3}
+                    value={reportNote}
+                    onChange={(event) => setReportNote(event.target.value)}
+                    placeholder="e.g. showed the coupon at the counter, they said it was applied"
+                  />
+                </label>
+                {reportError && (
+                  <p className="profile-report-err">{reportError}</p>
+                )}
+                <button
+                  type="button"
+                  className="btn-primary profile-report-btn"
+                  disabled={reportBusy}
+                  onClick={() => void submitReport()}
+                >
+                  {reportBusy ? 'Sending…' : 'Send report'}
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary profile-report-btn"
+                  onClick={() => setReportOpen(false)}
+                >
+                  Never mind
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
-    </div>
+    </main>
   )
 }

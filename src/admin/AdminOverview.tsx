@@ -1,5 +1,6 @@
 import type { AdminOfferEntry, AdminShopEntry } from '../business/shop'
-import { StatusChip, formatWhen, inr, statusOf, truncate } from './bits'
+import { StatusChip } from './bits'
+import { formatWhen, inr, statusOf, truncate } from './bitsShared'
 
 type Props = {
   shops: AdminShopEntry[]
