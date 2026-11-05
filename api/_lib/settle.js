@@ -130,7 +130,7 @@ export async function verifyAuthToken(req) {
     throw httpError(401, 'Invalid signature')
   }
 
-  return tokenPayload.uid
+  return tokenPayload.sub
 }
 
 /** Timing-safe string compare for hex digests/signatures. */
