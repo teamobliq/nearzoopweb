@@ -177,7 +177,6 @@ export default function Profile({ user, onSignOut, onOpenCoupons }: Props) {
           onClick={() => setEditing(true)}
         >
           <EditSvg />
-          Edit
         </button>
       </header>
 
