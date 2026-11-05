@@ -105,7 +105,7 @@ export default async function handler(req, res) {
       shopUid,
       paymentId: entity.id,
       orderId: entity.order_id ?? null,
-      amount: entity.amount ?? 100000,
+      amount: entity.amount ?? 1000,
       currency: entity.currency ?? 'INR',
       via: 'webhook',
     })
