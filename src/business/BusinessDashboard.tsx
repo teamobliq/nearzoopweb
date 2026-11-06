@@ -10,6 +10,7 @@ import { syncShopFeed } from './feed'
 import { fmtDay } from './when'
 import {
   feeDaysLeft,
+  feeExpired,
   watchNotificationsUnread,
   watchOffers,
   watchShop,
@@ -393,6 +394,38 @@ export default function BusinessDashboard({
 
   const daysLeft = shop ? feeDaysLeft(shop) : null
   const renewSoon = shop?.paymentDone === true && daysLeft !== null && daysLeft <= 30
+  const expired = shop ? feeExpired(shop) : false
+
+  if (expired) {
+    return (
+      <main className="biz-dash">
+        <div className="biz-dash-shell" ref={shellRef}>
+          <section className="biz-expired">
+            <h1 className="biz-expired-head">Your listing has lapsed</h1>
+            <p className="biz-expired-body">
+              Your yearly listing has ended — customers can’t see your offers,
+              and you can’t post new ones, scan coupons, or view insights
+              until you renew.
+            </p>
+            <button
+              type="button"
+              className="btn-primary biz-btn biz-expired-renew"
+              onClick={onRenew}
+            >
+              Renew · ₹1,000
+            </button>
+          </section>
+        </div>
+        <button
+          type="button"
+          className="biz-linkbtn biz-dash-signout"
+          onClick={onSignOut}
+        >
+          Sign out
+        </button>
+      </main>
+    )
+  }
 
   return (
     <main
