@@ -1,0 +1,350 @@
+import { useEffect, useState } from 'react'
+import { cachedCoords, haversineKm } from '../business/geocode'
+import {
+  watchShop,
+  watchOffers,
+  feeExpired,
+  type ShopRecord,
+  type OfferRecord,
+} from '../business/shop'
+import { fmtDay } from '../business/when'
+import { fmtKm } from './mapUtils'
+import './customer.css'
+
+function CloseSvg() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M18 6l-12 12M6 6l12 12" />
+    </svg>
+  )
+}
+
+function ShareSvg() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M18 16l6-6-6-6M13 18l-6 6 6 6M16 6l6 6-6 6" />
+    </svg>
+  )
+}
+
+function PinSvg() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 21s-6.5-5.4-6.5-10a6.5 6.5 0 1 1 13 0C18.5 15.6 12 21 12 21Z" />
+      <circle cx="12" cy="11" r="2.4" />
+    </svg>
+  )
+}
+
+function PhoneSvg() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1 3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 0 7h3a2 2 0 0 1 2-2 2 2 0 0 1 2 2z" />
+    </svg>
+  )
+}
+
+function ClockSvg() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  )
+}
+
+function fmtTime(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number)
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const displayH = h % 12 || 12
+  return `${displayH}:${m.toString().padStart(2, '0')} ${ampm}`
+}
+
+/** "Open now" — verified, fee current, not on holiday. */
+function isOpenNow(shop: ShopRecord): boolean {
+  return (
+    shop.verification === 'verified' &&
+    shop.paymentDone === true &&
+    !feeExpired(shop) &&
+    !shop.holidayMode
+  )
+}
+
+type Props = {
+  uid: string
+  onBack: () => void
+}
+
+/** Shop profile screen — opened by tapping a business name from an offer
+    card, trending list, or search. Shows cover photo, badges, action
+    buttons (directions / call / follow), live offers, and details. */
+export default function ShopProfile({ uid, onBack }: Props) {
+  const [shop, setShop] = useState<ShopRecord | null>(null)
+  const [offers, setOffers] = useState<OfferRecord[] | null>(null)
+  const [fix] = useState<{ lat: number; lng: number } | null>(() =>
+    cachedCoords(),
+  )
+
+  useEffect(() => {
+    const unsubShop = watchShop(uid, (s) => setShop(s))
+    const unsubOffers = watchOffers(uid, (o) => setOffers(o))
+    return () => {
+      unsubShop()
+      unsubOffers()
+    }
+  }, [uid])
+
+  const liveOffers = (offers ?? []).filter((o) => o.status === 'live')
+  const openNow = shop ? isOpenNow(shop) : false
+
+  // Distance from the user's fix to the shop, computed during render.
+  const distKm =
+    fix && shop?.lat && shop?.lng
+      ? haversineKm(fix, { lat: shop.lat, lng: shop.lng })
+      : null
+
+  // Today's hours from openingHours (monSat for weekdays, sunday for Sunday).
+  const today = new Date().getDay()
+  const dayHours =
+    today === 0 ? shop?.openingHours?.sunday : shop?.openingHours?.monSat
+  const hoursText =
+    dayHours && typeof dayHours === 'object'
+      ? `${fmtTime(dayHours.opens)} – ${fmtTime(dayHours.closes)}`
+      : dayHours === 'closed'
+      ? 'Closed today'
+      : 'Hours not set'
+
+  if (!shop) {
+    return (
+      <main className="shop-profile">
+        <header className="shop-head">
+          <button
+            type="button"
+            className="shop-back"
+            onClick={onBack}
+            aria-label="Back"
+          >
+            <CloseSvg />
+          </button>
+          <h1 className="shop-title">Shop</h1>
+        </header>
+        <p className="shop-empty">Loading shop…</p>
+      </main>
+    )
+  }
+
+  return (
+    <main className="shop-profile">
+      <header className="shop-head">
+        <button
+          type="button"
+          className="shop-back"
+          onClick={onBack}
+          aria-label="Back"
+        >
+          <CloseSvg />
+        </button>
+        <button type="button" className="shop-share" aria-label="Share">
+          <ShareSvg />
+        </button>
+        <h1 className="shop-title">{shop.name}</h1>
+      </header>
+
+      {shop.shopPhotoUrl ? (
+        <img
+          className="shop-cover"
+          src={shop.shopPhotoUrl}
+          alt={`${shop.name} shop front`}
+        />
+      ) : (
+        <div className="shop-cover shop-cover--blank">
+          shop front photo
+        </div>
+      )}
+
+      <div className="shop-badges">
+        <span className="shop-badge shop-badge--category">
+          {shop.category ?? 'Food'}
+        </span>
+        {shop.verification === 'verified' && (
+          <span className="shop-badge shop-badge--verified">
+            <span aria-hidden="true">✔</span> Verified by NearZoop
+          </span>
+        )}
+        {openNow && (
+          <span className="shop-badge shop-badge--open">
+            <span aria-hidden="true">⏰</span> Open now
+          </span>
+        )}
+      </div>
+
+      <h1 className="shop-name">{shop.name}</h1>
+      <p className="shop-address">{shop.address}</p>
+
+      <div className="shop-actions">
+        <button
+          type="button"
+          className="shop-action shop-action--directions"
+          onClick={() => {
+            if (shop.lat && shop.lng) {
+              const url = `https://www.google.com/maps/dir/?api=1&destination=${shop.lat},${shop.lng}`
+              window.open(url, '_blank')
+            }
+          }}
+        >
+          <PinSvg />
+          <div>
+            <strong>Directions</strong>
+            {distKm !== null && <span>{fmtKm(distKm)}</span>}
+          </div>
+        </button>
+        <button
+          type="button"
+          className="shop-action shop-action--call"
+          onClick={() => {
+            if (shop.customerPhone) {
+              window.location.href = `tel:${shop.customerPhone}`
+            }
+          }}
+        >
+          <PhoneSvg />
+          <div>
+            <strong>Call Shop</strong>
+          </div>
+        </button>
+        <button
+          type="button"
+          className="shop-action shop-action--follow"
+          onClick={() => {}}
+        >
+          <span aria-hidden="true">+</span>
+          <div>
+            <strong>Follow</strong>
+            <span>Updates</span>
+          </div>
+        </button>
+      </div>
+
+      {liveOffers.length > 0 && (
+        <section className="shop-section">
+          <h2 className="shop-section-head">
+            Live offers <span className="shop-section-count">{liveOffers.length}</span>
+          </h2>
+          <ul className="shop-offers">
+            {liveOffers.map((item) => (
+              <li key={item.id} className="shop-offer-card">
+                <button
+                  type="button"
+                  className="shop-offer-hit"
+                  aria-label={item.title ?? 'Offer'}
+                >
+                  <span
+                    className={`biz-otile biz-otile-${item.tileColor ?? 'yellow'}`}
+                    aria-hidden="true"
+                  >
+                    <span className="biz-otile-big">
+                      {item.discountLabel?.trim() ?? '—'}
+                    </span>
+                  </span>
+                  <div className="shop-offer-main">
+                    <span className="shop-offer-title">
+                      {item.title ?? 'Untitled offer'}
+                    </span>
+                    <span className="shop-offer-shop">{shop.name}</span>
+                    <div className="shop-offer-meta">
+                      {item.endsAt && (
+                        <span className="shop-offer-ends">
+                          {'⏰'} Ends {fmtDay(item.endsAt)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="shop-offer-bookmark"
+                    aria-label="Bookmark"
+                  >
+                    <span aria-hidden="true">🔖</span>
+                  </button>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="shop-section">
+        <h2 className="shop-section-head">Details</h2>
+        <div className="shop-detail-row">
+          <span className="shop-detail-icon">
+            <ClockSvg />
+          </span>
+          <div className="shop-detail-text">
+            <strong>Today</strong>
+            <span>{hoursText}</span>
+          </div>
+        </div>
+        {shop.customerPhone && (
+          <div className="shop-detail-row">
+            <span className="shop-detail-icon">
+              <PhoneSvg />
+            </span>
+            <div className="shop-detail-text">
+              <strong>{shop.customerPhone}</strong>
+              <span>Listed by the shop</span>
+            </div>
+          </div>
+        )}
+        <div className="shop-detail-row">
+          <span className="shop-detail-icon">
+            <PinSvg />
+          </span>
+          <div className="shop-detail-text">
+            <strong>{shop.address}</strong>
+            {distKm !== null && <span>{fmtKm(distKm)} from you</span>}
+          </div>
+        </div>
+      </section>
+    </main>
+  )
+}

@@ -46,6 +46,8 @@ type Props = {
   onOpenCoupons: () => void
   /** Opens the Trending Nearby screen. */
   onOpenTrending: () => void
+  /** Opens a shop's profile screen. */
+  onOpenShop: (shopUid: string) => void
   /** After sign-out completes — the session flips to guest. */
   onSignOut: () => void
 }
@@ -177,6 +179,7 @@ function OfferCard({
   countdown,
   bookmarked,
   onToggleBookmark,
+  onOpenShop,
 }: {
   item: FeedRecord & { km: number | null }
   selected: boolean
@@ -187,6 +190,8 @@ function OfferCard({
   bookmarked?: boolean
   /** Toggles the bookmark on this offer. */
   onToggleBookmark?: () => void
+  /** Opens the shop's profile screen when the shop name is tapped. */
+  onOpenShop?: (shopUid: string) => void
 }) {
   const label = item.discountLabel?.trim() ?? ''
   const splitAt = label.indexOf(' ')
@@ -230,7 +235,19 @@ function OfferCard({
               </span>
             </span>
             <span className="chome-card-shop">
-              {item.shopName}
+              {onOpenShop ? (
+                <span
+                  className="chome-card-shop-link"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onOpenShop(item.shopUid)
+                  }}
+                >
+                  {item.shopName}
+                </span>
+              ) : (
+                item.shopName
+              )}
               {item.shopCategory ? ` · ${item.shopCategory}` : ''}
             </span>
             <span className="chome-card-meta">
@@ -266,10 +283,11 @@ export default function CustomerHome({
   user,
   onEditLocation,
   onOpenOffer,
-  onSignIn,
-  onSignOut,
   onOpenCoupons,
   onOpenTrending,
+  onOpenShop,
+  onSignIn,
+  onSignOut,
 }: Props) {
   // The fix, radius and locality label come from the Locate step's cache.
   const [fix, setFix] = useState<Coords | null>(() => cachedCoords())
@@ -588,6 +606,7 @@ export default function CustomerHome({
                       onSelect={() => openOffer(item)}
                       bookmarked={saved.has(item.offerId)}
                       onToggleBookmark={() => toggleSaved(item.offerId)}
+                      onOpenShop={onOpenShop}
                     />
                   ))}
                 </ul>
@@ -627,6 +646,7 @@ export default function CustomerHome({
                       selected={selected === item.offerId}
                       onSelect={() => openOffer(item)}
                       countdown={endsInLabel(item.endsAt as string, now)}
+                      onOpenShop={onOpenShop}
                     />
                   ))}
                 </ul>
@@ -697,6 +717,7 @@ export default function CustomerHome({
                       onSelect={() => openOffer(item)}
                       bookmarked={saved.has(item.offerId)}
                       onToggleBookmark={() => toggleSaved(item.offerId)}
+                      onOpenShop={onOpenShop}
                     />
                   ))}
                 </ul>

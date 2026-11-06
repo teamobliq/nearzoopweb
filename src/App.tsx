@@ -13,13 +13,14 @@ import CustomerOffer from './screens/CustomerOffer'
 import MyCoupons from './screens/MyCoupons'
 import CouponPass from './screens/CouponPass'
 import TrendingNearby from './screens/TrendingNearby'
+import ShopProfile from './screens/ShopProfile'
 import { cachedCoords } from './business/geocode'
 import './App.css'
 
 // The admin console ships as its own chunk — absent from the main bundle.
 const AdminPanel = lazy(() => import('./admin/AdminPanel'))
 
-type Screen = 'splash' | 'onboard' | 'auth' | 'locate' | 'home' | 'profile' | 'editProfile' | 'myCoupons' | 'couponPass' | 'trending'
+type Screen = 'splash' | 'onboard' | 'auth' | 'locate' | 'home' | 'profile' | 'editProfile' | 'myCoupons' | 'couponPass' | 'trending' | 'shop'
 type Route = 'customer' | 'business' | 'admin'
 type Session = { variant: 'guest' | 'signed-in'; label?: string; uid?: string; user?: User }
 type DeepLink = { uid: string; offerId: string }
@@ -132,6 +133,9 @@ function App() {
   /** The coupon the customer tapped in My Coupons — opened as its own pass
       screen so the QR is full-screen and shareable. */
   const [couponToOpen, setCouponToOpen] = useState<CouponRecord | null>(null)
+  /** The shop the customer tapped into from an offer card — opened as its
+      own profile screen. */
+  const [shopUid, setShopUid] = useState<string | null>(null)
   /** The screen stack behind the back button. React state drives rendering,
       but the *browser's* history is what a phone's back gesture actually
       pops — without a parallel entry per screen, back jumped out of the app
@@ -368,6 +372,15 @@ function App() {
     )
   }
 
+  if (screen === 'shop') {
+    return (
+      <ShopProfile
+        uid={shopUid ?? ''}
+        onBack={() => go('home')}
+      />
+    )
+  }
+
   return (
     <CustomerHome
       session={session}
@@ -376,6 +389,10 @@ function App() {
       onOpenOffer={openOffer}
       onOpenCoupons={() => go('myCoupons')}
       onOpenTrending={() => go('trending')}
+      onOpenShop={(uid) => {
+        setShopUid(uid)
+        go('shop')
+      }}
       onSignIn={() => {
         setAuthReturn('home')
         go('auth')
