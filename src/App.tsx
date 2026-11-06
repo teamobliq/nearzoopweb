@@ -12,13 +12,14 @@ import BusinessSignIn from './business/BusinessSignIn'
 import CustomerOffer from './screens/CustomerOffer'
 import MyCoupons from './screens/MyCoupons'
 import CouponPass from './screens/CouponPass'
+import TrendingNearby from './screens/TrendingNearby'
 import { cachedCoords } from './business/geocode'
 import './App.css'
 
 // The admin console ships as its own chunk — absent from the main bundle.
 const AdminPanel = lazy(() => import('./admin/AdminPanel'))
 
-type Screen = 'splash' | 'onboard' | 'auth' | 'locate' | 'home' | 'profile' | 'editProfile' | 'myCoupons' | 'couponPass'
+type Screen = 'splash' | 'onboard' | 'auth' | 'locate' | 'home' | 'profile' | 'editProfile' | 'myCoupons' | 'couponPass' | 'trending'
 type Route = 'customer' | 'business' | 'admin'
 type Session = { variant: 'guest' | 'signed-in'; label?: string; uid?: string; user?: User }
 type DeepLink = { uid: string; offerId: string }
@@ -361,6 +362,12 @@ function App() {
     )
   }
 
+  if (screen === 'trending') {
+    return (
+      <TrendingNearby onBack={() => go('home')} />
+    )
+  }
+
   return (
     <CustomerHome
       session={session}
@@ -368,6 +375,7 @@ function App() {
       onEditLocation={() => go('locate')}
       onOpenOffer={openOffer}
       onOpenCoupons={() => go('myCoupons')}
+      onOpenTrending={() => go('trending')}
       onSignIn={() => {
         setAuthReturn('home')
         go('auth')

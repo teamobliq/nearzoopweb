@@ -44,6 +44,8 @@ type Props = {
   onSignIn: () => void
   /** Opens the customer's coupons wallet. */
   onOpenCoupons: () => void
+  /** Opens the Trending Nearby screen. */
+  onOpenTrending: () => void
   /** After sign-out completes — the session flips to guest. */
   onSignOut: () => void
 }
@@ -267,6 +269,7 @@ export default function CustomerHome({
   onSignIn,
   onSignOut,
   onOpenCoupons,
+  onOpenTrending,
 }: Props) {
   // The fix, radius and locality label come from the Locate step's cache.
   const [fix, setFix] = useState<Coords | null>(() => cachedCoords())
@@ -677,6 +680,13 @@ export default function CustomerHome({
                   <p className="chx-count">
                     {explore.length} of {explore.length} offers · sorted by nearest
                   </p>
+                  <button
+                    type="button"
+                    className="chx-trending"
+                    onClick={onOpenTrending}
+                  >
+                    Trending near you →
+                  </button>
                 </header>
                 <ul className="chome-cards">
                   {explore.map((item) => (

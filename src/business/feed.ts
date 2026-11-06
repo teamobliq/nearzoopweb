@@ -68,6 +68,10 @@ export type FeedRecord = {
   /** The shop's paid-year end at sync time — read-time expiry means a
       lapsed subscription goes dark without anyone re-syncing. */
   feeExpiresAt?: string
+  /** Lifetime view and save counts, synced from the offer doc — used for
+      trending ranking. Default to 0 when not yet synced. */
+  views?: number
+  saves?: number
   updatedAt?: import('firebase/firestore').Timestamp
 }
 
