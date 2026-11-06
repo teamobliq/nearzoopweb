@@ -53,7 +53,7 @@ type View = 'nearby' | 'explore' | 'saved' | 'you'
 const TABS: Array<{ key: View; label: string; icon: () => ReactElement }> = [
   { key: 'nearby', label: 'Nearby', icon: PinSvg },
   { key: 'explore', label: 'Explore', icon: GridSvg },
-  { key: 'saved', label: 'Saved', icon: BookmarkSvg },
+  { key: 'saved', label: 'Saved', icon: () => <BookmarkSvg /> },
   { key: 'you', label: 'You', icon: PersonSvg },
 ]
 
@@ -95,9 +95,17 @@ function GridSvg() {
   )
 }
 
-function BookmarkSvg() {
+function BookmarkSvg({ filled }: { filled?: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="M7 4h10v17l-5-4.5L7 21Z" />
     </svg>
   )
@@ -165,12 +173,18 @@ function OfferCard({
   selected,
   onSelect,
   countdown,
+  bookmarked,
+  onToggleBookmark,
 }: {
   item: FeedRecord & { km: number | null }
   selected: boolean
   onSelect: () => void
   /** Replaces the plain "till …" date — the ending-soon rail's clock. */
   countdown?: string
+  /** Whether this offer is bookmarked by the customer. */
+  bookmarked?: boolean
+  /** Toggles the bookmark on this offer. */
+  onToggleBookmark?: () => void
 }) {
   const label = item.discountLabel?.trim() ?? ''
   const splitAt = label.indexOf(' ')
@@ -196,7 +210,10 @@ function OfferCard({
           onClick={onSelect}
           aria-pressed={selected}
         >
-          <span className={`biz-otile biz-otile-${item.tileColor ?? 'yellow'}`} aria-hidden="true">
+          <span
+            className={`biz-otile biz-otile-${item.tileColor ?? 'yellow'}`}
+            aria-hidden="true"
+          >
             <span className="biz-otile-big">{big}</span>
             <span className="biz-otile-small">{small}</span>
           </span>
@@ -223,6 +240,19 @@ function OfferCard({
               )}
             </span>
           </span>
+          {onToggleBookmark && (
+            <button
+              type="button"
+              className="chome-card-bookmark"
+              onClick={(event) => {
+                event.stopPropagation()
+                onToggleBookmark()
+              }}
+              aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark'}
+            >
+              <BookmarkSvg filled={bookmarked} />
+            </button>
+          )}
         </button>
       </article>
     </li>
@@ -243,6 +273,14 @@ export default function CustomerHome({
   const [radiusKm] = useState<number>(cachedRadiusKm)
   const [locality, setLocality] = useState<string | null>(cachedLocality)
   const [view, setView] = useState<View>('nearby')
+  // Bookmarked offer ids, persisted to localStorage.
+  const [saved, setSaved] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem('nz.saved') ?? '[]'))
+    } catch {
+      return new Set()
+    }
+  })
   // The sheet's two positions: resting over the map, or raised so the list
   // dominates and the map peeks behind.
   const [raised, setRaised] = useState(false)
@@ -323,6 +361,24 @@ export default function CustomerHome({
   function openOffer(item: FeedRecord) {
     setSelected(item.offerId)
     onOpenOffer(item.shopUid, item.offerId)
+  }
+
+  /** Toggles a bookmark on an offer and persists to localStorage. */
+  function toggleSaved(offerId: string): void {
+    setSaved((current) => {
+      const next = new Set(current)
+      if (next.has(offerId)) {
+        next.delete(offerId)
+      } else {
+        next.add(offerId)
+      }
+      try {
+        localStorage.setItem('nz.saved', JSON.stringify([...next]))
+      } catch {
+        // localStorage unavailable — bookmarks won't survive a reload.
+      }
+      return next
+    })
   }
 
   // The sheet handle: a tap toggles, a drag follows the gesture.
@@ -527,6 +583,8 @@ export default function CustomerHome({
                       item={item}
                       selected={selected === item.offerId}
                       onSelect={() => openOffer(item)}
+                      bookmarked={saved.has(item.offerId)}
+                      onToggleBookmark={() => toggleSaved(item.offerId)}
                     />
                   ))}
                 </ul>
@@ -587,10 +645,39 @@ export default function CustomerHome({
               </p>
             ) : explore.length > 0 ? (
               <>
-                <h1 className="chome-title">
-                  {plural(explore.length, 'live offer')}.
-                </h1>
-                <p className="chome-sub">Every live offer on NearZoop.</p>
+                {/* Explore header — matches the mobile app design. */}
+                <header className="chx-header">
+                  <h1 className="chx-title">All offers</h1>
+                  <p className="chx-sub">
+                    Active offers within {fmtKm(radiusKm)} of{' '}
+                    {locality ?? 'your area'}
+                  </p>
+                  <div className="chx-filters">
+                    <button type="button" className="chx-chip chx-chip--active">
+                      Filters · 2
+                    </button>
+                    <button type="button" className="chx-chip">
+                      ↑ Nearest ▾
+                    </button>
+                    <button type="button" className="chx-chip">
+                      Category ▾
+                    </button>
+                  </div>
+                  <div className="chx-pills">
+                    <span className="chx-pill">Food, Mishti</span>
+                    <span className="chx-pill">10%+ off</span>
+                    <button
+                      type="button"
+                      className="chx-pill chx-pill--clear"
+                      onClick={() => {}}
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                  <p className="chx-count">
+                    {explore.length} of {explore.length} offers · sorted by nearest
+                  </p>
+                </header>
                 <ul className="chome-cards">
                   {explore.map((item) => (
                     <OfferCard
@@ -598,6 +685,8 @@ export default function CustomerHome({
                       item={item}
                       selected={selected === item.offerId}
                       onSelect={() => openOffer(item)}
+                      bookmarked={saved.has(item.offerId)}
+                      onToggleBookmark={() => toggleSaved(item.offerId)}
                     />
                   ))}
                 </ul>
@@ -612,6 +701,8 @@ export default function CustomerHome({
                           selected={selected === item.offerId}
                           onSelect={() => openOffer(item)}
                           countdown={endsInLabel(item.endsAt as string, now)}
+                          bookmarked={saved.has(item.offerId)}
+                          onToggleBookmark={() => toggleSaved(item.offerId)}
                         />
                       ))}
                     </ul>
