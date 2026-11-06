@@ -12,7 +12,7 @@
 
 import { razorpayKeyId, razorpayRest, sendJson, verifyAuthToken } from './_lib/settle.js'
 
-const AMOUNT = 1000 // ₹10 in paise — TEST amount, will be raised back to 100000 (₹1,000)
+const AMOUNT = 100000 // ₹1,000 in paise
 const CURRENCY = 'INR'
 
 export default async function handler(req, res) {
