@@ -11,6 +11,22 @@ import { fmtDay } from '../business/when'
 import { fmtKm } from './mapUtils'
 import './customer.css'
 
+function CloseSvg() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M15 5l-7 7 7 7" />
+    </svg>
+  )
+}
+
 function PinSvg() {
   return (
     <svg
@@ -81,10 +97,10 @@ type Props = {
   uid: string
 }
 
-/** Shop profile screen — matches the app design: top nav bar, cover photo on
-    the left, badges row, action buttons (Directions / Call / Follow / Save /
-    Share), tab bar (Overview / Offers / Details / Reviews), live offers, and
-    details with a map on the right. */
+/** Shop profile screen — matches the app design: classic back button at top,
+    cover photo on the left, badges row, action buttons (Directions / Call /
+    Follow / Save / Share), tab bar (Overview / Offers / Details / Reviews),
+    live offers, and details with a map on the right. */
 export default function ShopProfile({ uid }: Props) {
   const [shop, setShop] = useState<ShopRecord | null>(null)
   const [offers, setOffers] = useState<OfferRecord[] | null>(null)
@@ -122,32 +138,15 @@ export default function ShopProfile({ uid }: Props) {
   if (!shop) {
     return (
       <main className="shop-profile">
-        <nav className="shop-nav">
-          <div className="shop-nav-left">
-            <span className="shop-nav-brand">NearZoop</span>
-          </div>
-          <div className="shop-nav-center">
-            <span className="shop-nav-tab">Explore</span>
-            <span className="shop-nav-tab shop-nav-tab--on">Offers</span>
-            <span className="shop-nav-tab">Saved</span>
-          </div>
-          <div className="shop-nav-right">
-            <div className="shop-nav-search">
-              <span aria-hidden="true">🔍</span>
-              <input
-                type="text"
-                placeholder="Search for shops, food, services…"
-                readOnly
-              />
-            </div>
-            <button className="shop-nav-bell" aria-label="Notifications">
-              <span aria-hidden="true">🔔</span>
-            </button>
-            <button className="shop-nav-profile" aria-label="Profile">
-              <span aria-hidden="true">S</span>
-            </button>
-          </div>
-        </nav>
+        <header className="shop-head">
+          <button
+            type="button"
+            className="shop-back"
+            aria-label="Back"
+          >
+            <CloseSvg />
+          </button>
+        </header>
         <p className="shop-empty">Loading shop…</p>
       </main>
     )
@@ -155,32 +154,16 @@ export default function ShopProfile({ uid }: Props) {
 
   return (
     <main className="shop-profile">
-      <nav className="shop-nav">
-        <div className="shop-nav-left">
-          <span className="shop-nav-brand">NearZoop</span>
-        </div>
-        <div className="shop-nav-center">
-          <span className="shop-nav-tab">Explore</span>
-          <span className="shop-nav-tab shop-nav-tab--on">Offers</span>
-          <span className="shop-nav-tab">Saved</span>
-        </div>
-        <div className="shop-nav-right">
-          <div className="shop-nav-search">
-            <span aria-hidden="true">🔍</span>
-            <input
-              type="text"
-              placeholder="Search for shops, food, services…"
-              readOnly
-            />
-          </div>
-          <button className="shop-nav-bell" aria-label="Notifications">
-            <span aria-hidden="true">🔔</span>
-          </button>
-          <button className="shop-nav-profile" aria-label="Profile">
-            <span aria-hidden="true">S</span>
-          </button>
-        </div>
-      </nav>
+      <header className="shop-head">
+        <button
+          type="button"
+          className="shop-back"
+          onClick={() => window.history.back()}
+          aria-label="Go back"
+        >
+          <CloseSvg />
+        </button>
+      </header>
 
       <div className="shop-body">
         <div className="shop-cover-wrap">

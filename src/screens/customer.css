@@ -2534,116 +2534,22 @@
   padding: 0;
 }
 
-.shop-nav {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background-color: #fffef4;
-  border-bottom: 1px solid var(--color-hairline);
-  padding: 0.75rem 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  box-shadow: 0 1px 0 0 rgba(28, 27, 25, 0.06);
-}
-
-.shop-nav-left {
-  flex: none;
-}
-
-.shop-nav-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-family: var(--font-mono);
-  font-weight: 900;
-  font-size: 1.1rem;
-  letter-spacing: -0.02em;
-  color: var(--color-ink);
-}
-
-.shop-nav-brand span {
-  color: var(--color-orange);
-}
-
-.shop-nav-center {
-  flex: 1;
-  display: flex;
-  gap: 1.5rem;
-}
-
-.shop-nav-tab {
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: var(--color-stone);
-  cursor: pointer;
-}
-
-.shop-nav-tab--on {
-  color: var(--color-ink);
-}
-
-.shop-nav-right {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.shop-nav-search {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.9rem;
-  background-color: #fff;
-  border: 1.5px solid var(--color-hairline);
-  border-radius: 1.2rem;
-}
-
-.shop-nav-search span {
-  color: var(--color-stone);
-  font-size: 0.95rem;
-}
-
-.shop-nav-search input {
-  flex: 1;
-  border: none;
-  background: none;
-  font: inherit;
-  font-size: 0.88rem;
-  color: var(--color-ink);
-  outline: none;
-}
-
-.shop-nav-search input::placeholder {
-  color: var(--color-stone);
-}
-
-.shop-nav-bell,
-.shop-nav-profile {
+.shop-back {
   flex: none;
   display: grid;
   place-items: center;
-  width: 2.4rem;
-  height: 2.4rem;
-  background: none;
-  border: none;
+  width: 2.6rem;
+  height: 2.6rem;
+  background-color: #ffffff;
+  border: 2.5px solid var(--color-ink);
   border-radius: 999px;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
   cursor: pointer;
-  color: var(--color-stone);
-  font-size: 1.2rem;
 }
 
-.shop-nav-bell:hover,
-.shop-nav-profile:hover {
-  background-color: rgba(28, 27, 25, 0.06);
-}
-
-.shop-nav-profile {
-  background-color: var(--color-ink);
-  color: #ffffff;
-  font-size: 1rem;
-  font-weight: 900;
+.shop-back svg {
+  width: 1.4rem;
+  height: 1.4rem;
 }
 
 .shop-body {
