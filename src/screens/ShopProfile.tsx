@@ -100,7 +100,6 @@ function fmtTime(hhmm: string): string {
   return `${displayH}:${m.toString().padStart(2, '0')} ${ampm}`
 }
 
-/** "Open now" — verified, fee current, not on holiday. */
 function isOpenNow(shop: ShopRecord): boolean {
   return (
     shop.verification === 'verified' &&
@@ -115,9 +114,6 @@ type Props = {
   onBack: () => void
 }
 
-/** Shop profile screen — opened by tapping a business name from an offer
-    card, trending list, or search. Shows cover photo, badges, action
-    buttons (directions / call / follow), live offers, and details. */
 export default function ShopProfile({ uid, onBack }: Props) {
   const [shop, setShop] = useState<ShopRecord | null>(null)
   const [offers, setOffers] = useState<OfferRecord[] | null>(null)
@@ -137,13 +133,11 @@ export default function ShopProfile({ uid, onBack }: Props) {
   const liveOffers = (offers ?? []).filter((o) => o.status === 'live')
   const openNow = shop ? isOpenNow(shop) : false
 
-  // Distance from the user's fix to the shop, computed during render.
   const distKm =
     fix && shop?.lat && shop?.lng
       ? haversineKm(fix, { lat: shop.lat, lng: shop.lng })
       : null
 
-  // Today's hours from openingHours (monSat for weekdays, sunday for Sunday).
   const today = new Date().getDay()
   const dayHours =
     today === 0 ? shop?.openingHours?.sunday : shop?.openingHours?.monSat
@@ -208,12 +202,12 @@ export default function ShopProfile({ uid, onBack }: Props) {
         </span>
         {shop.verification === 'verified' && (
           <span className="shop-badge shop-badge--verified">
-            <span aria-hidden="true">✔</span> Verified by NearZoop
+            Verified by NearZoop
           </span>
         )}
         {openNow && (
           <span className="shop-badge shop-badge--open">
-            <span aria-hidden="true">⏰</span> Open now
+            Open now
           </span>
         )}
       </div>
@@ -232,10 +226,14 @@ export default function ShopProfile({ uid, onBack }: Props) {
             }
           }}
         >
-          <PinSvg />
-          <div>
-            <strong>Directions</strong>
-            {distKm !== null && <span>{fmtKm(distKm)}</span>}
+          <div className="shop-action-icon">
+            <PinSvg />
+          </div>
+          <div className="shop-action-label">
+            <strong>Directions</strong>{' '}
+            {distKm !== null && (
+              <span className="shop-action-value">{fmtKm(distKm)}</span>
+            )}
           </div>
         </button>
         <button
@@ -247,8 +245,10 @@ export default function ShopProfile({ uid, onBack }: Props) {
             }
           }}
         >
-          <PhoneSvg />
-          <div>
+          <div className="shop-action-icon">
+            <PhoneSvg />
+          </div>
+          <div className="shop-action-label">
             <strong>Call Shop</strong>
           </div>
         </button>
@@ -257,19 +257,22 @@ export default function ShopProfile({ uid, onBack }: Props) {
           className="shop-action shop-action--follow"
           onClick={() => {}}
         >
-          <span aria-hidden="true">+</span>
-          <div>
+          <div className="shop-action-icon">
+            <span aria-hidden="true">+</span>
+          </div>
+          <div className="shop-action-label">
             <strong>Follow</strong>
-            <span>Updates</span>
+            <span className="shop-action-value">Updates</span>
           </div>
         </button>
       </div>
 
       {liveOffers.length > 0 && (
         <section className="shop-section">
-          <h2 className="shop-section-head">
-            Live offers <span className="shop-section-count">{liveOffers.length}</span>
-          </h2>
+          <div className="shop-section-head">
+            <h2 className="shop-section-title">Live offers</h2>
+            <span className="shop-section-count">{liveOffers.length}</span>
+          </div>
           <ul className="shop-offers">
             {liveOffers.map((item) => (
               <li key={item.id} className="shop-offer-card">
@@ -314,7 +317,7 @@ export default function ShopProfile({ uid, onBack }: Props) {
       )}
 
       <section className="shop-section">
-        <h2 className="shop-section-head">Details</h2>
+        <h2 className="shop-section-title">Details</h2>
         <div className="shop-detail-row">
           <span className="shop-detail-icon">
             <ClockSvg />
@@ -340,7 +343,7 @@ export default function ShopProfile({ uid, onBack }: Props) {
             <PinSvg />
           </span>
           <div className="shop-detail-text">
-            <strong>{shop.address}</strong>
+            <strong>{shop.address}</strong>{' '}
             {distKm !== null && <span>{fmtKm(distKm)} from you</span>}
           </div>
         </div>

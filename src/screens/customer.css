@@ -2531,40 +2531,23 @@
   min-height: 100dvh;
   background-color: var(--color-paper);
   color: var(--color-ink);
-  padding: 1.5rem clamp(1.5rem, 5vw, 2rem) 4rem;
+  padding: 1.2rem clamp(1.2rem, 4vw, 2rem) 2rem;
 }
 
 .shop-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.8rem;
 }
 
-.shop-back {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 2.6rem;
-  height: 2.6rem;
-  background-color: #ffffff;
-  border: 2.5px solid var(--color-ink);
-  border-radius: 999px;
-  box-shadow: 2px 3px 0 0 var(--color-ink);
-  cursor: pointer;
-}
-
-.shop-back svg {
-  width: 1.4rem;
-  height: 1.4rem;
-}
-
+.shop-back,
 .shop-share {
   flex: none;
   display: grid;
   place-items: center;
-  width: 2.6rem;
-  height: 2.6rem;
+  width: 2.8rem;
+  height: 2.8rem;
   background-color: #ffffff;
   border: 2.5px solid var(--color-ink);
   border-radius: 999px;
@@ -2572,31 +2555,34 @@
   cursor: pointer;
 }
 
+.shop-back svg,
 .shop-share svg {
-  width: 1.4rem;
-  height: 1.4rem;
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .shop-title {
   margin: 0;
-  font-size: clamp(2rem, 8vw, 2.6rem);
+  flex: 1;
+  font-size: clamp(1.6rem, 6vw, 2rem);
   font-weight: 900;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  text-align: center;
 }
 
 .shop-cover {
   width: 100%;
-  height: clamp(16rem, 35vw, 24rem);
+  height: clamp(12rem, 28vw, 18rem);
   object-fit: cover;
-  border-radius: 1.7rem;
+  border-radius: 1.4rem;
   box-shadow: var(--shadow-card);
   margin-bottom: 1rem;
 }
 
 .shop-cover--blank {
   width: 100%;
-  height: clamp(16rem, 35vw, 24rem);
+  height: clamp(12rem, 28vw, 18rem);
   background-color: var(--color-yellow);
   background-image: radial-gradient(
     circle,
@@ -2604,14 +2590,14 @@
     transparent 1.6px
   );
   background-size: 16px 16px;
-  border-radius: 1.7rem;
+  border-radius: 1.4rem;
   box-shadow: var(--shadow-card);
   margin-bottom: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-mono);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--color-stone);
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -2619,21 +2605,21 @@
 
 .shop-badges {
   display: flex;
-  gap: 0.6rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.8rem;
 }
 
 .shop-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.35rem 0.85rem;
+  padding: 0.3rem 0.8rem;
   border: 2.5px solid var(--color-ink);
   border-radius: 999px;
   font: inherit;
-  font-weight: 700;
-  font-size: 0.88rem;
+  font-weight: 800;
+  font-size: 0.85rem;
   color: var(--color-ink);
 }
 
@@ -2649,7 +2635,7 @@
 }
 
 .shop-name {
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.3rem;
   font-size: clamp(2.2rem, 9vw, 3rem);
   font-weight: 900;
   letter-spacing: -0.03em;
@@ -2665,7 +2651,7 @@
 .shop-actions {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 0.8rem;
+  gap: 0.7rem;
   margin-bottom: 1.6rem;
 }
 
@@ -2673,8 +2659,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.9rem 0.6rem;
+  gap: 0.3rem;
+  padding: 0.8rem 0.5rem;
   background-color: #ffffff;
   border: 2.5px solid var(--color-ink);
   border-radius: 1.6rem;
@@ -2688,10 +2674,17 @@
   box-shadow: 2px 3px 0 0 var(--color-ink);
 }
 
-.shop-action svg {
+.shop-action-icon {
   width: 1.7rem;
   height: 1.7rem;
+  display: grid;
+  place-items: center;
   margin-bottom: 0.2rem;
+}
+
+.shop-action-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .shop-action--directions svg {
@@ -2702,15 +2695,24 @@
   color: var(--color-green);
 }
 
-.shop-action strong {
-  font-size: 0.95rem;
-  font-weight: 800;
-  line-height: 1.1;
+.shop-action-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
 }
 
-.shop-action span:not(strong) {
-  font-size: 0.78rem;
+.shop-action-label strong {
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--color-ink);
+}
+
+.shop-action-label span {
+  font-size: 0.75rem;
   color: var(--color-stone);
+  white-space: nowrap;
 }
 
 .shop-section {
@@ -2722,6 +2724,10 @@
   align-items: center;
   justify-content: space-between;
   margin: 0 0 0.8rem;
+}
+
+.shop-section-title {
+  margin: 0;
   font-size: 1.35rem;
   font-weight: 900;
   letter-spacing: -0.02em;
@@ -2751,8 +2757,8 @@
 
 .shop-offer-hit {
   display: flex;
-  align-items: center;
-  gap: 0.9rem;
+  align-items: flex-start;
+  gap: 1rem;
   width: 100%;
   padding: 0.9rem 1rem;
   background-color: #ffffff;
@@ -2868,11 +2874,13 @@
   font-size: 1rem;
   font-weight: 800;
   line-height: 1.2;
+  color: var(--color-ink);
 }
 
 .shop-detail-text span:not(strong) {
   font-size: 0.9rem;
   color: var(--color-stone);
+  white-space: nowrap;
 }
 
 .chome-card-shop-link {
