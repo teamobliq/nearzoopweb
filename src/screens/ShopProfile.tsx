@@ -22,7 +22,23 @@ function CloseSvg() {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d="M15 5l-7 7 7 7" />
+      <path d="M18 6l-12 12M6 6l12 12" />
+    </svg>
+  )
+}
+
+function ShareSvg() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M18 16l6-6-6-6M13 18l-6 6 6 6M16 6l6 6-6 6" />
     </svg>
   )
 }
@@ -97,10 +113,10 @@ type Props = {
   uid: string
 }
 
-/** Shop profile screen — matches the app design: classic back button at top,
-    cover photo on the left, badges row, action buttons (Directions / Call /
-    Follow / Save / Share), tab bar (Overview / Offers / Details / Reviews),
-    live offers, and details with a map on the right. */
+/** Shop profile screen — exact 1:1 copy of the app design:
+    classic back button at top, cover photo on the left, badges row,
+    action buttons row, tab bar, live offers, details, and map.
+    No top nav bar. */
 export default function ShopProfile({ uid }: Props) {
   const [shop, setShop] = useState<ShopRecord | null>(null)
   const [offers, setOffers] = useState<OfferRecord[] | null>(null)
@@ -162,6 +178,9 @@ export default function ShopProfile({ uid }: Props) {
           aria-label="Go back"
         >
           <CloseSvg />
+        </button>
+        <button type="button" className="shop-share" aria-label="Share">
+          <ShareSvg />
         </button>
       </header>
 
