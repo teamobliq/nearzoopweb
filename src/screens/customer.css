@@ -2531,71 +2531,168 @@
   min-height: 100dvh;
   background-color: var(--color-paper);
   color: var(--color-ink);
-  padding: 1rem clamp(1rem, 4vw, 1.5rem) 1rem;
+  padding: 0;
 }
 
-.shop-head {
+.shop-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background-color: #fffef4;
+  border-bottom: 1px solid var(--color-hairline);
+  padding: 0.75rem 1rem;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.6rem;
+  gap: 0.75rem;
+  box-shadow: 0 1px 0 0 rgba(28, 27, 25, 0.06);
 }
 
-.shop-back,
-.shop-share {
+.shop-nav-left {
   flex: none;
-  display: grid;
-  place-items: center;
-  width: 2.6rem;
-  height: 2.6rem;
-  background-color: #ffffff;
-  border: 2.5px solid var(--color-ink);
-  border-radius: 999px;
-  box-shadow: 2px 3px 0 0 var(--color-ink);
+}
+
+.shop-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-weight: 900;
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+}
+
+.shop-nav-brand span {
+  color: var(--color-orange);
+}
+
+.shop-nav-center {
+  flex: 1;
+  display: flex;
+  gap: 1.5rem;
+}
+
+.shop-nav-tab {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-stone);
   cursor: pointer;
 }
 
-.shop-back svg,
-.shop-share svg {
-  width: 1.4rem;
-  height: 1.4rem;
+.shop-nav-tab--on {
+  color: var(--color-ink);
 }
 
-.shop-title {
-  margin: 0;
+.shop-nav-right {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.shop-nav-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.9rem;
+  background-color: #fff;
+  border: 1.5px solid var(--color-hairline);
+  border-radius: 1.2rem;
+}
+
+.shop-nav-search span {
+  color: var(--color-stone);
+  font-size: 0.95rem;
+}
+
+.shop-nav-search input {
   flex: 1;
-  font-size: clamp(1.5rem, 5vw, 1.9rem);
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--color-ink);
+  outline: none;
+}
+
+.shop-nav-search input::placeholder {
+  color: var(--color-stone);
+}
+
+.shop-nav-bell,
+.shop-nav-profile {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  background: none;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--color-stone);
+  font-size: 1.2rem;
+}
+
+.shop-nav-bell:hover,
+.shop-nav-profile:hover {
+  background-color: rgba(28, 27, 25, 0.06);
+}
+
+.shop-nav-profile {
+  background-color: var(--color-ink);
+  color: #ffffff;
+  font-size: 1rem;
   font-weight: 900;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  text-align: center;
+}
+
+.shop-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem clamp(1rem, 4vw, 1.5rem) 1rem;
+}
+
+.shop-cover-wrap {
+  flex: none;
+  width: clamp(15rem, 30vw, 20rem);
+  height: clamp(15rem, 30vw, 20rem);
+  border-radius: 1.7rem;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  background-color: var(--color-yellow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .shop-cover {
   width: 100%;
-  height: clamp(9rem, 22vw, 13rem);
+  height: 100%;
   object-fit: cover;
-  border-radius: 1.4rem;
-  box-shadow: var(--shadow-card);
-  margin-bottom: 0.8rem;
 }
 
 .shop-cover--blank {
   width: 100%;
-  height: clamp(9rem, 22vw, 13rem);
-  background-color: var(--color-yellow);
+  height: 100%;
   background-image: radial-gradient(
     circle,
     rgba(28, 27, 25, 0.16) 1.5px,
     transparent 1.6px
   );
   background-size: 16px 16px;
-  border-radius: 1.4rem;
-  box-shadow: var(--shadow-card);
-  margin-bottom: 0.8rem;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.6rem;
+}
+
+.shop-cover-icon {
+  font-size: 2.5rem;
+}
+
+.shop-cover-label {
   font-family: var(--font-mono);
   font-size: 0.8rem;
   color: var(--color-stone);
@@ -2603,18 +2700,26 @@
   letter-spacing: 0.08em;
 }
 
+.shop-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
 .shop-badges {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.4rem;
 }
 
 .shop-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.25rem 0.7rem;
+  padding: 0.3rem 0.8rem;
   border: 2.5px solid var(--color-ink);
   border-radius: 999px;
   font: inherit;
@@ -2635,24 +2740,24 @@
 }
 
 .shop-name {
-  margin: 0 0 0.3rem;
-  font-size: clamp(2rem, 8vw, 2.6rem);
+  margin: 0;
+  font-size: clamp(2rem, 7vw, 2.8rem);
   font-weight: 900;
   letter-spacing: -0.03em;
   line-height: 1.05;
 }
 
 .shop-address {
-  margin: 0 0 1.2rem;
-  font-size: 1rem;
+  margin: 0 0 1rem;
+  font-size: 1.02rem;
   color: var(--color-stone);
 }
 
 .shop-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
   gap: 0.6rem;
-  margin-bottom: 1.4rem;
+  margin-bottom: 1rem;
 }
 
 .shop-action {
@@ -2660,7 +2765,7 @@
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.7rem 0.4rem;
+  padding: 0.85rem 0.5rem;
   background-color: #ffffff;
   border: 2.5px solid var(--color-ink);
   border-radius: 1.4rem;
@@ -2672,6 +2777,17 @@
 .shop-action:hover {
   translate: 1px 1px;
   box-shadow: 2px 3px 0 0 var(--color-ink);
+}
+
+.shop-action--directions {
+  background-color: var(--color-orange);
+  border-color: var(--color-orange);
+  color: #ffffff;
+}
+
+.shop-action--directions .shop-action-label strong,
+.shop-action--directions .shop-action-label span {
+  color: #ffffff;
 }
 
 .shop-action-icon {
@@ -2688,11 +2804,7 @@
 }
 
 .shop-action--directions svg {
-  color: var(--color-orange);
-}
-
-.shop-action--call svg {
-  color: var(--color-green);
+  color: #ffffff;
 }
 
 .shop-action-label {
@@ -2703,32 +2815,59 @@
 }
 
 .shop-action-label strong {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 800;
   line-height: 1.1;
-  color: var(--color-ink);
 }
 
 .shop-action-label span {
-  font-size: 0.72rem;
-  color: var(--color-stone);
+  font-size: 0.7rem;
   white-space: nowrap;
 }
 
+.shop-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1.2rem;
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.shop-tab {
+  flex: 1;
+  padding: 0.75rem 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-stone);
+  cursor: pointer;
+}
+
+.shop-tab.shop-tab--on {
+  color: var(--color-orange);
+  border-bottom: 2.5px solid var(--color-orange);
+}
+
+.shop-tab--on {
+  color: var(--color-orange);
+  border-bottom: 2.5px solid var(--color-orange);
+}
+
 .shop-section {
-  margin-bottom: 1.4rem;
+  margin-bottom: 1.2rem;
 }
 
 .shop-section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 0 0 0.7rem;
+  margin: 0 0 0.8rem;
 }
 
 .shop-section-title {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   font-weight: 900;
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -2881,6 +3020,77 @@
   font-size: 0.88rem;
   color: var(--color-stone);
   white-space: nowrap;
+}
+
+.shop-map-wrap {
+  margin-top: 0.4rem;
+}
+
+.shop-map {
+  position: relative;
+  width: 100%;
+  height: clamp(14rem, 30vw, 18rem);
+  border-radius: 1.7rem;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  background-color: #e8f5e9;
+}
+
+.shop-map-placeholder {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shop-map-pin {
+  font-size: 2.5rem;
+}
+
+.shop-map-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.8rem 1rem;
+  background: linear-gradient(to top, rgba(255, 253, 244, 0.9), transparent);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.shop-map-dist {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.shop-map-getdir {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  background-color: var(--color-ink);
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.shop-map-getdir span {
+  font-size: 0.85rem;
+}
+
+.shop-map-getdir svg {
+  width: 0.9rem;
+  height: 0.9rem;
 }
 
 .chome-card-shop-link {

@@ -11,38 +11,6 @@ import { fmtDay } from '../business/when'
 import { fmtKm } from './mapUtils'
 import './customer.css'
 
-function CloseSvg() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M18 6l-12 12M6 6l12 12" />
-    </svg>
-  )
-}
-
-function ShareSvg() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M18 16l6-6-6-6M13 18l-6 6 6 6M16 6l6 6-6 6" />
-    </svg>
-  )
-}
-
 function PinSvg() {
   return (
     <svg
@@ -111,10 +79,13 @@ function isOpenNow(shop: ShopRecord): boolean {
 
 type Props = {
   uid: string
-  onBack: () => void
 }
 
-export default function ShopProfile({ uid, onBack }: Props) {
+/** Shop profile screen — matches the app design: top nav bar, cover photo on
+    the left, badges row, action buttons (Directions / Call / Follow / Save /
+    Share), tab bar (Overview / Offers / Details / Reviews), live offers, and
+    details with a map on the right. */
+export default function ShopProfile({ uid }: Props) {
   const [shop, setShop] = useState<ShopRecord | null>(null)
   const [offers, setOffers] = useState<OfferRecord[] | null>(null)
   const [fix] = useState<{ lat: number; lng: number } | null>(() =>
@@ -151,17 +122,32 @@ export default function ShopProfile({ uid, onBack }: Props) {
   if (!shop) {
     return (
       <main className="shop-profile">
-        <header className="shop-head">
-          <button
-            type="button"
-            className="shop-back"
-            onClick={onBack}
-            aria-label="Back"
-          >
-            <CloseSvg />
-          </button>
-          <h1 className="shop-title">Shop</h1>
-        </header>
+        <nav className="shop-nav">
+          <div className="shop-nav-left">
+            <span className="shop-nav-brand">NearZoop</span>
+          </div>
+          <div className="shop-nav-center">
+            <span className="shop-nav-tab">Explore</span>
+            <span className="shop-nav-tab shop-nav-tab--on">Offers</span>
+            <span className="shop-nav-tab">Saved</span>
+          </div>
+          <div className="shop-nav-right">
+            <div className="shop-nav-search">
+              <span aria-hidden="true">🔍</span>
+              <input
+                type="text"
+                placeholder="Search for shops, food, services…"
+                readOnly
+              />
+            </div>
+            <button className="shop-nav-bell" aria-label="Notifications">
+              <span aria-hidden="true">🔔</span>
+            </button>
+            <button className="shop-nav-profile" aria-label="Profile">
+              <span aria-hidden="true">S</span>
+            </button>
+          </div>
+        </nav>
         <p className="shop-empty">Loading shop…</p>
       </main>
     )
@@ -169,109 +155,146 @@ export default function ShopProfile({ uid, onBack }: Props) {
 
   return (
     <main className="shop-profile">
-      <header className="shop-head">
-        <button
-          type="button"
-          className="shop-back"
-          onClick={onBack}
-          aria-label="Back"
-        >
-          <CloseSvg />
-        </button>
-        <button type="button" className="shop-share" aria-label="Share">
-          <ShareSvg />
-        </button>
-        <h1 className="shop-title">{shop.name}</h1>
-      </header>
-
-      {shop.shopPhotoUrl ? (
-        <img
-          className="shop-cover"
-          src={shop.shopPhotoUrl}
-          alt={`${shop.name} shop front`}
-        />
-      ) : (
-        <div className="shop-cover shop-cover--blank">
-          shop front photo
+      <nav className="shop-nav">
+        <div className="shop-nav-left">
+          <span className="shop-nav-brand">NearZoop</span>
         </div>
-      )}
-
-      <div className="shop-badges">
-        <span className="shop-badge shop-badge--category">
-          {shop.category ?? 'Food'}
-        </span>
-        {shop.verification === 'verified' && (
-          <span className="shop-badge shop-badge--verified">
-            Verified by NearZoop
-          </span>
-        )}
-        {openNow && (
-          <span className="shop-badge shop-badge--open">
-            Open now
-          </span>
-        )}
-      </div>
-
-      <h1 className="shop-name">{shop.name}</h1>
-      <p className="shop-address">{shop.address}</p>
-
-      <div className="shop-actions">
-        <button
-          type="button"
-          className="shop-action shop-action--directions"
-          onClick={() => {
-            if (shop.lat && shop.lng) {
-              const url = `https://www.google.com/maps/dir/?api=1&destination=${shop.lat},${shop.lng}`
-              window.open(url, '_blank')
-            }
-          }}
-        >
-          <div className="shop-action-icon">
-            <PinSvg />
+        <div className="shop-nav-center">
+          <span className="shop-nav-tab">Explore</span>
+          <span className="shop-nav-tab shop-nav-tab--on">Offers</span>
+          <span className="shop-nav-tab">Saved</span>
+        </div>
+        <div className="shop-nav-right">
+          <div className="shop-nav-search">
+            <span aria-hidden="true">🔍</span>
+            <input
+              type="text"
+              placeholder="Search for shops, food, services…"
+              readOnly
+            />
           </div>
-          <div className="shop-action-label">
-            <strong>Directions</strong>{' '}
-            {distKm !== null && (
-              <span className="shop-action-value">{fmtKm(distKm)}</span>
+          <button className="shop-nav-bell" aria-label="Notifications">
+            <span aria-hidden="true">🔔</span>
+          </button>
+          <button className="shop-nav-profile" aria-label="Profile">
+            <span aria-hidden="true">S</span>
+          </button>
+        </div>
+      </nav>
+
+      <div className="shop-body">
+        <div className="shop-cover-wrap">
+          {shop.shopPhotoUrl ? (
+            <img
+              className="shop-cover"
+              src={shop.shopPhotoUrl}
+              alt={`${shop.name} shop front`}
+            />
+          ) : (
+            <div className="shop-cover shop-cover--blank">
+              <span className="shop-cover-icon">🏪</span>
+              <p className="shop-cover-label">Shop front photo</p>
+            </div>
+          )}
+        </div>
+
+        <div className="shop-info">
+          <div className="shop-badges">
+            <span className="shop-badge shop-badge--category">
+              {shop.category ?? 'Food'}
+            </span>
+            {shop.verification === 'verified' && (
+              <span className="shop-badge shop-badge--verified">
+                <span aria-hidden="true">✔</span> Verified by NearZoop
+              </span>
+            )}
+            {openNow && (
+              <span className="shop-badge shop-badge--open">
+                <span aria-hidden="true">⏰</span> Open now
+              </span>
             )}
           </div>
-        </button>
-        <button
-          type="button"
-          className="shop-action shop-action--call"
-          onClick={() => {
-            if (shop.customerPhone) {
-              window.location.href = `tel:${shop.customerPhone}`
-            }
-          }}
-        >
-          <div className="shop-action-icon">
-            <PhoneSvg />
+
+          <h1 className="shop-name">{shop.name}</h1>
+          <p className="shop-address">{shop.address}</p>
+
+          <div className="shop-actions">
+            <button
+              type="button"
+              className="shop-action shop-action--directions"
+              onClick={() => {
+                if (shop.lat && shop.lng) {
+                  const url = `https://www.google.com/maps/dir/?api=1&destination=${shop.lat},${shop.lng}`
+                  window.open(url, '_blank')
+                }
+              }}
+            >
+              <div className="shop-action-icon">📍</div>
+              <div className="shop-action-label">
+                <strong>Directions</strong>
+                {distKm !== null && <span className="shop-action-value">{fmtKm(distKm)}</span>}
+              </div>
+            </button>
+            <button
+              type="button"
+              className="shop-action shop-action--call"
+              onClick={() => {
+                if (shop.customerPhone) {
+                  window.location.href = `tel:${shop.customerPhone}`
+                }
+              }}
+            >
+              <div className="shop-action-icon">📞</div>
+              <div className="shop-action-label">
+                <strong>Call Shop</strong>
+              </div>
+            </button>
+            <button type="button" className="shop-action shop-action--follow">
+              <div className="shop-action-icon">+</div>
+              <div className="shop-action-label">
+                <strong>Follow</strong>
+                <span className="shop-action-value">Updates</span>
+              </div>
+            </button>
+            <button
+              type="button"
+              className="shop-action shop-action--save"
+              onClick={() => {}}
+            >
+              <div className="shop-action-icon">🔖</div>
+              <div className="shop-action-label">
+                <strong>Save</strong>
+                <span className="shop-action-value">For later</span>
+              </div>
+            </button>
+            <button
+              type="button"
+              className="shop-action shop-action--share"
+              onClick={() => {}}
+            >
+              <div className="shop-action-icon">↗</div>
+              <div className="shop-action-label">
+                <strong>Share</strong>
+                <span className="shop-action-value">Shop link</span>
+              </div>
+            </button>
           </div>
-          <div className="shop-action-label">
-            <strong>Call Shop</strong>
+
+          <div className="shop-tabs">
+            <button className="shop-tab shop-tab--on">Overview</button>
+            <button className="shop-tab">Offers</button>
+            <button className="shop-tab">Details</button>
+            <button className="shop-tab">Reviews</button>
           </div>
-        </button>
-        <button
-          type="button"
-          className="shop-action shop-action--follow"
-          onClick={() => {}}
-        >
-          <div className="shop-action-icon">
-            <span aria-hidden="true">+</span>
-          </div>
-          <div className="shop-action-label">
-            <strong>Follow</strong>
-            <span className="shop-action-value">Updates</span>
-          </div>
-        </button>
+        </div>
       </div>
 
       {liveOffers.length > 0 && (
         <section className="shop-section">
           <div className="shop-section-head">
-            <h2 className="shop-section-title">Live offers</h2>
-            <span className="shop-section-count">{liveOffers.length}</span>
+            <h2 className="shop-section-title">
+              Live offers <span className="shop-section-count">{liveOffers.length}</span>
+            </h2>
           </div>
           <ul className="shop-offers">
             {liveOffers.map((item) => (
@@ -348,6 +371,18 @@ export default function ShopProfile({ uid, onBack }: Props) {
           </div>
         </div>
       </section>
+
+      <div className="shop-map-wrap">
+        <div className="shop-map">
+          <div className="shop-map-placeholder">
+            <span className="shop-map-pin">📍</span>
+          </div>
+          <div className="shop-map-footer">
+            <span className="shop-map-dist">{distKm !== null ? fmtKm(distKm) : '—'} from you</span>
+            <button className="shop-map-getdir">Get Directions</button>
+          </div>
+        </div>
+      </div>
     </main>
   )
 }

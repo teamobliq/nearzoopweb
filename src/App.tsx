@@ -374,10 +374,7 @@ function App() {
 
   if (screen === 'shop') {
     return (
-      <ShopProfile
-        uid={shopUid ?? ''}
-        onBack={() => go('home')}
-      />
+      <ShopProfile uid={shopUid ?? ''} />
     )
   }
 
