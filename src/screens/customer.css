@@ -1,57 +1,59 @@
 /* Deep-link landing for shared offers (<base>/<shopUid>/<offerId>?source=…).
-   The page is the app's offer detail: cream with the diagonal amber weave,
-   back button + shop pill top, the offer on the left and the shop card on
-   the right. Claim and report dialogs are unchanged. */
+   The offer detail at the Shop Profile screen's voice: same typography
+   scale, same card proportions and the same diagonal amber weave. */
 
 .cust-page {
   min-height: 100dvh;
-  background-color: #fff3d6;
+  padding: 1.4rem clamp(1rem, 5.4vw, 5.4rem) 3rem;
+  color: var(--color-ink);
+  background-color: #fdf6e5;
   background-image: repeating-linear-gradient(
     45deg,
-    rgba(242, 168, 29, 0.13) 0 13px,
-    transparent 13px 27px
+    rgba(255, 201, 59, 0.16) 0 14px,
+    rgba(255, 201, 59, 0) 14px 34px
   );
-  color: var(--color-ink);
-  padding: 0.9rem clamp(0.9rem, 3vw, 2rem) 2.5rem;
 }
 
 .cust-shell {
-  width: 100%;
-  max-width: none;
+  width: min(100%, 1420px);
   margin-inline: auto;
 }
 
-/* Back disc · centred shop pill · share + bookmark discs. */
+/* Back disc · centred shop pill · share + bookmark discs — the Shop
+   Profile's button scale. */
 .cust-topbar {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.6rem;
+  gap: 1rem;
+  margin-bottom: 1.4rem;
 }
 
 .cust-back {
   display: grid;
   place-items: center;
   flex: none;
-  width: 2.6rem;
-  height: 2.6rem;
+  width: clamp(3.1rem, 4.1vw, 4rem);
+  height: clamp(3.1rem, 4.1vw, 4rem);
   padding: 0;
-  background-color: #ffffff;
+  background-color: #fffdf7;
   color: var(--color-ink);
-  border: var(--border-strong) solid var(--color-ink);
+  border: 3px solid var(--color-ink);
   border-radius: 999px;
-  box-shadow: var(--shadow-pill);
+  box-shadow: 3px 4px 0 0 var(--color-ink);
   cursor: pointer;
+  transition: translate 0.08s ease, box-shadow 0.08s ease;
 }
 
 .cust-back svg {
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1.35rem;
+  height: 1.35rem;
 }
 
-.cust-back:active {
-  transform: translate(1px, 1px);
-  box-shadow: none;
+.cust-back:active,
+.cust-back:hover {
+  translate: 1px 1px;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
 }
 
 .cust-crumb {
@@ -59,13 +61,13 @@
   margin: 0;
   max-width: 100%;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--color-muted);
-  background: rgba(255, 255, 255, 0.65);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-stone);
+  background: rgba(255, 253, 247, 0.92);
   border-radius: 999px;
-  padding: 0.35rem 0.95rem;
+  padding: 0.42rem 1.1rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -74,52 +76,52 @@
 .cust-top-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .cust-round {
   display: grid;
   place-items: center;
   flex: none;
-  width: 2.6rem;
-  height: 2.6rem;
+  width: clamp(3.1rem, 4.1vw, 4rem);
+  height: clamp(3.1rem, 4.1vw, 4rem);
   padding: 0;
-  background-color: #ffffff;
+  background-color: #fffdf7;
   color: var(--color-ink);
-  border: var(--border-strong) solid var(--color-ink);
+  border: 3px solid var(--color-ink);
   border-radius: 999px;
-  box-shadow: var(--shadow-pill);
+  box-shadow: 3px 4px 0 0 var(--color-ink);
   cursor: pointer;
+  transition: translate 0.08s ease, box-shadow 0.08s ease;
 }
 
 .cust-round svg {
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1.35rem;
+  height: 1.35rem;
 }
 
 .cust-round.is-on {
   background-color: var(--color-yellow);
 }
 
-.cust-round:active {
-  transform: translate(1px, 1px);
-  box-shadow: none;
+.cust-round:active,
+.cust-round:hover {
+  translate: 1px 1px;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
 }
 
-/* The page split: the offer on the left, the shop on the right. Single
-   column on phones; two columns once there is real width. */
+/* The page split: the offer on the left, the shop on the right. */
 .cust-offer-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 1.2rem;
+  gap: 1.8rem;
   align-items: start;
-  margin-top: 1.1rem;
 }
 
 @media (min-width: 1080px) {
   .cust-offer-grid {
-    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-    gap: clamp(1.4rem, 2.5vw, 2.4rem);
+    grid-template-columns: minmax(0, 1.62fr) minmax(0, 1fr);
+    gap: 2.5rem;
   }
 }
 
@@ -128,7 +130,7 @@
 .cust-offer-head {
   display: flex;
   align-items: flex-start;
-  gap: clamp(0.9rem, 2.4vw, 1.5rem);
+  gap: clamp(1.3rem, 2.5vw, 2.2rem);
 }
 
 /* The deal tile — the screen's hero. Tilted, purple, white glyph. */
@@ -138,72 +140,73 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: clamp(6.8rem, 15vw, 9.2rem);
+  width: clamp(7.4rem, 11.5vw, 9.6rem);
   aspect-ratio: 0.95;
-  padding: 0.5rem;
+  padding: 0.6rem;
   background-color: #8154f4;
   color: #ffffff;
   border: 4px solid var(--color-ink);
-  border-radius: 1.05rem;
+  border-radius: 1.15rem;
   box-shadow: 8px 10px 0 0 var(--color-ink);
   transform: rotate(-3.2deg);
 }
 
 .cust-offer-tile-big {
-  font-size: clamp(1.65rem, 4.6vw, 2.5rem);
-  font-weight: 800;
+  font-size: clamp(2rem, 4.4vw, 2.9rem);
+  font-weight: 900;
   line-height: 1;
-  letter-spacing: -0.045em;
+  letter-spacing: -0.04em;
   color: #ffffff;
 }
 
 .cust-offer-tile-small {
-  margin-top: 0.38rem;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.2em;
+  margin-top: 0.45rem;
+  font-size: 0.92rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
   color: rgba(255, 255, 255, 0.95);
 }
 
 .cust-offer-idblock {
   min-width: 0;
-  padding-top: 0.25rem;
+  padding-top: 0.3rem;
 }
 
 .cust-offer-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
-  margin-bottom: 0.6rem;
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
 }
 
 .cust-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.38rem;
   border-radius: 999px;
-  padding: 0.28rem 0.62rem;
-  font-size: 0.68rem;
+  padding: 0.34rem 0.9rem;
+  font-size: 0.88rem;
   font-weight: 800;
-  letter-spacing: 0.01em;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
   color: var(--color-ink);
   border: none;
 }
 
 .cust-pill i {
-  width: 0.42rem;
-  height: 0.42rem;
+  width: 0.5rem;
+  height: 0.5rem;
   border-radius: 50%;
   background: currentColor;
 }
 
 .cust-pill--live {
-  background: #d9f7cf;
-  color: #176b3a;
+  background: #c9f3d3;
+  color: #0d7a44;
 }
 
 .cust-pill--scheduled {
-  background: #fdf0cd;
+  background: #ffe6a2;
   color: #6b4f12;
 }
 
@@ -215,39 +218,40 @@
 .cust-offer-headline {
   margin: 0;
   max-width: 24ch;
-  font-size: clamp(1.6rem, 4vw, 2.7rem);
+  font-size: clamp(2.15rem, 3.6vw, 3.05rem);
   font-weight: 900;
-  letter-spacing: -0.038em;
-  line-height: 0.99;
+  letter-spacing: -0.042em;
+  line-height: 1.02;
 }
 
 .cust-offer-desc {
-  margin: 0.85rem 0 0;
-  max-width: 46ch;
-  font-size: 1.02rem;
-  line-height: 1.5;
-  color: var(--color-ink);
+  margin: 0.75rem 0 0;
+  max-width: 48ch;
+  font-size: clamp(1.05rem, 1.25vw, 1.28rem);
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--color-stone);
 }
 
 /* STARTS / ENDS — two pale amber boxes. */
 .cust-offer-dates {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.65rem;
-  margin-top: 0.9rem;
-  max-width: 34rem;
+  gap: 0.75rem;
+  margin-top: 1.1rem;
+  max-width: 36rem;
 }
 
 .cust-offer-datebox {
   background-color: #fdebbe;
-  border-radius: 0.8rem;
-  padding: 0.55rem 0.75rem 0.65rem;
+  border-radius: 0.95rem;
+  padding: 0.7rem 0.9rem 0.8rem;
 }
 
 .cust-offer-datelabel {
   display: block;
   font-family: var(--font-mono);
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.17em;
   text-transform: uppercase;
@@ -256,74 +260,75 @@
 
 .cust-offer-datebox strong {
   display: block;
-  margin-top: 0.2rem;
-  font-size: 0.94rem;
-  letter-spacing: -0.01em;
+  margin-top: 0.3rem;
+  font-size: 1.12rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
   color: var(--color-ink);
 }
 
 /* HOW TO REDEEM — the yellow ticket card. */
 .cust-offer-redeem {
-  margin-top: 0.85rem;
-  max-width: 37rem;
+  margin-top: 1rem;
+  max-width: 38rem;
   background-color: #ffd23d;
-  border: var(--border-strong) solid var(--color-ink);
-  border-radius: 1.05rem;
-  box-shadow: var(--shadow-btn);
-  padding: 0.75rem 0.95rem 0.95rem;
+  border: 3px solid var(--color-ink);
+  border-radius: 1.25rem;
+  box-shadow: 5px 6px 0 0 var(--color-ink);
+  padding: 0.9rem 1.1rem 1.05rem;
 }
 
 .cust-offer-redeem-eyebrow {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.72rem;
   font-weight: 800;
-  letter-spacing: 0.17em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--color-ink);
 }
 
 .cust-offer-redeem-eyebrow svg {
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
 .cust-offer-redeem h2 {
-  margin: 0.15rem 0 0.3rem;
-  font-size: clamp(1.4rem, 2.7vw, 1.9rem);
+  margin: 0.2rem 0 0.45rem;
+  font-size: clamp(1.6rem, 2.9vw, 2.2rem);
   font-weight: 900;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
 }
 
 .cust-offer-redeem ol {
   margin: 0;
-  padding-left: 1.25rem;
-  font-size: 0.92rem;
+  padding-left: 1.3rem;
+  font-size: 1.05rem;
   font-weight: 600;
   line-height: 1.5;
 }
 
 .cust-offer-redeem-line {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 1.1rem;
   font-weight: 600;
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
 .cust-offer-terms {
-  margin: 0.5rem 0 0;
-  font-size: 0.78rem;
+  margin: 0.6rem 0 0;
+  font-size: 0.9rem;
   font-weight: 700;
   color: #4b4234;
 }
 
 .cust-offer-exclusions {
-  margin: 0.35rem 0 0;
-  padding-left: 1.1rem;
-  font-size: 0.78rem;
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
   color: #4b4234;
 }
 
@@ -331,29 +336,30 @@
 .cust-offer-cta-row {
   display: flex;
   align-items: stretch;
-  gap: 0.7rem;
-  margin-top: 0.9rem;
+  gap: 0.8rem;
+  margin-top: 1.1rem;
 }
 
 .cust-offer-dir {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.6rem 0.95rem;
-  background-color: #ffffff;
-  border: var(--border-strong) solid var(--color-ink);
-  border-radius: 0.75rem;
-  box-shadow: var(--shadow-pill);
+  gap: 0.45rem;
+  padding: 0.7rem 1.05rem;
+  background-color: #fffdf7;
+  border: 3px solid var(--color-ink);
+  border-radius: 0.85rem;
+  box-shadow: 4px 5px 0 0 var(--color-ink);
   font: inherit;
+  font-size: 1rem;
   font-weight: 800;
   white-space: nowrap;
   cursor: pointer;
 }
 
 .cust-offer-dir svg {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 1.15rem;
+  height: 1.15rem;
 }
 
 .cust-offer-claim {
@@ -361,23 +367,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.55rem;
-  padding: 0.75rem 1rem;
+  gap: 0.6rem;
+  padding: 0.8rem 1.1rem;
   background-color: var(--color-orange);
   color: #ffffff;
-  border: 4px solid var(--color-ink);
-  border-radius: 0.85rem;
-  box-shadow: var(--shadow-btn);
+  border: 3px solid var(--color-ink);
+  border-radius: 0.95rem;
+  box-shadow: 4px 5px 0 0 var(--color-ink);
   font: inherit;
-  font-size: 1.02rem;
+  font-size: 1.15rem;
   font-weight: 900;
   letter-spacing: 0.01em;
   cursor: pointer;
 }
 
 .cust-offer-claim svg {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.4rem;
+  height: 1.4rem;
 }
 
 .cust-offer-claim:active:not(:disabled) {
@@ -393,20 +399,21 @@
 .cust-offer-claimed,
 .cust-offer-counted {
   align-self: center;
+  font-size: 0.95rem;
 }
 
 .cust-err {
-  margin: 0.4rem 0 0;
+  margin: 0.45rem 0 0;
   color: var(--color-red);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 700;
 }
 
 .cust-desc {
-  margin: 1.2rem 0 0;
+  margin: 1.1rem 0 0;
   max-width: 46rem;
-  font-size: 1.06rem;
-  line-height: 1.6;
+  font-size: 1.12rem;
+  line-height: 1.55;
   color: var(--color-ink);
 }
 
@@ -414,14 +421,14 @@
 .cust-pass {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  max-width: 34rem;
-  margin-top: 1.4rem;
-  padding: 1rem;
-  background-color: #ffffff;
-  border: var(--border-strong) solid var(--color-ink);
+  gap: 1.1rem;
+  max-width: 36rem;
+  margin-top: 1.6rem;
+  padding: 1.1rem;
+  background-color: #fffdf7;
+  border: 3px solid var(--color-ink);
   border-radius: 1.3rem;
-  box-shadow: var(--shadow-card);
+  box-shadow: 5px 6px 0 0 var(--color-ink);
 }
 
 .cust-pass.is-spent {
@@ -430,9 +437,9 @@
 
 .cust-pass-qr {
   flex: none;
-  width: 7.4rem;
-  height: 7.4rem;
-  padding: 0.4rem;
+  width: 7.6rem;
+  height: 7.6rem;
+  padding: 0.45rem;
   background-color: #fff;
   border: 2px solid var(--color-ink);
   border-radius: 0.8rem;
@@ -462,104 +469,106 @@
 
 .cust-pass-eyebrow {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--color-muted);
+  color: var(--color-stone);
 }
 
 .cust-pass-code {
-  margin: 0.3rem 0 0;
+  margin: 0.35rem 0 0;
   font-family: var(--font-mono);
-  font-size: clamp(1.2rem, 4.2vw, 1.5rem);
+  font-size: clamp(1.3rem, 4.4vw, 1.6rem);
   font-weight: 800;
   letter-spacing: 0.04em;
   color: var(--color-ink);
 }
 
 .cust-pass-note {
-  margin: 0.35rem 0 0;
-  font-size: 0.92rem;
+  margin: 0.4rem 0 0;
+  font-size: 0.95rem;
   line-height: 1.45;
   color: var(--color-stone);
 }
 
 .cust-pass-meta {
-  margin: 0.3rem 0 0;
-  font-size: 0.85rem;
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--color-ink);
 }
 
 .cust-cta {
   margin-top: 0;
+  font-size: 1.05rem;
 }
 
 .cust-fine {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   line-height: 1.45;
   color: var(--color-stone);
 }
 
 .cust-missing {
-  margin-top: 3rem;
-  max-width: 36rem;
+  margin-top: 3.5rem;
+  max-width: 38rem;
 }
 
 .cust-missing h1 {
   margin: 0;
-  font-size: 1.7rem;
+  font-size: 2.1rem;
   font-weight: 900;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 
 .cust-missing p {
-  margin: 0.7rem 0 0;
+  margin: 0.8rem 0 0;
   color: var(--color-stone);
-  font-size: 1.05rem;
+  font-size: 1.12rem;
   line-height: 1.5;
 }
 
 .cust-loading {
-  margin: 3rem 0 0;
+  margin: 3.5rem 0 0;
   font-family: var(--font-mono);
+  font-size: 1.1rem;
   color: var(--color-stone);
 }
 
 .cust-reportlink {
-  margin: 1.2rem auto 0;
+  margin: 1.4rem auto 0;
   display: block;
   background: none;
   border: none;
   font: inherit;
-  font-size: 0.92rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--color-stone);
   text-decoration: underline;
   cursor: pointer;
 }
 
-/* ---- Right column: the shop card ------------------------------------- */
+/* ---- Right column: the shop card — Shop Profile's detail-card type. -- */
 
 .cust-shopcard {
-  background-color: #ffffff;
-  border: var(--border-strong) solid var(--color-ink);
-  border-radius: 1.15rem;
-  box-shadow: var(--shadow-card);
+  background-color: #fffdf7;
+  border: 3px solid var(--color-ink);
+  border-radius: 1.25rem;
+  box-shadow: 5px 6px 0 0 var(--color-ink);
   overflow: hidden;
 }
 
 .cust-shopcard-head {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.8rem;
   width: 100%;
-  padding: 0.7rem 0.75rem;
-  background-color: #ffffff;
+  padding: 0.9rem 1rem;
+  background-color: #fffdf7;
   border: none;
-  border-bottom: 1px solid var(--color-hairline);
+  border-bottom: 1.5px solid #e7ddc9;
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -573,12 +582,12 @@
   flex: none;
   display: grid;
   place-items: center;
-  width: 2.7rem;
-  height: 2.7rem;
+  width: 3.2rem;
+  height: 3.2rem;
   background-color: var(--color-yellow);
   border: 2.5px solid var(--color-ink);
-  border-radius: 0.62rem;
-  font-size: 1.35rem;
+  border-radius: 0.72rem;
+  font-size: 1.6rem;
   font-weight: 900;
   color: var(--color-ink);
 }
@@ -590,14 +599,16 @@
 }
 
 .cust-shopcard-name strong {
-  font-size: 0.95rem;
-  letter-spacing: -0.01em;
+  font-size: 1.08rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
   color: var(--color-ink);
 }
 
 .cust-shopcard-name small {
-  margin-top: 0.12rem;
-  font-size: 0.68rem;
+  margin-top: 0.16rem;
+  font-size: 0.78rem;
+  font-weight: 500;
   color: var(--color-stone);
   white-space: nowrap;
   overflow: hidden;
@@ -613,48 +624,53 @@
 }
 
 .cust-shopcard-chev svg {
-  width: 1rem;
-  height: 1rem;
+  width: 1.15rem;
+  height: 1.15rem;
 }
 
 .cust-shopcard-row {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.55rem 0.75rem;
-  border-bottom: 1px solid var(--color-hairline);
+  gap: 0.95rem;
+  padding: 0.82rem 1.15rem;
+  border-bottom: 1.5px solid #e7ddc9;
 }
 
 .cust-shopcard-ricon {
   flex: none;
   display: grid;
   place-items: center;
-  width: 2.05rem;
-  height: 2.05rem;
-  border-radius: 50%;
-  background-color: #fdebbe;
+  width: 2.65rem;
+  height: 2.65rem;
+  background-color: #ffe6a2;
+  border-radius: 0.85rem;
   color: var(--color-ink);
 }
 
 .cust-shopcard-ricon svg {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 1.4rem;
+  height: 1.4rem;
 }
 
 .cust-shopcard-rmain {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 0.1rem;
 }
 
 .cust-shopcard-rmain strong {
-  font-size: 0.82rem;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.3;
   color: var(--color-ink);
+  overflow-wrap: anywhere;
 }
 
 .cust-shopcard-rmain small {
-  margin-top: 0.08rem;
-  font-size: 0.68rem;
+  font-size: 0.93rem;
+  font-weight: 500;
+  line-height: 1.35;
   color: var(--color-stone);
   white-space: nowrap;
   overflow: hidden;
@@ -667,12 +683,12 @@
 
 .cust-shopcard-map .shop-map-canvas {
   width: 100%;
-  height: 10.5rem;
+  height: 11rem;
   transition: height 0.25s ease;
 }
 
 .cust-shopcard-map .shop-map-canvas.is-expanded {
-  height: 20rem;
+  height: 22rem;
 }
 
 .cust-shopcard-mapholder {
@@ -680,89 +696,92 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
-  height: 10.5rem;
-  background-color: #e7f0da;
+  gap: 0.5rem;
+  height: 11rem;
+  background-color: #ece1cb;
   color: var(--color-stone);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-weight: 700;
 }
 
 .cust-shopcard-mapholder svg {
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 1.7rem;
+  height: 1.7rem;
 }
 
 .cust-shopcard-expand {
   position: absolute;
-  top: 0.45rem;
-  right: 0.45rem;
+  top: 0.5rem;
+  right: 0.5rem;
   z-index: 2;
   display: grid;
   place-items: center;
-  width: 1.9rem;
-  height: 1.9rem;
+  width: 2.3rem;
+  height: 2.3rem;
   padding: 0;
-  background-color: #ffffff;
+  background-color: rgba(255, 253, 247, 0.94);
   border: 2px solid var(--color-ink);
-  border-radius: 0.42rem;
-  box-shadow: 2px 3px 0 0 var(--color-ink);
+  border-radius: 0.55rem;
   color: var(--color-ink);
   cursor: pointer;
 }
 
 .cust-shopcard-expand svg {
-  width: 1rem;
-  height: 1rem;
+  width: 1.15rem;
+  height: 1.15rem;
 }
 
 .cust-shopcard-mapfoot {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 0.6rem;
-  background-color: #ffffff;
-  border-top: 1px solid var(--color-hairline);
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--color-ink);
+  gap: 0.7rem;
+  padding: 0.55rem 0.7rem;
+  background-color: #fffdf7;
+  border-top: 1.5px solid #e7ddc9;
 }
 
 .cust-shopcard-mapdist {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.38rem;
   min-width: 0;
+  font-size: 0.93rem;
+  font-weight: 700;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--color-ink);
 }
 
 .cust-shopcard-mapdist svg {
-  width: 0.85rem;
-  height: 0.85rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: none;
 }
 
 .cust-shopcard-getdir {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.38rem 0.72rem;
-  background-color: #ffffff;
-  border: 2px solid var(--color-ink);
+  gap: 0.4rem;
+  padding: 0.55rem 1rem;
+  background-color: #fffdf7;
+  border: 2.5px solid var(--color-ink);
   border-radius: 999px;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
   font: inherit;
-  font-size: 0.68rem;
+  font-size: 0.93rem;
   font-weight: 800;
+  white-space: nowrap;
   color: var(--color-ink);
   cursor: pointer;
 }
 
 .cust-shopcard-getdir svg {
-  width: 0.78rem;
-  height: 0.78rem;
+  width: 1.05rem;
+  height: 1.05rem;
 }
 
 .cust-report-backdrop {
