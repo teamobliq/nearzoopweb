@@ -53,8 +53,9 @@ service cloud.firestore {
     }
 
     match /shops/{uid} {
-      allow get, list: if signedIn()
-        && (request.auth.uid == uid || isAdmin());
+      // Public read: shops are customer-facing and meant to be discovered.
+      // Write access stays owner-or-admin only.
+      allow get, list: if true;
       // Only the merchant creates their shop; admins may update review
       // fields (verification / reviewNote) but never create or delete.
       allow create: if signedIn() && request.auth.uid == uid;
@@ -70,8 +71,9 @@ service cloud.firestore {
       allow delete: if false;
 
       match /offers/{offerId} {
-        allow get, list: if signedIn()
-          && (request.auth.uid == uid || isAdmin());
+        // Public read: offer details are visible to everyone via shared links
+        // and shop profiles. Write access stays owner-or-admin only.
+        allow get, list: if true;
         allow create: if signedIn() && request.auth.uid == uid;
         // Admins may set status / reviewNote; merchants may edit their own.
         // One public exception: the shared-link landing's lifetime view
