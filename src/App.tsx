@@ -172,7 +172,21 @@ function App() {
       // merchant/admin URLs carry no marker, so they are left to the route
       // logic above.
       const state = window.history.state as { nzScreen?: Screen } | null
-      if (!state?.nzScreen && screenStack.current.length > 1) {
+      if (state?.nzScreen) {
+        // The browser landed on one of our pushed entries — restore that
+        // screen and drop any deeper entries so the stack matches history.
+        const stack = screenStack.current
+        const index = stack.lastIndexOf(state.nzScreen)
+        if (index >= 0) {
+          stack.length = index + 1
+        } else {
+          stack.push(state.nzScreen)
+        }
+        setScreenDepth(stack.length)
+        setScreen(state.nzScreen)
+        return
+      }
+      if (screenStack.current.length > 1) {
         screenStack.current.pop()
         setScreenDepth(screenStack.current.length)
         const previous = screenStack.current[screenStack.current.length - 1]
@@ -374,7 +388,7 @@ function App() {
 
   if (screen === 'shop') {
     return (
-      <ShopProfile uid={shopUid ?? ''} />
+      <ShopProfile uid={shopUid ?? ''} onBack={() => go('home')} />
     )
   }
 
