@@ -134,7 +134,7 @@ function todayHours(shop: ShopRecord) {
 
 /** Whether the doors are open right now — verified, paid, not on holiday,
     and inside today's saved window. A missing window means no claim. */
-function isOpenNow(shop: ShopRecord): boolean {
+function isOpenNow(shop: ShopRecord, at: Date = new Date()): boolean {
   if (
     shop.verification !== 'verified' ||
     shop.paymentDone !== true ||
@@ -148,7 +148,7 @@ function isOpenNow(shop: ShopRecord): boolean {
   const [openH, openM] = hours.opens.split(':').map(Number)
   const [closeH, closeM] = hours.closes.split(':').map(Number)
   if (![openH, openM, closeH, closeM].every(Number.isFinite)) return false
-  const now = new Date()
+  const now = at
   const minutes = now.getHours() * 60 + now.getMinutes()
   const opens = openH * 60 + openM
   const closes = closeH * 60 + closeM
@@ -422,6 +422,14 @@ export default function CustomerOffer({
   // A fix for the distance labels, read from the shared customer cache.
   // Null when the device never granted location — every label hides then.
   const [fix] = useState<{ lat: number; lng: number } | null>(() => cachedCoords())
+  // A ticking clock — the open/closed chip and the offer's Started/Scheduled
+  // chip flip on their own as time passes, without a reload.
+  const [nowTs, setNowTs] = useState(() => Date.now())
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTs(Date.now()), 30_000)
+    return () => window.clearInterval(id)
+  }, [])
 
   // Already claimed? Read it back once the offer is known. Declared before
   // any early return so the hook order never changes.
@@ -711,7 +719,7 @@ export default function CustomerOffer({
   const distanceLine =
     distKm === null ? 'Distance unavailable' : `${fmtDistance(distKm)} from you`
 
-  const openNow = shopDoc ? isOpenNow(shopDoc) : false
+  const openNow = shopDoc ? isOpenNow(shopDoc, new Date(nowTs)) : false
   const hours = shopDoc ? todayHours(shopDoc) : null
   const hoursText =
     hours && typeof hours === 'object'
@@ -719,10 +727,28 @@ export default function CustomerOffer({
       : hours === 'closed'
         ? 'Closed today'
         : 'Hours not listed'
+  // The live "is the shop up" chip — holiday wins over the hours window.
+  const shopStatus = shopDoc
+    ? shopDoc.holidayMode
+      ? { label: 'On holiday', kind: 'amber' as const }
+      : openNow
+        ? { label: 'Open now', kind: 'green' as const }
+        : { label: 'Closed', kind: 'red' as const }
+    : null
   const phone =
     shopDoc && shopDoc.showPhone !== false ? shopDoc.customerPhone?.trim() : ''
+  const phoneHref = phone ? `tel:${phone.replace(/[^+\d]/g, '')}` : undefined
   const startsText = fmtFullDate(item.startsAt)
   const endsText = fmtFullDateTime(item.endsAt)
+  // An offer whose start time has passed reads Started; one still ahead
+  // reads Scheduled. No start time set means it went live when approved.
+  const startsAtMs = item.startsAt ? Date.parse(item.startsAt) : NaN
+  const startsChip =
+    Number.isFinite(startsAtMs)
+      ? startsAtMs <= nowTs
+        ? { label: 'Started', kind: 'green' as const }
+        : { label: 'Scheduled', kind: 'amber' as const }
+      : null
   const checkedRel = item.updatedAt ? rel(item.updatedAt.toDate().toISOString()) : null
   const saved = savedIds.has(offerId)
   const initial = (item.shopName?.trim()?.[0] ?? 'S').toUpperCase()
@@ -835,6 +861,12 @@ export default function CustomerOffer({
                   <div className="cust-offer-datebox">
                     <span className="cust-offer-datelabel">Starts</span>
                     <strong>{startsText}</strong>
+                    {startsChip && (
+                      <span className={`cust-minichip cust-minichip--${startsChip.kind}`}>
+                        <i aria-hidden="true" />
+                        {startsChip.label}
+                      </span>
+                    )}
                   </div>
                 )}
                 {endsText && (
@@ -961,21 +993,33 @@ export default function CustomerOffer({
                 <ClockSvg />
               </span>
               <span className="cust-shopcard-rmain">
-                <strong>{openNow ? 'Open now' : 'Hours'}</strong>
+                <strong>
+                  Hours
+                  {shopStatus && (
+                    <span className={`cust-minichip cust-minichip--${shopStatus.kind}`}>
+                      <i aria-hidden="true" />
+                      {shopStatus.label}
+                    </span>
+                  )}
+                </strong>
                 <small>{hoursText}</small>
               </span>
             </div>
 
             {phone && (
-              <div className="cust-shopcard-row">
+              <a
+                className="cust-shopcard-row cust-shopcard-row--link"
+                href={phoneHref}
+                aria-label={`Call ${phone}`}
+              >
                 <span className="cust-shopcard-ricon" aria-hidden="true">
                   <PhoneSvg />
                 </span>
                 <span className="cust-shopcard-rmain">
                   <strong>{phone}</strong>
-                  <small>Listed by the shop</small>
+                  <small>Tap to call</small>
                 </span>
-              </div>
+              </a>
             )}
 
             <div className="cust-shopcard-row">

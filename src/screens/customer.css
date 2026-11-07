@@ -4075,3 +4075,70 @@
   text-decoration-color: var(--color-ink);
   text-decoration-thickness: 2px;
 }
+
+/* ---- Offer details: live status chips -------------------------------- */
+/* Used inside the STARTS datebox (Started/Scheduled) and the shop card's
+   Hours row (Open now / Closed / On holiday). Real-time, driven by the
+   screen's ticking clock. */
+.cust-minichip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.32rem;
+  width: fit-content;
+  padding: 0.16rem 0.52rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+.cust-minichip i {
+  width: 0.36rem;
+  height: 0.36rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Inside a strong line (Hours) the chip sits inline with its text. */
+.cust-shopcard-rmain strong .cust-minichip {
+  margin-top: 0;
+  margin-left: 0.45rem;
+  vertical-align: 0.05em;
+}
+
+.cust-minichip--green {
+  background-color: #c9f3d3;
+  color: #0d7a44;
+}
+
+.cust-minichip--amber {
+  background-color: #ffe6a2;
+  color: #6b4f12;
+}
+
+.cust-minichip--red {
+  background-color: #ffddd3;
+  color: #a03020;
+}
+
+/* The phone row as a diallable link — full-row tap target, no chrome. */
+.cust-shopcard-row--link {
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.cust-shopcard-row--link:hover {
+  background-color: #fdf6e5;
+}
+
+.cust-shopcard-row--link strong {
+  color: var(--color-ink);
+}
+
+.cust-shopcard-row--link:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
