@@ -287,6 +287,10 @@ function App() {
         viewerUid={session.uid}
         onSignIn={signInFromOffer}
         onBack={closeOffer}
+        onOpenShop={(shopUid) => {
+          setShopUid(shopUid)
+          go('shop')
+        }}
       />
     )
   }

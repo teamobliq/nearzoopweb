@@ -1,32 +1,42 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { AttributionControl, Map as MLMap, Marker } from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import type { FeedRecord } from '../business/feed'
-import {
-  countOfferView,
-  REPORT_REASONS,
-  saveReport,
-} from '../business/shop'
 import {
   fetchFeedOffer,
   feedDisplayStatus,
   feedFeeLapsed,
 } from '../business/feed'
 import {
+  countOfferView,
+  feeExpired,
+  watchShop,
+  REPORT_REASONS,
+  saveReport,
+  type ShopRecord,
+} from '../business/shop'
+import {
+  cachedCoords,
+  haversineKm,
+} from '../business/geocode'
+import {
   claimCoupon,
   couponState,
   findMyCoupon,
   type CouponRecord,
 } from '../business/coupons'
-import { fmtWhen } from '../business/when'
+import { fmtDay, fmtWhen, rel } from '../business/when'
+import { nzMapStyle } from '../business/maplibreUtils'
 import './customer.css'
 
 /** The shared-offer landing — `<base>/<shopUid>/<offerId>?source=…` lands
     here. Reads the offer's public feed mirror (feed.ts): the only copy of
-    an offer a visitor is allowed to see. Shows the offer with the app's
-    own visual language (the tile, chip and detail-card classes come from
-    business.css, which ships in the main bundle). Claiming needs an
-    account, so the CTA routes to sign-in. Internal statuses never get a
-    mirror, so they resolve to an honest "not available" screen instead of
-    pretending the offer is live. */
+    an offer a visitor is allowed to see. The shop card on the right reads
+    the shop doc directly — shops/{uid} is publicly readable — for the
+    details the mirror intentionally omits (hours, phone, address).
+    Claiming needs an account, so the CTA routes to sign-in. Internal
+    statuses never get a mirror, so they resolve to an honest "not
+    available" screen instead of pretending the offer is live. */
 
 type Props = {
   uid: string
@@ -35,6 +45,9 @@ type Props = {
   /** Leaves the offer — the list it was opened from, or Home for a shared
       link. */
   onBack: () => void
+  /** Opens the shop's profile — the shop card's chevron navigates there.
+      Absent when the landing has no way forward (e.g. deep links). */
+  onOpenShop?: (uid: string) => void
   signedIn?: boolean
   /** The signed-in customer's uid — the coupon claim is filed under it. */
   viewerUid?: string
@@ -43,7 +56,7 @@ type Props = {
 const CHIP: Partial<
   Record<'live' | 'scheduled' | 'ended', { label: string; kind: string; dot?: boolean }>
 > = {
-  live: { label: 'Live', kind: 'live', dot: true },
+  live: { label: 'Active', kind: 'live', dot: true },
   scheduled: { label: 'Scheduled', kind: 'scheduled' },
   ended: { label: 'Ended', kind: 'gray' },
 }
@@ -80,38 +93,262 @@ function termsLine(
   return bits.length ? bits.join(' · ') : null
 }
 
-/** The brand row with a way out — the detail is a page, so it always has
-    a back arrow (the list, or Home when the page was a shared link). */
-function CustTopbar({ onBack }: { onBack: () => void }) {
+/** Date in the design's voice: "15 Oct 2026". */
+function fmtFullDate(iso?: string): string | null {
+  if (!iso) return null
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return date
+    .toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+/** Date + time in the design's voice: "31 Oct 2026, 8:30 PM". */
+function fmtFullDateTime(iso?: string): string | null {
+  if (!iso) return null
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return date
+    .toLocaleString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
+    .replace('am', 'AM')
+    .replace('pm', 'PM')
+}
+
+/** "1.2 km" — the distance labels across the screen share it. */
+function fmtDistance(km: number): string {
+  if (km < 0.1) return '<0.1 km'
+  return `${km < 10 ? km.toFixed(1) : String(Math.round(km))} km`
+}
+
+function todayHours(shop: ShopRecord) {
+  return new Date().getDay() === 0
+    ? shop.openingHours?.sunday
+    : shop.openingHours?.monSat
+}
+
+/** Whether the doors are open right now — verified, paid, not on holiday,
+    and inside today's saved window. A missing window means no claim. */
+function isOpenNow(shop: ShopRecord): boolean {
+  if (
+    shop.verification !== 'verified' ||
+    shop.paymentDone !== true ||
+    feeExpired(shop) ||
+    shop.holidayMode
+  ) {
+    return false
+  }
+  const hours = todayHours(shop)
+  if (!hours || hours === 'closed') return false
+  const [openH, openM] = hours.opens.split(':').map(Number)
+  const [closeH, closeM] = hours.closes.split(':').map(Number)
+  if (![openH, openM, closeH, closeM].every(Number.isFinite)) return false
+  const now = new Date()
+  const minutes = now.getHours() * 60 + now.getMinutes()
+  const opens = openH * 60 + openM
+  const closes = closeH * 60 + closeM
+  return closes > opens
+    ? minutes >= opens && minutes < closes
+    : minutes >= opens || minutes < closes
+}
+
+function fmtTime(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number)
+  const minutes = Number.isFinite(m) ? m : 0
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const displayH = h % 12 || 12
+  return `${displayH}:${String(minutes).padStart(2, '0')} ${ampm}`
+}
+
+function BackSvg() {
   return (
-    <div className="cust-topbar">
-      <button
-        type="button"
-        className="cust-back"
-        onClick={onBack}
-        aria-label="Go back"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M15 5 8 12l7 7" />
-        </svg>
-      </button>
-      <p className="cust-brand">NearZoop</p>
-    </div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 5l-7 7 7 7" />
+    </svg>
   )
 }
 
-/** The claimed coupon — QR, code and validity in one card. Rendered only
-    for coupon offers the customer has actually claimed; the QR is an SVG
-    string produced client-side (qrcode), and the code underneath is what
-    staff type when the camera can't read it. */
+function UploadSvg() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="M17 8l-5-5-5 5" />
+      <path d="M12 3v12" />
+    </svg>
+  )
+}
+
+function BookmarkSvg({ filled }: { filled: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z" />
+    </svg>
+  )
+}
+
+function PlaneSvg() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M22 2L11 13" />
+      <path d="M22 2l-7 20-4-9-9-4 20-7Z" />
+    </svg>
+  )
+}
+
+function TicketSvg() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1a2 2 0 0 0 0 4v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a2 2 0 0 0 0-4V9Z" />
+      <path d="M13 7v2" />
+      <path d="M13 12v2" />
+      <path d="M13 17v1" />
+    </svg>
+  )
+}
+
+function ClockSvg() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  )
+}
+
+function PhoneSvg() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.128.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 11.91a16 16 0 0 0 6 6l3.27-1.27a2 2 0 0 1 2.11.45c.907.339 1.85.572 2.81.7A2 2 0 0 1 22 16.92Z" />
+    </svg>
+  )
+}
+
+function PinSvg() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 21s-6.5-5.4-6.5-10a6.5 6.5 0 1 1 13 0C18.5 15.6 12 21 12 21Z" />
+      <circle cx="12" cy="11" r="2.4" />
+    </svg>
+  )
+}
+
+function ChevronSvg() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  )
+}
+
+function ExpandSvg() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 3h6v6" />
+      <path d="M9 21H3v-6" />
+      <path d="M21 3l-7 7" />
+      <path d="M3 21l7-7" />
+    </svg>
+  )
+}
+
+/** Bookmarks ride in the same `nz.saved` list as the home feed, so an offer
+    saved here is already lit on its card when the customer goes back. */
+function readSaved(): Set<string> {
+  try {
+    return new Set<string>(JSON.parse(localStorage.getItem('nz.saved') ?? '[]'))
+  } catch {
+    return new Set<string>()
+  }
+}
+
+/** The shop's map — its own small MapLibre canvas so the card controls the
+    framing and the single pin. */
+function ShopMap({
+  lat,
+  lng,
+  title,
+  expanded,
+}: {
+  lat: number
+  lng: number
+  title: string
+  expanded: boolean
+}) {
+  const hostRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const host = hostRef.current
+    if (!host) return
+    let cancelled = false
+    let map: MLMap | null = null
+    let marker: Marker | null = null
+    let observer: ResizeObserver | null = null
+
+    void (async () => {
+      const style = await nzMapStyle()
+      if (cancelled || !hostRef.current) return
+      map = new MLMap({
+        container: hostRef.current,
+        style,
+        center: [lng, lat],
+        zoom: 14.6,
+        attributionControl: false,
+        scrollZoom: false,
+        dragRotate: false,
+        pitchWithRotate: false,
+      })
+      map.addControl(new AttributionControl({ compact: true }), 'top-left')
+
+      const el = document.createElement('div')
+      el.className = 'shop-map-pin'
+      el.innerHTML =
+        '<svg viewBox="0 0 32 40" width="30" height="38" aria-hidden="true">' +
+        '<path d="M16 38.5S2.5 24.2 2.5 15.2C2.5 7.9 8.5 2 16 2s13.5 5.9 13.5 13.2C29.5 24.2 16 38.5 16 38.5Z" fill="#fb4b32" stroke="#1c1b19" stroke-width="2.2"/>' +
+        '<circle cx="16" cy="15" r="4.3" fill="#ffffff"/>' +
+        '</svg>'
+      marker = new Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([lng, lat])
+        .addTo(map)
+
+      observer = new ResizeObserver(() => map?.resize())
+      observer.observe(host)
+    })()
+
+    return () => {
+      cancelled = true
+      observer?.disconnect()
+      marker?.remove()
+      map?.remove()
+      map = null
+    }
+  }, [lat, lng])
+
+  useEffect(() => {
+    // The expanded state only grows the container; maplibre needs the nudge.
+    const host = hostRef.current
+    if (!host) return
+    const frame = window.requestAnimationFrame(() => {
+      host.style.setProperty('--expanded', expanded ? '1' : '0')
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [expanded])
+
+  return (
+    <div
+      ref={hostRef}
+      className={`shop-map-canvas${expanded ? ' is-expanded' : ''}`}
+      role="region"
+      aria-label={`Map showing ${title}`}
+    />
+  )
+}
+
+/** The argued offering — the claim dialog body. */
 function CouponPass({ coupon, qr }: { coupon: CouponRecord; qr: string }) {
   const state = couponState(coupon)
   return (
@@ -152,10 +389,12 @@ export default function CustomerOffer({
   offerId,
   onSignIn,
   onBack,
+  onOpenShop,
   signedIn = false,
   viewerUid,
 }: Props) {
   const [item, setItem] = useState<FeedRecord | null>(null)
+  const [shopDoc, setShopDoc] = useState<ShopRecord | null>(null)
   const [missing, setMissing] = useState(false)
   const [paused, setPaused] = useState(false)
   const [inactive, setInactive] = useState(false)
@@ -178,6 +417,11 @@ export default function CustomerOffer({
   const [claimError, setClaimError] = useState('')
   const [claimDialog, setClaimDialog] = useState<CouponRecord | null>(null)
   const [claimDialogQr, setClaimDialogQr] = useState<{ code: string; svg: string } | null>(null)
+  const [mapExpanded, setMapExpanded] = useState(false)
+  const [savedIds, setSavedIds] = useState<Set<string>>(() => readSaved())
+  // A fix for the distance labels, read from the shared customer cache.
+  // Null when the device never granted location — every label hides then.
+  const [fix] = useState<{ lat: number; lng: number } | null>(() => cachedCoords())
 
   // Already claimed? Read it back once the offer is known. Declared before
   // any early return so the hook order never changes.
@@ -270,6 +514,14 @@ export default function CustomerOffer({
     }
   }, [uid, offerId])
 
+  // The shop doc is publicly readable — the card shows hours, phone and
+  // address the mirror deliberately omits. A failed stream leaves the
+  // rest of the card standing (offer details, claim) untouched.
+  useEffect(() => {
+    const unsubscribe = watchShop(uid, (record) => setShopDoc(record))
+    return unsubscribe
+  }, [uid])
+
   const status = item ? feedDisplayStatus(item) : 'live'
   // Only render the QR that belongs to the coupon/dialog currently shown.
   const shownCouponQr = coupon && couponQr?.code === coupon.code ? couponQr.svg : ''
@@ -281,11 +533,65 @@ export default function CustomerOffer({
     if (item && status !== 'paused') countOfferView(uid, offerId)
   }, [item, status, uid, offerId])
 
+  function openDirections() {
+    const destination =
+      typeof item?.lat === 'number' && typeof item?.lng === 'number'
+        ? `${item.lat},${item.lng}`
+        : encodeURIComponent(shopDoc?.address ?? '')
+    if (!destination) return
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&destination=${destination}`,
+      '_blank',
+      'noopener,noreferrer',
+    )
+  }
+
+  function toggleSaved() {
+    setSavedIds((current) => {
+      const next = new Set(current)
+      if (next.has(offerId)) {
+        next.delete(offerId)
+      } else {
+        next.add(offerId)
+      }
+      try {
+        localStorage.setItem('nz.saved', JSON.stringify([...next]))
+      } catch {
+        // Storage blocked — the bookmark lasts this visit only.
+      }
+      return next
+    })
+  }
+
+  async function shareOffer() {
+    const url = window.location.href
+    const data = {
+      title: item?.title ?? 'NearZoop offer',
+      text: item ? `${item.title ?? 'Offer'} at ${item.shopName} — NearZoop` : 'NearZoop offer',
+      url,
+    }
+    try {
+      if (navigator.share) {
+        await navigator.share(data)
+        return
+      }
+      await navigator.clipboard.writeText(url)
+    } catch {
+      // Share sheet dismissed or clipboard blocked — nothing to report.
+    }
+  }
+
   if (missing) {
     return (
       <div className="cust-page">
         <div className="cust-shell">
-          <CustTopbar onBack={onBack} />
+          <div className="cust-topbar">
+            <button type="button" className="cust-back" onClick={onBack} aria-label="Go back">
+              <BackSvg />
+            </button>
+            <p className="cust-crumb">offer · {uid}</p>
+            <span />
+          </div>
           <div className="cust-missing">
             <h1>This offer isn’t available.</h1>
             <p>The link may be old, or the shop has removed the offer.</p>
@@ -299,7 +605,13 @@ export default function CustomerOffer({
     return (
       <div className="cust-page">
         <div className="cust-shell">
-          <CustTopbar onBack={onBack} />
+          <div className="cust-topbar">
+            <button type="button" className="cust-back" onClick={onBack} aria-label="Go back">
+              <BackSvg />
+            </button>
+            <p className="cust-crumb">offers paused · {uid}</p>
+            <span />
+          </div>
           <div className="cust-missing">
             <h1>Offers are paused.</h1>
             <p>
@@ -315,7 +627,13 @@ export default function CustomerOffer({
     return (
       <div className="cust-page">
         <div className="cust-shell">
-          <CustTopbar onBack={onBack} />
+          <div className="cust-topbar">
+            <button type="button" className="cust-back" onClick={onBack} aria-label="Go back">
+              <BackSvg />
+            </button>
+            <p className="cust-crumb">offer · {uid}</p>
+            <span />
+          </div>
           <div className="cust-missing">
             <h1>This offer isn’t available right now.</h1>
             <p>This shop’s listing isn’t active — check back later.</p>
@@ -329,8 +647,14 @@ export default function CustomerOffer({
     return (
       <div className="cust-page">
         <div className="cust-shell">
-          <CustTopbar onBack={onBack} />
-          <p className="cust-loading">···</p>
+          <div className="cust-topbar">
+            <button type="button" className="cust-back" onClick={onBack} aria-label="Go back">
+              <BackSvg />
+            </button>
+            <span />
+            <span />
+          </div>
+          <p className="cust-loading" role="status">···</p>
         </div>
       </div>
     )
@@ -340,7 +664,13 @@ export default function CustomerOffer({
     return (
       <div className="cust-page">
         <div className="cust-shell">
-          <CustTopbar onBack={onBack} />
+          <div className="cust-topbar">
+            <button type="button" className="cust-back" onClick={onBack} aria-label="Go back">
+              <BackSvg />
+            </button>
+            <p className="cust-crumb">offer · {item.shopName}</p>
+            <span />
+          </div>
           <div className="cust-missing">
             <h1>This offer isn’t live yet.</h1>
             <p>Check back once the shop has published it.</p>
@@ -359,11 +689,6 @@ export default function CustomerOffer({
   const redeem = customerRedeemLine(item)
   const terms = termsLine(item)
   const exclusions = item.exclusions ?? []
-  const photos = item.photos ?? []
-  // The lead photo becomes the cover; the deal tile becomes the picture
-  // that sits over its bottom edge.
-  const cover = photos[0]
-  const rest = photos.slice(1)
   const redeemKind = item.redeemKind ?? 'screen'
   const couponKind = redeemKind === 'coupon'
   /** What the customer does at the counter, in the shop's own terms. */
@@ -377,6 +702,30 @@ export default function CustomerOffer({
         : redeemKind === 'custom'
           ? item.redeemCustom ?? null
           : 'Show the QR at the counter — the shop scans it.'
+
+  // Distance to the shop, from the shared customer fix.
+  const distKm =
+    fix && typeof item.lat === 'number' && typeof item.lng === 'number'
+      ? haversineKm(fix, { lat: item.lat, lng: item.lng })
+      : null
+  const distanceLine =
+    distKm === null ? 'Distance unavailable' : `${fmtDistance(distKm)} from you`
+
+  const openNow = shopDoc ? isOpenNow(shopDoc) : false
+  const hours = shopDoc ? todayHours(shopDoc) : null
+  const hoursText =
+    hours && typeof hours === 'object'
+      ? `${fmtTime(hours.opens)} – ${fmtTime(hours.closes)}`
+      : hours === 'closed'
+        ? 'Closed today'
+        : 'Hours not listed'
+  const phone =
+    shopDoc && shopDoc.showPhone !== false ? shopDoc.customerPhone?.trim() : ''
+  const startsText = fmtFullDate(item.startsAt)
+  const endsText = fmtFullDateTime(item.endsAt)
+  const checkedRel = item.updatedAt ? rel(item.updatedAt.toDate().toISOString()) : null
+  const saved = savedIds.has(offerId)
+  const initial = (item.shopName?.trim()?.[0] ?? 'S').toUpperCase()
 
   async function claim(): Promise<void> {
     if (!viewerUid || claiming || status === 'ended') return
@@ -429,83 +778,147 @@ export default function CustomerOffer({
   return (
     <div className="cust-page">
       <div className="cust-shell">
-        <CustTopbar onBack={onBack} />
-
-        {/* The offer as a profile page: the lead photo runs the full width
-            as the cover, the deal tile sits over its bottom edge as the
-            picture, and everything else reads down from there. */}
-        <section className="cust-cover">
-          {cover ? (
-            <img
-              className="cust-cover-img"
-              src={cover}
-              alt={`${item.title ?? 'Offer'} at ${item.shopName}`}
-            />
-          ) : (
-            <div className="cust-cover-blank" aria-hidden="true" />
-          )}
-          <span
-            className={`biz-otile biz-otile-${item.tileColor ?? 'yellow'} cust-avatar`}
-            aria-hidden="true"
-          >
-            <span className="biz-otile-big">{big}</span>
-            <span className="biz-otile-small">{small}</span>
-          </span>
-        </section>
-
-        <header className="cust-id">
-          <div className="cust-id-text">
-            <h1 className="biz-detail-name cust-name">
-              {item.title ?? 'Untitled offer'}
-            </h1>
-            <p className="cust-id-sub">
-              at {item.shopName}
-              {chip && (
-                <span className={`biz-ochip biz-ochip-${chip.kind}`}>
-                  {chip.dot && <span className="biz-offer-dot" />}
-                  {chip.label}
-                </span>
-              )}
-            </p>
+        <div className="cust-topbar">
+          <button type="button" className="cust-back" onClick={onBack} aria-label="Go back">
+            <BackSvg />
+          </button>
+          <p className="cust-crumb">
+            offer photo · {item.shopName}
+          </p>
+          <div className="cust-top-actions">
+            <button type="button" className="cust-round" onClick={() => void shareOffer()} aria-label="Share offer">
+              <UploadSvg />
+            </button>
+            <button
+              type="button"
+              className={`cust-round${saved ? ' is-on' : ''}`}
+              onClick={toggleSaved}
+              aria-label={saved ? 'Remove bookmark' : 'Bookmark offer'}
+              aria-pressed={saved}
+            >
+              <BookmarkSvg filled={saved} />
+            </button>
           </div>
+        </div>
 
-          <div className="cust-actions">
-            {status === 'ended' ? (
-              <p className="cust-fine">This offer has ended.</p>
-            ) : !signedIn ? (
-              <>
+        <div className="cust-offer-grid">
+          {/* ---- Left column ------------------------------------------- */}
+          <section className="cust-offer-left">
+            <div className="cust-offer-head">
+              <div className="cust-offer-tile" aria-hidden="true">
+                <span className="cust-offer-tile-big">{big}</span>
+                {small && <span className="cust-offer-tile-small">{small}</span>}
+              </div>
+              <div className="cust-offer-idblock">
+                <div className="cust-offer-pills">
+                  {chip && (
+                    <span className={`cust-pill cust-pill--${chip.kind}`}>
+                      {chip.dot && <i aria-hidden="true" />}
+                      {chip.label}
+                      {checkedRel ? ` · checked ${checkedRel}` : ' · checked just now'}
+                    </span>
+                  )}
+                </div>
+                <h1 className="cust-offer-headline">
+                  {item.title ?? 'Untitled offer'}
+                </h1>
+              </div>
+            </div>
+
+            {item.description && (
+              <p className="cust-offer-desc">{item.description}</p>
+            )}
+
+            {(startsText || endsText) && (
+              <div className="cust-offer-dates">
+                {startsText && (
+                  <div className="cust-offer-datebox">
+                    <span className="cust-offer-datelabel">Starts</span>
+                    <strong>{startsText}</strong>
+                  </div>
+                )}
+                {endsText && (
+                  <div className="cust-offer-datebox">
+                    <span className="cust-offer-datelabel">Ends</span>
+                    <strong>{endsText}</strong>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="cust-offer-redeem">
+              <div className="cust-offer-redeem-eyebrow">
+                <TicketSvg />
+                <span>How to redeem</span>
+              </div>
+              <h2>
+                {couponKind
+                  ? 'Claim a coupon'
+                  : redeemKind === 'code'
+                    ? 'Say the code'
+                    : redeemKind === 'custom'
+                      ? 'Redeem in store'
+                      : 'Show this offer'}
+              </h2>
+              {couponKind ? (
+                <ol>
+                  <li>Claim the coupon in the app (sign-in needed).</li>
+                  <li>Show the QR at the counter{item.endsAt ? ` before ${fmtDay(item.endsAt)}` : ''}.</li>
+                </ol>
+              ) : (
+                <p className="cust-offer-redeem-line">{counterLine ?? redeem}</p>
+              )}
+              {terms && <p className="cust-offer-terms">{terms}</p>}
+              {exclusions.length > 0 && (
+                <ul className="cust-offer-exclusions">
+                  {exclusions.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="cust-offer-cta-row">
+              <button
+                type="button"
+                className="cust-offer-dir"
+                onClick={openDirections}
+                aria-label="Get directions to the shop"
+              >
+                <PlaneSvg />
+                <span>{distKm !== null ? fmtDistance(distKm) : 'Directions'}</span>
+              </button>
+              {status === 'ended' ? (
+                <p className="cust-fine cust-offer-ended">This offer has ended.</p>
+              ) : !signedIn ? (
                 <button
                   type="button"
-                  className="btn-primary biz-btn cust-cta"
+                  className="cust-offer-claim"
                   onClick={onSignIn}
                 >
-                  Sign in to claim
+                  <TicketSvg />
+                  <span>Sign in to claim</span>
                 </button>
-                <p className="cust-fine">
-                  Claiming needs a NearZoop account.
+              ) : coupon ? (
+                <p className="cust-fine cust-offer-claimed">
+                  Claimed — your coupon is below. Show it at the counter.
                 </p>
-              </>
-            ) : coupon ? (
-              <p className="cust-fine">
-                Claimed — your coupon is below. Show it at the shop.
-              </p>
-            ) : couponKind ? (
-              <>
+              ) : couponKind ? (
                 <button
                   type="button"
-                  className="btn-primary biz-btn cust-cta"
+                  className="cust-offer-claim"
                   onClick={() => void claim()}
                   disabled={claiming}
                 >
-                  {claiming ? 'Claiming…' : 'Claim this offer'}
+                  <TicketSvg />
+                  <span>{claiming ? 'Claiming…' : 'Claim offer'}</span>
                 </button>
-                <p className="cust-fine">
-                  One single-use coupon. The shop scans it at the counter.
-                </p>
-              </>
-            ) : (
-              counterLine && <p className="cust-fine">{counterLine}</p>
-            )}
+              ) : (
+                counterLine && (
+                  <p className="cust-fine cust-offer-counted">{counterLine}</p>
+                )
+              )}
+            </div>
             {claimError && <p className="cust-err">{claimError}</p>}
             <button
               type="button"
@@ -514,67 +927,109 @@ export default function CustomerOffer({
             >
               Report a problem with this offer
             </button>
-          </div>
-        </header>
-
-        {item.description && <p className="cust-desc">{item.description}</p>}
-
-        {coupon && <CouponPass coupon={coupon} qr={shownCouponQr} />}
-
-        <div className={`cust-cols${rest.length > 0 ? '' : ' is-single'}`}>
-          <section>
-            <h2 className="cust-panel-title">Offer details</h2>
-            <div className="biz-detailcard cust-card">
-              {item.endsAt && (
-                <div className="biz-detailrow">
-                  <span className="biz-detailrow-label">
-                    {status === 'ended' ? 'Ended' : 'Valid till'}
-                  </span>
-                  <span className="biz-detailrow-value">
-                    {fmtWhen(item.endsAt)}
-                  </span>
-                </div>
-              )}
-              {redeem && (
-                <div className="biz-detailrow">
-                  <span className="biz-detailrow-label">Redeem</span>
-                  <span className="biz-detailrow-value">{redeem}</span>
-                </div>
-              )}
-              {terms && (
-                <div className="biz-detailrow">
-                  <span className="biz-detailrow-label">Terms</span>
-                  <span className="biz-detailrow-value">{terms}</span>
-                </div>
-              )}
-              {exclusions.length > 0 && (
-                <div className="biz-detailrow">
-                  <span className="biz-detailrow-label">Not valid for</span>
-                  <ul className="biz-detailrow-list">
-                    {exclusions.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
           </section>
 
-          {rest.length > 0 && (
-            <section>
-              <h2 className="cust-panel-title">More photos</h2>
-              <div className="cust-photos">
-                {rest.map((url) => (
-                  <img
-                    key={url}
-                    src={url}
-                    alt={`${item.title ?? 'Offer'} at ${item.shopName}`}
-                  />
-                ))}
+          {/* ---- Right column: the shop card ------------------------- */}
+          <aside className="cust-shopcard">
+            <button
+              type="button"
+              className="cust-shopcard-head"
+              onClick={() => onOpenShop?.(uid)}
+              disabled={!onOpenShop}
+              aria-label={`Open ${item.shopName}`}
+            >
+              <span className="cust-shopcard-avatar" aria-hidden="true">
+                {initial}
+              </span>
+              <span className="cust-shopcard-name">
+                <strong>{item.shopName}</strong>
+                <small>
+                  {shopDoc?.address ? `${shopDoc.address} · ` : ''}
+                  {distKm !== null ? `${fmtDistance(distKm)} away` : 'Near you'}
+                  {openNow ? ' · Open now' : ''}
+                </small>
+              </span>
+              {onOpenShop && (
+                <span className="cust-shopcard-chev">
+                  <ChevronSvg />
+                </span>
+              )}
+            </button>
+
+            <div className="cust-shopcard-row">
+              <span className="cust-shopcard-ricon" aria-hidden="true">
+                <ClockSvg />
+              </span>
+              <span className="cust-shopcard-rmain">
+                <strong>{openNow ? 'Open now' : 'Hours'}</strong>
+                <small>{hoursText}</small>
+              </span>
+            </div>
+
+            {phone && (
+              <div className="cust-shopcard-row">
+                <span className="cust-shopcard-ricon" aria-hidden="true">
+                  <PhoneSvg />
+                </span>
+                <span className="cust-shopcard-rmain">
+                  <strong>{phone}</strong>
+                  <small>Listed by the shop</small>
+                </span>
               </div>
-            </section>
-          )}
+            )}
+
+            <div className="cust-shopcard-row">
+              <span className="cust-shopcard-ricon" aria-hidden="true">
+                <PinSvg />
+              </span>
+              <span className="cust-shopcard-rmain">
+                <strong>{shopDoc?.address ?? 'Location not pinned'}</strong>
+                <small>{distanceLine}</small>
+              </span>
+            </div>
+
+            <div className="cust-shopcard-map">
+              {typeof item.lat === 'number' && typeof item.lng === 'number' ? (
+                <ShopMap
+                  lat={item.lat}
+                  lng={item.lng}
+                  title={item.shopName}
+                  expanded={mapExpanded}
+                />
+              ) : (
+                <div className="cust-shopcard-mapholder">
+                  <PinSvg />
+                  <span>Location not pinned</span>
+                </div>
+              )}
+              <button
+                type="button"
+                className="cust-shopcard-expand"
+                onClick={() => setMapExpanded((v) => !v)}
+                aria-label={mapExpanded ? 'Shrink map' : 'Expand map'}
+                aria-pressed={mapExpanded}
+              >
+                <ExpandSvg />
+              </button>
+              <div className="cust-shopcard-mapfoot">
+                <span className="cust-shopcard-mapdist">
+                  <PinSvg />
+                  {distanceLine}
+                </span>
+                <button
+                  type="button"
+                  className="cust-shopcard-getdir"
+                  onClick={openDirections}
+                >
+                  <PlaneSvg />
+                  <span>Get Directions</span>
+                </button>
+              </div>
+            </div>
+          </aside>
         </div>
+
+        {coupon && <CouponPass coupon={coupon} qr={shownCouponQr} />}
       </div>
 
       {claimDialog && (
