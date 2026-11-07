@@ -371,6 +371,7 @@ export default function AdminPanel() {
                   // Only a live approval pings the inbox — a scheduled
                   // approval shows up in the offers list on its own.
                   goingLive === 'live',
+                  entry?.offer.discountLabel,
                 )
               } else {
                 await setOfferStatus(

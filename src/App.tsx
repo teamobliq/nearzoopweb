@@ -13,6 +13,7 @@ import CustomerOffer from './screens/CustomerOffer'
 import MyCoupons from './screens/MyCoupons'
 import CouponPass from './screens/CouponPass'
 import TrendingNearby from './screens/TrendingNearby'
+import CustomerNotifications from './screens/CustomerNotifications'
 import ShopProfile from './screens/ShopProfile'
 import { cachedCoords } from './business/geocode'
 import './App.css'
@@ -20,7 +21,7 @@ import './App.css'
 // The admin console ships as its own chunk — absent from the main bundle.
 const AdminPanel = lazy(() => import('./admin/AdminPanel'))
 
-type Screen = 'splash' | 'onboard' | 'auth' | 'locate' | 'home' | 'profile' | 'editProfile' | 'myCoupons' | 'couponPass' | 'trending' | 'shop'
+type Screen = 'splash' | 'onboard' | 'auth' | 'locate' | 'home' | 'profile' | 'editProfile' | 'myCoupons' | 'couponPass' | 'trending' | 'shop' | 'notifications'
 type Route = 'customer' | 'business' | 'admin' | 'shop'
 type Session = { variant: 'guest' | 'signed-in'; label?: string; uid?: string; user?: User }
 type DeepLink = { uid: string; offerId: string }
@@ -229,8 +230,8 @@ function App() {
     setRoute('business')
   }
 
-  /** Opens one offer's page from the customer list — a real URL, so Back,
-      reload and sharing all land on the same offer. */
+  /** Opens one offer's page from the customer list or the shop profile —
+      a real URL, so Back, reload and sharing all land on the same offer. */
   function openOffer(uid: string, offerId: string) {
     const target = `${import.meta.env.BASE_URL}${encodeURIComponent(uid)}/${encodeURIComponent(offerId)}?source=nearby`
     try {
@@ -238,6 +239,10 @@ function App() {
     } catch {
       // History unavailable — the screen still opens, the URL just lags.
     }
+    // The render order checks the /shop route before the offer deep link —
+    // a shop page pushing this URL would otherwise render the shop's
+    // unavailable screen. Flip the route alongside the deep link.
+    setRoute('customer')
     setDeepLink({ uid, offerId })
   }
 
@@ -375,7 +380,18 @@ function App() {
         </main>
       )
     }
-    return <ShopProfile uid={shopId} onBack={closeShop} />
+    return (
+      <ShopProfile
+        uid={shopId}
+        onBack={closeShop}
+        onOpenOffer={openOffer}
+        viewerUid={session.variant === 'signed-in' ? session.uid : undefined}
+        onSignIn={() => {
+          setAuthReturn('home')
+          go('auth')
+        }}
+      />
+    )
   }
 
   if (route === 'customer' && deepLink) {
@@ -488,9 +504,32 @@ function App() {
     )
   }
 
+  if (screen === 'notifications') {
+    return (
+      <CustomerNotifications
+        viewerUid={session.variant === 'signed-in' ? session.uid : undefined}
+        onBack={() => go('home')}
+        onOpenOffer={openOffer}
+        onSignIn={() => {
+          setAuthReturn('home')
+          go('auth')
+        }}
+      />
+    )
+  }
+
   if (screen === 'shop') {
     return (
-      <ShopProfile uid={shopUid ?? ''} onBack={() => go('home')} />
+      <ShopProfile
+        uid={shopUid ?? ''}
+        onBack={() => go('home')}
+        onOpenOffer={openOffer}
+        viewerUid={session.variant === 'signed-in' ? session.uid : undefined}
+        onSignIn={() => {
+          setAuthReturn('home')
+          go('auth')
+        }}
+      />
     )
   }
 
@@ -502,6 +541,7 @@ function App() {
       onOpenOffer={openOffer}
       onOpenCoupons={() => go('myCoupons')}
       onOpenTrending={() => go('trending')}
+      onOpenNotifications={() => go('notifications')}
       onOpenShop={(uid) => {
         setShopUid(uid)
         go('shop')

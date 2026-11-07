@@ -98,6 +98,16 @@ service cloud.firestore {
           && (request.auth.uid == uid || isAdmin());
       }
 
+      // The shop's followers — one doc per signed-in customer who follows
+      // the shop (doc id = the customer's uid). The fan-out list for new-
+      // offer notifications: readable by the shop (and admin) so the
+      // serverless function can resolve recipients; the follower writes
+      // only their own doc.
+      match /followers/{followerUid} {
+        allow get, list: if signedIn() && (request.auth.uid == uid || isAdmin());
+        allow create, delete: if signedIn() && request.auth.uid == followerUid;
+      }
+
       // Customer reports, filed from a shared offer link where the visitor
       // is usually signed out — so creates are open but shape-checked;
       // everything else stays owner-or-admin.
@@ -264,6 +274,53 @@ service cloud.firestore {
       allow update: if signedIn()
         && (resource.data.shopUid == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
+    }
+
+    // A customer's follows — one doc per shop they follow (doc id = the
+    // shop's uid). The customer's own list: only the owner reads and
+    // writes it; admins may read, nobody deletes.
+    match /follows/{uid}/shops/{shopUid} {
+      allow read: if signedIn()
+        && (request.auth.uid == uid || isAdmin());
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(
+            ['followedAt', 'shopName', 'shopCategory', 'shopPhotoUrl'])
+        && (!('shopName' in request.resource.data)
+          || request.resource.data.shopName is string)
+        && (!('shopCategory' in request.resource.data)
+          || request.resource.data.shopCategory is string)
+        && (!('shopPhotoUrl' in request.resource.data)
+          || request.resource.data.shopPhotoUrl is string);
+      allow delete: if signedIn() && request.auth.uid == uid;
+      allow update: if false;
+    }
+
+    // Web-push registrations — one doc per device token the customer
+    // registered (doc id = the token). Owner reads and writes only;
+    // the serverless function reads tokens with the Admin SDK (bypasses
+    // these rules), so there is no cross-customer read anywhere.
+    match /fcmTokens/{uid}/tokens/{token} {
+      allow read: if signedIn()
+        && (request.auth.uid == uid || isAdmin());
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['token', 'createdAt']);
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    // The customer's in-app inbox — one doc per notification (doc id =
+    // deterministic from shop/offer/follower, so a repeated sync never
+    // double-notifies). Written only by the serverless function (Admin
+    // SDK bypasses these rules). The customer reads their own items and
+    // may flip `read` — nothing else, never create, never delete.
+    match /customerNotifications/{uid}/items/{itemId} {
+      allow get, list: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data)
+            .affectedKeys().hasOnly(['read']);
+      allow create, delete: if false;
     }
 
     // Nothing outside the shops tree is reachable — and note: this wildcard

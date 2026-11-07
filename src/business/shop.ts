@@ -21,6 +21,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import { removeOfferFeed, syncOffer, syncShopFeed } from './feed'
+import { notifyOfferLive } from './follows'
 
 export type DocKind = 'gstin' | 'licence' | 'udyam' | 'signboard'
 
@@ -672,6 +673,7 @@ export async function setOfferStatus(
   reviewFix = '',
   offerTitle?: string,
   notify = false,
+  discountLabel?: string,
 ): Promise<void> {
   // Admin verdicts that push work back to the merchant also drop a
   // notification into the shop's inbox — one batch, all-or-nothing.
@@ -717,6 +719,12 @@ export async function setOfferStatus(
   // (approval writes the mirror, pauses and rejections remove it).
   // Fire-and-forget: the verdict itself must never fail on a mirror hiccup.
   void syncOffer(uid, offerId).catch((err) => console.warn('feed sync', err))
+  // Fan the offer out to the shop's followers — in-app inbox plus web
+  // push. Only on the transition into 'live' (approval, or the shop's own
+  // resume), never on pause/end/changes. Fire-and-forget.
+  if (status === 'live') {
+    notifyOfferLive({ shopUid: uid, offerId, offerTitle, discountLabel })
+  }
 }
 
 /** One row of the admin panel's shops feed: the uid (doc id) plus the record. */

@@ -265,7 +265,7 @@ export default function BusinessOfferDetail({
     setWorking(true)
     setError('')
     try {
-      await setOfferStatus(uid, offer.id, next)
+      await setOfferStatus(uid, offer.id, next, '', '', offer.title, false, offer.discountLabel)
       return true
     } catch {
       setError('Could not update the offer. Try again.')

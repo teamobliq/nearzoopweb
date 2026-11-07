@@ -3,6 +3,12 @@ import { AttributionControl, Map as MLMap, Marker } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { cachedCoords, haversineKm } from '../business/geocode'
 import { watchShop, feeExpired, type ShopRecord } from '../business/shop'
+import {
+  followShop,
+  unfollowShop,
+  watchFollowState,
+} from '../business/follows'
+import { enablePush } from '../business/push'
 import { watchFeed, type FeedRecord } from '../business/feed'
 import { fmtDay } from '../business/when'
 import { nzMapStyle } from '../business/maplibreUtils'
@@ -87,6 +93,22 @@ function PlusSvg() {
       aria-hidden="true"
     >
       <path d="M12 5v14M5 12h14" />
+    </svg>
+  )
+}
+
+function CheckSvg() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20 6L9 17l-5-5" />
     </svg>
   )
 }
@@ -389,12 +411,26 @@ type Props = {
   uid: string
   /** Fallback when there is no shop history entry to pop. */
   onBack: () => void
+  /** Opens an offer from the Live offers section — without it the cards
+      still render, just inert. */
+  onOpenOffer?: (shopUid: string, offerId: string) => void
+  /** The signed-in customer's uid — absent means browsing as guest, and
+      the Follow button routes to sign-in instead of writing. */
+  viewerUid?: string
+  /** Guests are routed to sign-in from the Follow button. */
+  onSignIn?: () => void
 }
 
 /** The customer-facing shop profile: cover, identity, actions, tabs, live
     offers, details and the map — the shopkeeper's page. Opened by tapping a
     shop name on an offer card. */
-export default function ShopProfile({ uid, onBack }: Props) {
+export default function ShopProfile({
+  uid,
+  onBack,
+  onOpenOffer,
+  viewerUid,
+  onSignIn,
+}: Props) {
   const [shop, setShop] = useState<ShopRecord | null>(null)
   const [shopLoaded, setShopLoaded] = useState(false)
   const [feed, setFeed] = useState<FeedRecord[] | null>(null)
@@ -404,12 +440,24 @@ export default function ShopProfile({ uid, onBack }: Props) {
   const [mapExpanded, setMapExpanded] = useState(false)
   const [note, setNote] = useState<string | null>(null)
   const [fix] = useState(() => cachedCoords())
+  // Follow state — null while the first read is in flight, so the button never
+  // flashes a false "Follow" before the answer lands. Guests start at
+  // false and their tap routes to sign-in instead of writing.
+  const [following, setFollowing] = useState<boolean | null>(() =>
+    viewerUid ? null : false,
+  )
+  const [followBusy, setFollowBusy] = useState(false)
 
   // Opening a shop from a scrolled offer list should land at the cover,
   // not halfway down the page.
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [uid])
+
+  useEffect(() => {
+    if (!viewerUid) return
+    return watchFollowState(uid, viewerUid, setFollowing)
+  }, [uid, viewerUid])
 
   useEffect(() => {
     const unsub = watchShop(uid, (record) => {
@@ -523,6 +571,38 @@ export default function ShopProfile({ uid, onBack }: Props) {
     }
   }
 
+  /** The Follow button — signs the customer in if they're a guest, flips
+      their follow state in both indexes, and asks for push permission on
+      the first follow (a user gesture, so the browser allows it). */
+  async function toggleFollow() {
+    if (!shop || followBusy) return
+    if (!viewerUid) {
+      onSignIn?.()
+      return
+    }
+    setFollowBusy(true)
+    const currently = following === true
+    try {
+      if (currently) {
+        await unfollowShop(uid, viewerUid)
+        setNote(`Unfollowed ${shop.name}`)
+      } else {
+        // Fire the push ask before any await — browsers only honour a
+        // notification-permission prompt inside a user gesture window.
+        void enablePush(viewerUid)
+        await followShop(uid, viewerUid, {
+          shopName: shop.name,
+          shopCategory: shop.category,
+          shopPhotoUrl: shop.shopPhotoUrl,
+        })
+        setNote(`Following ${shop.name} — you'll hear the moment they post new offers.`)
+      }
+    } catch {
+      setNote("Couldn't update that — check the connection and try again.")
+    }
+    setFollowBusy(false)
+  }
+
   function toggleSaved(offerId: string) {
     setSaved((current) => {
       const next = new Set(current)
@@ -567,38 +647,45 @@ export default function ShopProfile({ uid, onBack }: Props) {
             return (
               <li key={item.offerId}>
                 <article className="shop-offer-card">
-                  <span
-                    className={`shop-offer-tile shop-offer-tile--${item.tileColor ?? 'red'}`}
-                    aria-hidden="true"
+                  <button
+                    type="button"
+                    className="shop-offer-hit"
+                    onClick={() => onOpenOffer?.(uid, item.offerId)}
+                    aria-label={`Open ${item.title ?? 'offer'} at ${item.shopName}`}
                   >
-                    <span className="shop-offer-tile-big">{big}</span>
-                    {small && (
-                      <span className="shop-offer-tile-small">{small}</span>
-                    )}
-                  </span>
-                  <div className="shop-offer-body">
-                    <h3 className="shop-offer-title">
-                      {item.title ?? 'Untitled offer'}
-                    </h3>
-                    <p className="shop-offer-shop">
-                      <StoreSmallSvg />
-                      {item.shopName}
-                    </p>
-                    <div className="shop-offer-meta">
-                      {distKm !== null && (
-                        <span className="shop-offer-pill">
-                          <PinSvg />
-                          {fmtDistance(distKm)}
-                        </span>
+                    <span
+                      className={`shop-offer-tile shop-offer-tile--${item.tileColor ?? 'red'}`}
+                      aria-hidden="true"
+                    >
+                      <span className="shop-offer-tile-big">{big}</span>
+                      {small && (
+                        <span className="shop-offer-tile-small">{small}</span>
                       )}
-                      {item.endsAt && (
-                        <span className="shop-offer-pill">
-                          <ClockSvg />
-                          Ends {fmtDay(item.endsAt)}
-                        </span>
-                      )}
+                    </span>
+                    <div className="shop-offer-body">
+                      <h3 className="shop-offer-title">
+                        {item.title ?? 'Untitled offer'}
+                      </h3>
+                      <p className="shop-offer-shop">
+                        <StoreSmallSvg />
+                        {item.shopName}
+                      </p>
+                      <div className="shop-offer-meta">
+                        {distKm !== null && (
+                          <span className="shop-offer-pill">
+                            <PinSvg />
+                            {fmtDistance(distKm)}
+                          </span>
+                        )}
+                        {item.endsAt && (
+                          <span className="shop-offer-pill">
+                            <ClockSvg />
+                            Ends {fmtDay(item.endsAt)}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </button>
                   <button
                     type="button"
                     className="shop-offer-save"
@@ -804,22 +891,19 @@ export default function ShopProfile({ uid, onBack }: Props) {
                   <span>Shop</span>
                 </span>
               </button>
-              <button type="button" className="shop-action">
+              <button
+                type="button"
+                className={`shop-action${following ? ' is-on' : ''}`}
+                onClick={() => void toggleFollow()}
+                aria-pressed={following === true}
+                disabled={followBusy}
+              >
                 <span className="shop-action-icon">
-                  <PlusSvg />
+                  {following ? <CheckSvg /> : <PlusSvg />}
                 </span>
                 <span className="shop-action-text">
-                  <strong>Follow</strong>
-                  <span>Updates</span>
-                </span>
-              </button>
-              <button type="button" className="shop-action">
-                <span className="shop-action-icon">
-                  <BookmarkSvg />
-                </span>
-                <span className="shop-action-text">
-                  <strong>Save</strong>
-                  <span>For later</span>
+                  <strong>{following ? 'Following' : 'Follow'}</strong>
+                  <span>{following ? 'Updates on' : 'Updates'}</span>
                 </span>
               </button>
               <button

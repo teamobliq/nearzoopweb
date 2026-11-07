@@ -78,7 +78,10 @@ async function fetchGooglePublicKeys() {
   return pubkeysCache.keys
 }
 
-export async function verifyAuthToken(req) {
+/** Verifies the bearer token and returns its payload — for routes that
+    need the caller's identity beyond the uid (e.g. the allow-listed
+    admin email). verifyAuthToken builds on this. */
+export async function verifyAuthPayload(req) {
   const header = req.headers?.authorization ?? req.headers?.Authorization ?? ''
   const match = /^Bearer\s+(\S+)$/.exec(typeof header === 'string' ? header : '')
   if (!match) {
@@ -130,7 +133,12 @@ export async function verifyAuthToken(req) {
     throw httpError(401, 'Invalid signature')
   }
 
-  return tokenPayload.sub
+  return tokenPayload
+}
+
+export async function verifyAuthToken(req) {
+  const payload = await verifyAuthPayload(req)
+  return payload.sub
 }
 
 /** Timing-safe string compare for hex digests/signatures. */

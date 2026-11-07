@@ -3446,13 +3446,37 @@
 .shop-offer-card {
   position: relative;
   display: flex;
-  align-items: stretch;
-  gap: 1.1rem;
-  padding: 1.05rem;
+  flex-direction: column;
+  overflow: hidden;
   background-color: #fffdf7;
   border: var(--shop-line) solid var(--color-ink);
   border-radius: 1.25rem;
   box-shadow: var(--shop-shadow);
+}
+
+/* The whole card is the tap target — the bookmark rides on top of it. */
+.shop-offer-hit {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  gap: 1.1rem;
+  width: 100%;
+  min-width: 0;
+  padding: 1.05rem;
+  padding-right: 2.6rem;
+  background: transparent;
+  border: 0;
+  border-radius: inherit;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.shop-offer-hit:hover,
+.shop-offer-hit:focus-visible {
+  background-color: rgba(255, 230, 162, 0.4);
 }
 
 .shop-offer-tile {
@@ -3564,6 +3588,7 @@
   position: absolute;
   top: 0.95rem;
   right: 0.95rem;
+  z-index: 1;
   display: grid;
   place-items: center;
   padding: 0.15rem;
@@ -4141,4 +4166,205 @@
 .cust-shopcard-row--link:hover strong {
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* ---- Customer inbox (Notifications) ----------------------------------- */
+
+.notif-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.notif-item {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  background-color: #fffdf7;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 1.15rem;
+  box-shadow: 3px 4px 0 0 var(--color-ink);
+  font: inherit;
+  text-align: left;
+  color: var(--color-ink);
+  cursor: pointer;
+  transition: background-color 0.12s ease, translate 0.08s ease, box-shadow 0.08s ease;
+}
+
+.notif-item:hover:not(:disabled) {
+  translate: 1px 1px;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
+  background-color: #fffaf0;
+}
+
+.notif-item:disabled {
+  cursor: default;
+}
+
+.notif-item.is-unread {
+  background-color: #fdf0cd;
+}
+
+.notif-item-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.65rem;
+  height: 2.65rem;
+  background-color: #ffe6a2;
+  border: 2px solid var(--color-ink);
+  border-radius: 0.85rem;
+}
+
+.notif-item-icon svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.notif-item-text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.notif-item-text strong {
+  font-size: 0.98rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.notif-item-text > span {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-stone);
+  line-height: 1.35;
+}
+
+.notif-item-time {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--color-stone);
+}
+
+.notif-item-dot {
+  flex: none;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background-color: var(--color-orange);
+  border: 1.5px solid var(--color-ink);
+}
+
+.notif-empty {
+  margin-top: 4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: center;
+}
+
+.notif-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 4.2rem;
+  height: 4.2rem;
+  background-color: var(--color-yellow);
+  border: 3px solid var(--color-ink);
+  border-radius: 1.1rem;
+  box-shadow: 3px 4px 0 0 var(--color-ink);
+}
+
+.notif-empty-icon svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+.notif-empty h1 {
+  margin: 0.4rem 0 0;
+  font-size: 1.7rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.notif-empty p {
+  margin: 0;
+  max-width: 30ch;
+  color: var(--color-stone);
+  font-size: 1.02rem;
+  line-height: 1.45;
+}
+
+/* ---- Customer home: the notifications bell over the map ---------------- */
+
+.chome-bellfab {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  padding: 0;
+  color: var(--color-ink);
+  background-color: var(--color-paper);
+  border: 2.5px solid var(--color-ink);
+  border-radius: 999px;
+  box-shadow: 3px 4px 0 0 var(--color-ink);
+  cursor: pointer;
+  transition: translate 0.08s ease, box-shadow 0.08s ease, opacity 0.25s ease;
+}
+
+.chome-bellfab svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.chome-bellfab:hover {
+  translate: 1px 1px;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
+}
+
+.chome-bellfab-badge {
+  position: absolute;
+  top: -0.4rem;
+  right: -0.4rem;
+  display: grid;
+  place-items: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.35rem;
+  background-color: var(--color-orange);
+  color: #ffffff;
+  border: 2px solid var(--color-ink);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+@media (max-width: 899.98px) {
+  .chome.is-raised .chome-bellfab {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+/* Shop Profile: the Follow action in its followed state. */
+.shop-action.is-on {
+  background-color: #e3f7e9;
+  border-color: var(--color-green);
+}
+
+.shop-action.is-on .shop-action-text strong,
+.shop-action.is-on .shop-action-text span {
+  color: #0d7a44;
 }

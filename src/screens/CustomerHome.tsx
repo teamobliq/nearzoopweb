@@ -19,6 +19,7 @@ import { watchFeed, type FeedRecord } from '../business/feed'
 import { fmtDay } from '../business/when'
 import Profile from './Profile'
 import type { User } from 'firebase/auth'
+import { watchCustomerNotificationsUnread } from '../business/follows'
 import './customer.css'
 // The feed cards reuse the merchant list's deal tile (biz-otile) for the
 // discount, so business.css must ship in this bundle too.
@@ -33,7 +34,7 @@ import '../business/business.css'
     loading, failure and genuinely-empty. */
 
 type Props = {
-  session: { variant: 'guest' | 'signed-in'; label?: string }
+  session: { variant: 'guest' | 'signed-in'; label?: string; uid?: string }
   /** The signed-in Firebase user, or null when browsing as guest. */
   user: User | null
   /** The location chip — re-runs the Locate step. */
@@ -46,6 +47,8 @@ type Props = {
   onOpenCoupons: () => void
   /** Opens the Trending Nearby screen. */
   onOpenTrending: () => void
+  /** Opens the notifications inbox — the bell over the map. */
+  onOpenNotifications: () => void
   /** Opens a shop's profile screen. */
   onOpenShop: (shopUid: string) => void
   /** After sign-out completes — the session flips to guest. */
@@ -278,6 +281,15 @@ function OfferCard({
   )
 }
 
+function BellSvg() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  )
+}
+
 export default function CustomerHome({
   session,
   user,
@@ -285,6 +297,7 @@ export default function CustomerHome({
   onOpenOffer,
   onOpenCoupons,
   onOpenTrending,
+  onOpenNotifications,
   onOpenShop,
   onSignIn,
   onSignOut,
@@ -317,6 +330,13 @@ export default function CustomerHome({
   // The clock the feed filter runs against — refreshed on every snapshot so
   // scheduled offers wake up without a render-time Date.now().
   const [now, setNow] = useState(() => Date.now())
+  // Unread inbox items — the bell's badge. Signed-in customers only.
+  const [unread, setUnread] = useState(0)
+
+  useEffect(() => {
+    if (session.variant !== 'signed-in' || !session.uid) return
+    return watchCustomerNotificationsUnread(session.uid, setUnread)
+  }, [session.variant, session.uid])
 
   // The public feed mirror — the only offer data a customer can read.
   useEffect(
@@ -521,6 +541,25 @@ export default function CustomerHome({
             onEditLocation={onEditLocation}
           />
         </div>
+        {session.variant === 'signed-in' && (
+          <button
+            type="button"
+            className="chome-bellfab"
+            onClick={onOpenNotifications}
+            aria-label={
+              unread > 0
+                ? `Notifications, ${unread} unread`
+                : 'Notifications'
+            }
+          >
+            <BellSvg />
+            {unread > 0 && (
+              <span className="chome-bellfab-badge" aria-hidden="true">
+                {unread > 9 ? '9+' : unread}
+              </span>
+            )}
+          </button>
+        )}
         <button
           type="button"
           className="chome-locatefab"
