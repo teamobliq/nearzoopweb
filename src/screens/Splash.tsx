@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { onAuthStateChanged, type User } from 'firebase/auth'
 import { auth } from '../firebase'
 import logoUrl from '../assets/logo.svg'
-import { cacheCoords } from '../business/geocode'
+import { cacheCoords, FALLBACK_FIX } from '../business/geocode'
 
 type Coords = { lat: number; lng: number }
 
@@ -13,11 +13,9 @@ type Props = {
 }
 
 /** Splash asks for location access once its hold timer runs out. */
-type Phase = 'hold' | 'locating' | 'found' | 'blocked'
+type Phase = 'hold' | 'locating' | 'found'
 
-type BlockReason = 'denied' | 'unavailable' | 'timeout'
-
-/** Both pre-block phases read the same: the locality isn't known yet. */
+/** Both pre-found phases read the same: the locality isn't known yet. */
 const STATUS_TEXT = 'Finding your locality…'
 
 /** Reverse-geocodes the fix into a locality name via Nominatim (OpenStreetMap,
@@ -59,15 +57,8 @@ async function resolveLocality(
   }
 }
 
-const BLOCK_TEXT: Record<BlockReason, string> = {
-  denied: 'Permission denied',
-  unavailable: 'Location unavailable',
-  timeout: 'Location timed out',
-}
-
 function Splash({ onProceed }: Props) {
   const [phase, setPhase] = useState<Phase>('hold')
-  const [reason, setReason] = useState<BlockReason>('denied')
   const [locality, setLocality] = useState<string | null>(null)
   const [showFound, setShowFound] = useState(false)
   const asking = useRef(false)
@@ -85,15 +76,19 @@ function Splash({ onProceed }: Props) {
     return unsubscribe
   }, [])
 
-  // Hold for a random beat (3–6 s), then ask for location access.
-  useEffect(() => {
-    if (phase !== 'hold') return
-    const timer = window.setTimeout(() => {
-      void ask()
-    }, 3000 + Math.random() * 3000)
-    return () => window.clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase])
+  /** No location permission (or none available): not a dead end. The app
+      runs on a fallback fix (Gariahat, Kolkata — the design neighbourhood)
+      and moves straight on to the next screen. */
+  function finishWithoutLocation() {
+    const coords: Coords = { lat: FALLBACK_FIX.lat, lng: FALLBACK_FIX.lng }
+    cacheCoords(coords)
+    asking.current = false
+    setPhase('found')
+    window.setTimeout(() => setShowFound(true), 900)
+    window.setTimeout(() => {
+      void authReady.current?.then((user) => onProceed(coords, user))
+    }, 2300)
+  }
 
   async function ask() {
     if (asking.current) return
@@ -103,8 +98,7 @@ function Splash({ onProceed }: Props) {
 
     try {
       if (!('geolocation' in navigator)) {
-        setReason('unavailable')
-        setPhase('blocked')
+        finishWithoutLocation()
         return
       }
 
@@ -112,8 +106,7 @@ function Splash({ onProceed }: Props) {
       try {
         const permission = await navigator.permissions.query({ name: 'geolocation' })
         if (permission.state === 'denied') {
-          setReason('denied')
-          setPhase('blocked')
+          finishWithoutLocation()
           return
         }
       } catch {
@@ -140,52 +133,23 @@ function Splash({ onProceed }: Props) {
             void authReady.current?.then((user) => onProceed(coords, user))
           }, 2300)
         },
-        (error) => {
-          asking.current = false
-          setReason(
-            error.code === error.POSITION_UNAVAILABLE
-              ? 'unavailable'
-              : error.code === error.TIMEOUT
-                ? 'timeout'
-                : 'denied',
-          )
-          setPhase('blocked')
-        },
+        () => finishWithoutLocation(),
         { timeout: 15000, enableHighAccuracy: false, maximumAge: 300000 },
       )
     } catch {
-      asking.current = false
-      setReason('denied')
-      setPhase('blocked')
+      finishWithoutLocation()
     }
   }
 
-  if (phase === 'blocked') {
-    return (
-      <main className="splash">
-        <div className="splash-body">
-          <img className="splash-mark" src={logoUrl} alt="NearZoop logo" />
-          <h1 className="splash-title">
-            <span>Near</span>
-            <span>Zoop</span>
-          </h1>
-          <p className="splash-tagline">Offers in your locality, right now.</p>
-        </div>
-
-        <footer className="splash-status splash-status--blocked" role="status">
-          <span>{BLOCK_TEXT[reason]}</span>
-          {reason === 'denied' && (
-            <span className="splash-hint">
-              Turn location on from the icon in your address bar, then try again.
-            </span>
-          )}
-          <button type="button" className="splash-retry" onClick={() => void ask()}>
-            Try again
-          </button>
-        </footer>
-      </main>
-    )
-  }
+  // Hold for a random beat (3–6 s), then ask for location access.
+  useEffect(() => {
+    if (phase !== 'hold') return
+    const timer = window.setTimeout(() => {
+      void ask()
+    }, 3000 + Math.random() * 3000)
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
 
   return (
     <main className="splash">
