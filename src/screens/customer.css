@@ -2111,27 +2111,251 @@
   }
 }
 
-@media (max-width: 560px) {
+/* Phone layout — the hero stays a row (tile left, copy right) but at
+   phone-appropriate sizes; every control wraps instead of overflowing. */
+@media (max-width: 640px) {
+  .cust-page {
+    padding: 1rem clamp(0.7rem, 3vw, 1rem) 2.25rem;
+  }
+
+  .cust-topbar {
+    gap: 0.55rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .cust-back,
   .cust-top-actions .cust-round {
-    width: 2.3rem;
-    height: 2.3rem;
+    width: 2.7rem;
+    height: 2.7rem;
+    border-width: 2.5px;
+  }
+
+  .cust-back svg,
+  .cust-top-actions .cust-round svg {
+    width: 1.1rem;
+    height: 1.1rem;
   }
 
   .cust-crumb {
     font-size: 0.62rem;
-    padding-inline: 0.7rem;
+    max-width: 40vw;
+    padding: 0.3rem 0.65rem;
+  }
+
+  .cust-top-actions {
+    gap: 0.4rem;
+  }
+
+  .cust-offer-head {
+    gap: 0.85rem;
+    align-items: center;
+  }
+
+  .cust-offer-tile {
+    width: 5.2rem;
+    border-width: 3px;
+    border-radius: 0.85rem;
+    box-shadow: 5px 6px 0 0 var(--color-ink);
+  }
+
+  .cust-offer-tile-big {
+    font-size: 1.55rem;
+  }
+
+  .cust-offer-tile-small {
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    margin-top: 0.25rem;
+  }
+
+  .cust-offer-pills {
+    gap: 0.38rem;
+    margin-bottom: 0.45rem;
+  }
+
+  .cust-pill {
+    font-size: 0.76rem;
+    padding: 0.26rem 0.6rem;
+  }
+
+  .cust-offer-headline {
+    font-size: clamp(1.45rem, 8.4vw, 1.95rem);
+    letter-spacing: -0.03em;
+    line-height: 1.04;
+  }
+
+  .cust-offer-desc {
+    font-size: 0.98rem;
+    line-height: 1.38;
   }
 
   .cust-offer-dates {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-top: 0.8rem;
   }
 
+  .cust-offer-datebox {
+    padding: 0.5rem 0.6rem 0.55rem;
+    border-radius: 0.7rem;
+  }
+
+  .cust-offer-datelabel {
+    font-size: 0.58rem;
+    letter-spacing: 0.12em;
+  }
+
+  .cust-offer-datebox strong {
+    font-size: 0.88rem;
+  }
+
+  .cust-offer-redeem {
+    padding: 0.65rem 0.8rem 0.8rem;
+    border-radius: 1rem;
+    box-shadow: 3px 4px 0 0 var(--color-ink);
+  }
+
+  .cust-offer-redeem h2 {
+    font-size: 1.35rem;
+  }
+
+  .cust-offer-redeem ol {
+    font-size: 0.9rem;
+    line-height: 1.42;
+    padding-left: 1.15rem;
+  }
+
+  .cust-offer-redeem-line {
+    font-size: 0.95rem;
+  }
+
+  .cust-offer-terms,
+  .cust-offer-exclusions {
+    font-size: 0.8rem;
+  }
+
+  /* The CTA stays a row so it matches the design — each button just
+     shrinks to fit instead of stacking at phone widths. */
+  .cust-offer-cta-row {
+    gap: 0.5rem;
+    margin-top: 0.8rem;
+  }
+
+  .cust-offer-dir {
+    font-size: 0.85rem;
+    padding: 0.55rem 0.7rem;
+  }
+
+  .cust-offer-dir svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .cust-offer-claim {
+    font-size: 0.92rem;
+    padding: 0.55rem 0.6rem;
+    gap: 0.35rem;
+    border-width: 3px;
+  }
+
+  .cust-offer-claim svg {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+
+  .cust-offer-ended,
+  .cust-offer-claimed,
+  .cust-offer-counted {
+    font-size: 0.82rem;
+  }
+
+  /* Shop card rows — same icon rhythm as the Shop Profile screen, just
+     a touch tighter so address lines fit. */
+  .cust-shopcard-head {
+    padding: 0.65rem 0.7rem;
+    gap: 0.55rem;
+  }
+
+  .cust-shopcard-avatar {
+    width: 2.6rem;
+    height: 2.6rem;
+    font-size: 1.3rem;
+    border-radius: 0.55rem;
+  }
+
+  .cust-shopcard-name strong {
+    font-size: 0.95rem;
+  }
+
+  .cust-shopcard-name small {
+    font-size: 0.68rem;
+  }
+
+  .cust-shopcard-row {
+    padding: 0.6rem 0.75rem;
+    gap: 0.7rem;
+  }
+
+  .cust-shopcard-ricon {
+    width: 2.15rem;
+    height: 2.15rem;
+    border-radius: 0.65rem;
+  }
+
+  .cust-shopcard-ricon svg {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+
+  .cust-shopcard-rmain strong {
+    font-size: 0.9rem;
+  }
+
+  .cust-shopcard-rmain small {
+    font-size: 0.75rem;
+  }
+
+  .cust-shopcard-map .shop-map-canvas {
+    height: 9rem;
+  }
+
+  .cust-shopcard-mapholder {
+    height: 9rem;
+  }
+
+  .cust-shopcard-mapfoot {
+    padding: 0.45rem 0.5rem;
+    font-size: 0.78rem;
+  }
+
+  .cust-shopcard-mapdist {
+    font-size: 0.78rem;
+  }
+
+  .cust-shopcard-mapdist svg {
+    width: 0.9rem;
+    height: 0.9rem;
+  }
+
+  .cust-shopcard-getdir {
+    font-size: 0.74rem;
+    padding: 0.38rem 0.6rem;
+  }
+}
+
+/* Very small phones — the CTA finally stacks; everything else already
+   reflows. */
+@media (max-width: 380px) {
   .cust-offer-cta-row {
     flex-direction: column;
   }
 
   .cust-offer-dir {
     justify-content: center;
+  }
+
+  .cust-offer-dates {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
