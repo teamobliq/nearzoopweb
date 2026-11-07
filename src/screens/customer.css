@@ -2531,14 +2531,14 @@
   min-height: 100dvh;
   background-color: var(--color-paper);
   color: var(--color-ink);
-  padding: 1.2rem clamp(1.2rem, 4vw, 2rem) 2rem;
+  padding: 1rem clamp(1rem, 4vw, 1.5rem) 1rem;
 }
 
 .shop-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.8rem;
+  margin-bottom: 0.6rem;
 }
 
 .shop-back,
@@ -2546,8 +2546,8 @@
   flex: none;
   display: grid;
   place-items: center;
-  width: 2.8rem;
-  height: 2.8rem;
+  width: 2.6rem;
+  height: 2.6rem;
   background-color: #ffffff;
   border: 2.5px solid var(--color-ink);
   border-radius: 999px;
@@ -2557,14 +2557,14 @@
 
 .shop-back svg,
 .shop-share svg {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.4rem;
+  height: 1.4rem;
 }
 
 .shop-title {
   margin: 0;
   flex: 1;
-  font-size: clamp(1.6rem, 6vw, 2rem);
+  font-size: clamp(1.5rem, 5vw, 1.9rem);
   font-weight: 900;
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -2573,16 +2573,16 @@
 
 .shop-cover {
   width: 100%;
-  height: clamp(12rem, 28vw, 18rem);
+  height: clamp(9rem, 22vw, 13rem);
   object-fit: cover;
   border-radius: 1.4rem;
   box-shadow: var(--shadow-card);
-  margin-bottom: 1rem;
+  margin-bottom: 0.8rem;
 }
 
 .shop-cover--blank {
   width: 100%;
-  height: clamp(12rem, 28vw, 18rem);
+  height: clamp(9rem, 22vw, 13rem);
   background-color: var(--color-yellow);
   background-image: radial-gradient(
     circle,
@@ -2592,12 +2592,12 @@
   background-size: 16px 16px;
   border-radius: 1.4rem;
   box-shadow: var(--shadow-card);
-  margin-bottom: 1rem;
+  margin-bottom: 0.8rem;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--color-stone);
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -2607,19 +2607,19 @@
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
-  margin-bottom: 0.8rem;
+  margin-bottom: 0.6rem;
 }
 
 .shop-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.8rem;
+  gap: 0.35rem;
+  padding: 0.25rem 0.7rem;
   border: 2.5px solid var(--color-ink);
   border-radius: 999px;
   font: inherit;
   font-weight: 800;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--color-ink);
 }
 
@@ -2636,34 +2636,34 @@
 
 .shop-name {
   margin: 0 0 0.3rem;
-  font-size: clamp(2.2rem, 9vw, 3rem);
+  font-size: clamp(2rem, 8vw, 2.6rem);
   font-weight: 900;
   letter-spacing: -0.03em;
   line-height: 1.05;
 }
 
 .shop-address {
-  margin: 0 0 1.4rem;
-  font-size: 1.05rem;
+  margin: 0 0 1.2rem;
+  font-size: 1rem;
   color: var(--color-stone);
 }
 
 .shop-actions {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 0.7rem;
-  margin-bottom: 1.6rem;
+  gap: 0.6rem;
+  margin-bottom: 1.4rem;
 }
 
 .shop-action {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.8rem 0.5rem;
+  gap: 0.25rem;
+  padding: 0.7rem 0.4rem;
   background-color: #ffffff;
   border: 2.5px solid var(--color-ink);
-  border-radius: 1.6rem;
+  border-radius: 1.4rem;
   box-shadow: var(--shadow-card);
   cursor: pointer;
   transition: translate 0.08s ease, box-shadow 0.08s ease;
@@ -2675,11 +2675,11 @@
 }
 
 .shop-action-icon {
-  width: 1.7rem;
-  height: 1.7rem;
+  width: 1.5rem;
+  height: 1.5rem;
   display: grid;
   place-items: center;
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.15rem;
 }
 
 .shop-action-icon svg {
@@ -2699,36 +2699,36 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.15rem;
+  gap: 0.1rem;
 }
 
 .shop-action-label strong {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 800;
   line-height: 1.1;
   color: var(--color-ink);
 }
 
 .shop-action-label span {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--color-stone);
   white-space: nowrap;
 }
 
 .shop-section {
-  margin-bottom: 1.6rem;
+  margin-bottom: 1.4rem;
 }
 
 .shop-section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 0 0 0.8rem;
+  margin: 0 0 0.7rem;
 }
 
 .shop-section-title {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.25rem;
   font-weight: 900;
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -2737,7 +2737,7 @@
 .shop-section-count {
   font-weight: 800;
   color: var(--color-stone);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .shop-offers {
@@ -2746,24 +2746,24 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.7rem;
 }
 
 .shop-offer-card {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 .shop-offer-hit {
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
+  gap: 0.8rem;
   width: 100%;
-  padding: 0.9rem 1rem;
+  padding: 0.8rem 0.9rem;
   background-color: #ffffff;
   border: 2.5px solid var(--color-ink);
-  border-radius: 1.6rem;
+  border-radius: 1.4rem;
   box-shadow: var(--shadow-card);
   cursor: pointer;
   transition: translate 0.08s ease, box-shadow 0.08s ease;
@@ -2776,13 +2776,13 @@
 
 .shop-offer-hit .biz-otile {
   flex: none;
-  width: 5rem;
-  height: 5rem;
-  padding: 0.4rem;
+  width: 4.2rem;
+  height: 4.2rem;
+  padding: 0.35rem;
 }
 
 .shop-offer-hit .biz-otile-big {
-  font-size: 1.8rem;
+  font-size: 1.5rem;
 }
 
 .shop-offer-main {
@@ -2790,27 +2790,27 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.2rem;
 }
 
 .shop-offer-title {
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 900;
   letter-spacing: -0.01em;
   line-height: 1.15;
 }
 
 .shop-offer-shop {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: var(--color-stone);
 }
 
 .shop-offer-meta {
   display: flex;
-  gap: 1rem;
+  gap: 0.9rem;
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   letter-spacing: 0.08em;
   color: var(--color-ink);
   font-weight: 700;
@@ -2832,24 +2832,24 @@
 }
 
 .shop-offer-bookmark span {
-  font-size: 1.6rem;
+  font-size: 1.5rem;
 }
 
 .shop-detail-row {
   display: flex;
-  gap: 0.9rem;
-  padding: 0.85rem 1rem;
+  gap: 0.8rem;
+  padding: 0.8rem 1rem;
   background-color: #ffffff;
   border: 2.5px solid var(--color-ink);
-  border-radius: 1.3rem;
+  border-radius: 1.2rem;
   box-shadow: var(--shadow-card);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
 }
 
 .shop-detail-icon {
   flex: none;
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 2rem;
+  height: 2rem;
   display: grid;
   place-items: center;
   background-color: var(--color-yellow);
@@ -2858,8 +2858,8 @@
 }
 
 .shop-detail-icon svg {
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
 .shop-detail-text {
@@ -2867,18 +2867,18 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.12rem;
 }
 
 .shop-detail-text strong {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 800;
   line-height: 1.2;
   color: var(--color-ink);
 }
 
 .shop-detail-text span:not(strong) {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   color: var(--color-stone);
   white-space: nowrap;
 }
