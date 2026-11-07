@@ -21,7 +21,7 @@ import './App.css'
 const AdminPanel = lazy(() => import('./admin/AdminPanel'))
 
 type Screen = 'splash' | 'onboard' | 'auth' | 'locate' | 'home' | 'profile' | 'editProfile' | 'myCoupons' | 'couponPass' | 'trending' | 'shop'
-type Route = 'customer' | 'business' | 'admin'
+type Route = 'customer' | 'business' | 'admin' | 'shop'
 type Session = { variant: 'guest' | 'signed-in'; label?: string; uid?: string; user?: User }
 type DeepLink = { uid: string; offerId: string }
 
@@ -80,6 +80,10 @@ function readRoute(): Route {
   // Normalise: a trailing slash is meaningless here, and matching on it
   // would make `/business` and `/business/` diverge.
   const path = window.location.pathname.replace(/\/+$/, '') || '/'
+  // The shop profile as a shareable link — `<ROOT>/shop?id=<shopUid>`.
+  if (/(^|\/)shop$/i.test(path)) {
+    return 'shop'
+  }
   // Exact merchant entry points only. A prefix match on `/business` used to
   // swallow every `/business/<uid>/<offerId>` share link, so those fell into
   // the merchant landing instead of the offer. The offer path is two
@@ -91,6 +95,18 @@ function readRoute(): Route {
     return 'admin'
   }
   return 'customer'
+}
+
+/** The shop link's id — `<ROOT>/shop?id=<shopUid>`. Missing or empty means
+    the link wasn't built for a shop; callers show a friendly dead-end,
+    never an empty query. */
+function readShopId(): string | null {
+  try {
+    const id = new URLSearchParams(window.location.search).get('id')
+    return id && id.trim() ? id : null
+  } catch {
+    return null
+  }
 }
 
 /** A shared offer link — `<base>/<shopUid>/<offerId>?source=…` — resolves
@@ -171,7 +187,7 @@ function App() {
       // local stack and restore the screen that is now on top. Deep-link and
       // merchant/admin URLs carry no marker, so they are left to the route
       // logic above.
-      const state = window.history.state as { nzScreen?: Screen } | null
+      const state = window.history.state as { nzScreen?: Screen; nzShop?: boolean } | null
       if (state?.nzScreen) {
         // The browser landed on one of our pushed entries — restore that
         // screen and drop any deeper entries so the stack matches history.
@@ -184,6 +200,11 @@ function App() {
         }
         setScreenDepth(stack.length)
         setScreen(state.nzScreen)
+        return
+      }
+      // The shop URL entry is a marker, not a member of the screen stack —
+      // popping here would desync the in-app stack behind the offer page.
+      if (state?.nzShop) {
         return
       }
       if (screenStack.current.length > 1) {
@@ -237,6 +258,36 @@ function App() {
     go('home')
   }
 
+  /** Opens the shop's profile — a real URL, so Back, reload and sharing
+      all land on the same shop: `<ROOT>/shop?id=<shopUid>`. */
+  function openShop(uid: string) {
+    const target = `${import.meta.env.BASE_URL}shop?id=${encodeURIComponent(uid)}`
+    try {
+      window.history.pushState({ nzShop: true }, '', target)
+    } catch {
+      // History unavailable — the screen still opens, the URL just lags.
+    }
+    setShopUid(uid)
+    setRoute('shop')
+  }
+
+  /** Leaves the shop profile: back through history when it was opened
+      from inside the app, otherwise to Home. */
+  function closeShop() {
+    const state = window.history.state as { nzShop?: boolean } | null
+    if (state?.nzShop) {
+      window.history.back()
+      return
+    }
+    try {
+      window.history.pushState({}, '', import.meta.env.BASE_URL || '/')
+    } catch {
+      // History unavailable — still returns to Home.
+    }
+    setShopUid(null)
+    setRoute('customer')
+  }
+
   /** "Sign in to claim" on an offer page — the auth flow takes over, then
       lands on Home (the offer stays reachable from there). */
   function signInFromOffer() {
@@ -277,6 +328,56 @@ function App() {
     )
   }
 
+  if (route === 'shop') {
+    // Shared shop links open the profile straight away — no splash, no
+    // onboarding. Back falls to Home when the link didn't come from the app.
+    const shopId = readShopId()
+    if (!shopId) {
+      return (
+        <main
+          style={{
+            minHeight: '100dvh',
+            display: 'grid',
+            placeItems: 'center',
+            backgroundColor: 'var(--color-cream)',
+            fontFamily: 'var(--font-mono)',
+            color: 'var(--color-stone)',
+            padding: '2rem',
+            textAlign: 'center',
+          }}
+        >
+          <div>
+            <p style={{ margin: 0, fontSize: '1rem' }}>This link is missing its shop.</p>
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  window.history.pushState({}, '', import.meta.env.BASE_URL || '/')
+                } catch {
+                  // History unavailable — still reroutes below.
+                }
+                setRoute('customer')
+              }}
+              style={{
+                marginTop: '1rem',
+                padding: '0.6rem 1.2rem',
+                borderRadius: '999px',
+                border: '2.5px solid var(--color-ink)',
+                backgroundColor: 'var(--color-yellow)',
+                font: 'inherit',
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              Go to NearZoop
+            </button>
+          </div>
+        </main>
+      )
+    }
+    return <ShopProfile uid={shopId} onBack={closeShop} />
+  }
+
   if (route === 'customer' && deepLink) {
     // Shared links skip splash/onboarding — the visitor came for one offer.
     return (
@@ -287,10 +388,7 @@ function App() {
         viewerUid={session.uid}
         onSignIn={signInFromOffer}
         onBack={closeOffer}
-        onOpenShop={(shopUid) => {
-          setShopUid(shopUid)
-          go('shop')
-        }}
+        onOpenShop={openShop}
       />
     )
   }
