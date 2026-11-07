@@ -734,6 +734,7 @@ export default function CustomerHome({
                           countdown={endsInLabel(item.endsAt as string, now)}
                           bookmarked={saved.has(item.offerId)}
                           onToggleBookmark={() => toggleSaved(item.offerId)}
+                          onOpenShop={onOpenShop}
                         />
                       ))}
                     </ul>
