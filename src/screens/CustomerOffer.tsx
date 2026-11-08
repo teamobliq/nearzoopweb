@@ -25,6 +25,7 @@ import {
   findMyCoupon,
   type CouponRecord,
 } from '../business/coupons'
+import { requestRatePrompt, watchShopReviews, type ReviewSummary } from '../business/reviews'
 import { fmtDay, fmtWhen, rel } from '../business/when'
 import { nzMapStyle } from '../business/maplibreUtils'
 import './customer.css'
@@ -422,6 +423,13 @@ export default function CustomerOffer({
   // A fix for the distance labels, read from the shared customer cache.
   // Null when the device never granted location — every label hides then.
   const [fix] = useState<{ lat: number; lng: number } | null>(() => cachedCoords())
+  // Reviews for the shop card's average chip — live from the reviews
+  // collection; guests see it too (reads are public).
+  const [reviewSummary, setReviewSummary] = useState<ReviewSummary>({
+    reviews: [],
+    count: 0,
+    average: 0,
+  })
   // A ticking clock — the open/closed chip and the offer's Started/Scheduled
   // chip flip on their own as time passes, without a reload.
   const [nowTs, setNowTs] = useState(() => Date.now())
@@ -528,6 +536,12 @@ export default function CustomerOffer({
   useEffect(() => {
     const unsubscribe = watchShop(uid, (record) => setShopDoc(record))
     return unsubscribe
+  }, [uid])
+
+  // The reviews average for the card's chip — live from the reviews
+  // collection; guests see it too (reads are public).
+  useEffect(() => {
+    return watchShopReviews(uid, setReviewSummary)
   }, [uid])
 
   const status = item ? feedDisplayStatus(item) : 'live'
@@ -769,6 +783,15 @@ export default function CustomerOffer({
       })
       setCoupon(record)
       setClaimDialog(record)
+      // The customer is one tap away from rating — write the prompt so
+      // it's already in their inbox once the claim moment passes.
+      requestRatePrompt({
+        shopUid: uid,
+        customerUid: viewerUid,
+        offerId,
+        offerTitle: item?.title ?? undefined,
+        discountLabel: item?.discountLabel ?? undefined,
+      })
     } catch {
       setClaimError("Couldn't claim that. Check the connection and try again.")
     }
@@ -979,6 +1002,11 @@ export default function CustomerOffer({
                   {shopDoc?.address ? `${shopDoc.address} · ` : ''}
                   {distKm !== null ? `${fmtDistance(distKm)} away` : 'Near you'}
                   {openNow ? ' · Open now' : ''}
+                  {reviewSummary.count > 0 && (
+                    <span className="cust-shopcard-rating">
+                      {' · '}★ {reviewSummary.average.toFixed(1)} ({reviewSummary.count})
+                    </span>
+                  )}
                 </small>
               </span>
               {onOpenShop && (

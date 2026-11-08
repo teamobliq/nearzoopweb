@@ -108,7 +108,10 @@ export type CustomerNotification = {
   title: string
   body?: string
   shopUid?: string
+  /** Present on rate prompts — the dialog renders it directly. */
+  shopName?: string
   offerId?: string
+  offerTitle?: string
   read?: boolean
   at?: Timestamp
 }

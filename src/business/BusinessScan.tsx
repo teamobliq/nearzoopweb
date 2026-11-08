@@ -12,6 +12,7 @@ import {
   type CouponRecord,
 } from './coupons'
 import { logRedemption, deleteRedemption } from './redemptions'
+import { requestRatePrompt } from './reviews'
 import './business.css'
 
 /** The Scan flow — opened from the sidebar button, the mobile scan chip and
@@ -370,6 +371,15 @@ export default function BusinessScan({
       } catch {
         // The count already moved; the history is best-effort.
       }
+      // The customer is one tap away from rating — write the prompt so
+      // it's already in their inbox the moment they pocket their phone.
+      requestRatePrompt({
+        shopUid: uid,
+        customerUid: coupon.customerUid,
+        offerId: coupon.offerId,
+        offerTitle: coupon.offerTitle ?? undefined,
+        discountLabel: coupon.discountLabel ?? undefined,
+      })
       setSheet(null)
       setDone({
         offerId: coupon.offerId,

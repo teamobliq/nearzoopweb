@@ -508,6 +508,7 @@ function App() {
     return (
       <CustomerNotifications
         viewerUid={session.variant === 'signed-in' ? session.uid : undefined}
+        viewerName={session.label}
         onBack={() => go('home')}
         onOpenOffer={openOffer}
         onSignIn={() => {

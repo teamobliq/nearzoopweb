@@ -9,8 +9,9 @@ import {
   watchFollowState,
 } from '../business/follows'
 import { enablePush } from '../business/push'
+import { watchShopReviews, type ReviewSummary } from '../business/reviews'
 import { watchFeed, type FeedRecord } from '../business/feed'
-import { fmtDay } from '../business/when'
+import { fmtDay, rel } from '../business/when'
 import { nzMapStyle } from '../business/maplibreUtils'
 import './customer.css'
 
@@ -164,6 +165,40 @@ function ShieldCheckSvg() {
         strokeLinejoin="round"
       />
     </svg>
+  )
+}
+
+function StarSvg() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+      />
+    </svg>
+  )
+}
+
+/** The five-star read-out used in the Reviews list — full stars lighter
+    than empty for anything above zero. */
+function StarsRow({ value }: { value: number }) {
+  const full = Math.round(value)
+  return (
+    <span className="shop-stars" role="img" aria-label={`Rated ${value.toFixed(1)} out of 5`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <svg
+          key={n}
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          className={n <= full ? 'shop-star shop-star--on' : 'shop-star'}
+        >
+          <path
+            fill="currentColor"
+            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+          />
+        </svg>
+      ))}
+    </span>
   )
 }
 
@@ -447,11 +482,22 @@ export default function ShopProfile({
     viewerUid ? null : false,
   )
   const [followBusy, setFollowBusy] = useState(false)
+  // Reviews — live from the shop's reviews collection; the average chip and
+  // the Reviews tab share one subscription.
+  const [reviewSummary, setReviewSummary] = useState<ReviewSummary>({
+    reviews: [],
+    count: 0,
+    average: 0,
+  })
 
   // Opening a shop from a scrolled offer list should land at the cover,
   // not halfway down the page.
   useEffect(() => {
     window.scrollTo(0, 0)
+  }, [uid])
+
+  useEffect(() => {
+    return watchShopReviews(uid, setReviewSummary)
   }, [uid])
 
   useEffect(() => {
@@ -854,6 +900,16 @@ export default function ShopProfile({
               {openNow && (
                 <span className="shop-badge shop-badge--open">Open now</span>
               )}
+              {reviewSummary.count > 0 && (
+                <span className="shop-badge shop-badge--rating">
+                  <StarSvg />
+                  {reviewSummary.average.toFixed(1)}
+                  <span className="shop-badge-rating-count">
+                    · {reviewSummary.count}
+                    {reviewSummary.count === 1 ? ' review' : ' reviews'}
+                  </span>
+                </span>
+              )}
             </div>
 
             <h1 className="shop-name">{shop.name}</h1>
@@ -950,11 +1006,53 @@ export default function ShopProfile({
             {tab === 'details' && detailsSection}
             {tab === 'reviews' && (
               <section className="shop-section">
-                <h2 className="shop-section-title">Reviews</h2>
-                <div className="shop-empty-card">
-                  No reviews yet. Be the first to review {shop.name} after
-                  your next visit.
-                </div>
+                <h2 className="shop-section-title">
+                  Reviews{' '}
+                  {reviewSummary.count > 0 && (
+                    <span className="shop-section-count">
+                      {reviewSummary.count}
+                    </span>
+                  )}
+                </h2>
+                {reviewSummary.count === 0 ? (
+                  <div className="shop-empty-card">
+                    No reviews yet. Be the first to review {shop.name} after
+                    your next visit.
+                  </div>
+                ) : (
+                  <>
+                    <div className="shop-review-summary">
+                      <StarsRow value={reviewSummary.average} />
+                      <span className="shop-review-average">
+                        {reviewSummary.average.toFixed(1)}
+                        <small>
+                          {' '}· {reviewSummary.count}{' '}
+                          {reviewSummary.count === 1 ? 'review' : 'reviews'}
+                        </small>
+                      </span>
+                    </div>
+                    <ul className="shop-reviews">
+                      {reviewSummary.reviews.map((review) => (
+                        <li key={review.id} className="shop-review">
+                          <div className="shop-review-head">
+                            <StarsRow value={review.rating} />
+                            <span className="shop-review-author">
+                              {review.customerName?.trim() || 'Customer'}
+                            </span>
+                            {review.createdAt && (
+                              <time className="shop-review-time">
+                                {rel(review.createdAt.toDate().toISOString()) ?? ''}
+                              </time>
+                            )}
+                          </div>
+                          {review.comment && (
+                            <p className="shop-review-comment">{review.comment}</p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
               </section>
             )}
           </div>

@@ -108,6 +108,38 @@ service cloud.firestore {
         allow create, delete: if signedIn() && request.auth.uid == followerUid;
       }
 
+      // The shop's public reviews — one doc per (offer, customer), doc
+      // id is `{offerId}_{customerUid}` so re-rating replaces instead of
+      // stacking. Read by anyone (the shop page is public, guests browse
+      // it); written only by the author about themselves; admin may
+      // update or delete for moderation.
+      match /reviews/{reviewId} {
+        allow read: if true;
+        allow create, update: if signedIn()
+          && request.resource.data.customerUid == request.auth.uid
+          && request.resource.data.shopUid == uid
+          && request.resource.data.rating is int
+          && request.resource.data.rating >= 1
+          && request.resource.data.rating <= 5
+          && request.resource.data.keys().hasOnly([
+            'customerUid', 'shopUid', 'offerId', 'offerRating',
+            'rating', 'comment', 'customerName', 'createdAt',
+          ])
+          && (!('offerId' in request.resource.data)
+            || request.resource.data.offerId is string)
+          && (!('offerRating' in request.resource.data)
+            || (request.resource.data.offerRating is int
+                && request.resource.data.offerRating >= 1
+                && request.resource.data.offerRating <= 5))
+          && (!('comment' in request.resource.data)
+            || (request.resource.data.comment is string
+                && request.resource.data.comment.size() <= 400))
+          && (!('customerName' in request.resource.data)
+            || (request.resource.data.customerName is string
+                && request.resource.data.customerName.size() <= 80));
+        allow delete: if isAdmin();
+      }
+
       // Customer reports, filed from a shared offer link where the visitor
       // is usually signed out — so creates are open but shape-checked;
       // everything else stays owner-or-admin.

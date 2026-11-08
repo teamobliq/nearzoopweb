@@ -5,14 +5,16 @@ import {
   watchCustomerNotifications,
   type CustomerNotification,
 } from '../business/follows'
+import RateReviewDialog from './RateReviewDialog'
 import { rel } from '../business/when'
 
 /** The customer's in-app inbox — every live offer from the shops they
     follow lands here the moment the shop posts it (the serverless
-    /api/notify-followers writes these docs). Tapping one opens the
-    offer page. Read comes from the doc itself; the screen marks
-    everything read once on open so the bell resets without nagging.
-    Guests get a sign-in prompt instead of an inbox they cannot have. */
+    /api/notify-followers writes these docs). "How was it?" rate prompts
+    open the rating dialog; offer items open the offer page. Read comes
+    from the doc itself; the screen marks everything read once on open so
+    the bell resets without nagging. Guests get a sign-in prompt instead
+    of an inbox they cannot have. */
 
 function BackSvg() {
   return (
@@ -33,9 +35,19 @@ function TicketSvg() {
   )
 }
 
+function RateSvg() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+    </svg>
+  )
+}
+
 type Props = {
   /** The signed-in customer's uid — absent means browsing as guest. */
   viewerUid?: string
+  /** The session label for the review's denormalised name. */
+  viewerName?: string
   onBack: () => void
   onOpenOffer: (shopUid: string, offerId: string) => void
   /** Guests are routed to sign-in from the gate state. */
@@ -44,6 +56,7 @@ type Props = {
 
 export default function CustomerNotifications({
   viewerUid,
+  viewerName,
   onBack,
   onOpenOffer,
   onSignIn,
@@ -51,6 +64,7 @@ export default function CustomerNotifications({
   const [items, setItems] = useState<CustomerNotification[] | null>(() =>
     viewerUid ? null : [],
   )
+  const [rateItem, setRateItem] = useState<CustomerNotification | null>(null)
   const marked = useRef(false)
 
   useEffect(() => {
@@ -104,6 +118,19 @@ export default function CustomerNotifications({
     )
   }
 
+  function openItem(item: CustomerNotification) {
+    if (item.kind === 'rate-offer') {
+      if (viewerUid) {
+        void markCustomerNotificationsRead(viewerUid, [item.id])
+      }
+      setRateItem(item)
+      return
+    }
+    if (item.shopUid && item.offerId) {
+      onOpenOffer(item.shopUid, item.offerId)
+    }
+  }
+
   return (
     <div className="cust-page">
       <div className="cust-shell">
@@ -133,22 +160,18 @@ export default function CustomerNotifications({
         ) : (
           <ul className="notif-list">
             {items.map((item) => {
-              const open = () => {
-                if (item.shopUid && item.offerId) {
-                  onOpenOffer(item.shopUid, item.offerId)
-                }
-              }
+              const isRate = item.kind === 'rate-offer'
               const time = item.at ? rel(item.at.toDate().toISOString()) : null
               return (
                 <li key={item.id}>
                   <button
                     type="button"
                     className={`notif-item${item.read ? '' : ' is-unread'}`}
-                    onClick={open}
-                    disabled={!item.shopUid || !item.offerId}
+                    onClick={() => openItem(item)}
+                    disabled={!isRate && !item.shopUid}
                   >
                     <span className="notif-item-icon" aria-hidden="true">
-                      <TicketSvg />
+                      {isRate ? <RateSvg /> : <TicketSvg />}
                     </span>
                     <span className="notif-item-text">
                       <strong>{item.title}</strong>
@@ -165,6 +188,19 @@ export default function CustomerNotifications({
           </ul>
         )}
       </div>
+
+      {rateItem && rateItem.shopUid && rateItem.offerId && (
+        <RateReviewDialog
+          shopUid={rateItem.shopUid}
+          shopName={rateItem.shopName ?? 'the shop'}
+          offerId={rateItem.offerId}
+          offerTitle={rateItem.offerTitle}
+          viewerUid={viewerUid}
+          viewerName={viewerName}
+          onClose={() => setRateItem(null)}
+          onSignIn={onSignIn}
+        />
+      )}
     </div>
   )
 }
