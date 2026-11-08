@@ -3024,6 +3024,12 @@
   gap: 0.3rem;
 }
 
+.trending-card-dist svg,
+.trending-card-ends svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
 .trending-card-bookmark {
   flex: none;
   padding: 0;
@@ -4619,9 +4625,17 @@
 
 /* The offer card's average chip sits on the same sub-line. */
 .cust-shopcard-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   font-weight: 800;
   color: #a86a00;
   white-space: nowrap;
+}
+
+.cust-shopcard-rating svg {
+  width: 0.78rem;
+  height: 0.78rem;
 }
 
 /* ---- Explore filter panel + sort menu -------------------------------- */

@@ -21,6 +21,40 @@ function CloseSvg() {
   )
 }
 
+function PinSvg() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 21s-6.5-5.4-6.5-10a6.5 6.5 0 1 1 13 0C18.5 15.6 12 21 12 21Z" />
+      <circle cx="12" cy="11" r="2.4" />
+    </svg>
+  )
+}
+
+function ClockSvg() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  )
+}
+
 function BookmarkSvg({ filled }: { filled?: boolean }) {
   return (
     <svg
@@ -138,12 +172,14 @@ export default function TrendingNearby({ onBack }: Props) {
                   <div className="trending-card-meta">
                     {item.km !== null && (
                       <span className="trending-card-dist">
-                        {'📍'} {fmtKm(item.km)}
+                        <PinSvg />
+                        {fmtKm(item.km)}
                       </span>
                     )}
                     {item.endsAt && (
                       <span className="trending-card-ends">
-                        {'⏰'} Ends {fmtDay(item.endsAt)}
+                        <ClockSvg />
+                        Ends {fmtDay(item.endsAt)}
                       </span>
                     )}
                   </div>

@@ -257,6 +257,17 @@ function ExpandSvg() {
   )
 }
 
+function StarSvg() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+      />
+    </svg>
+  )
+}
+
 /** Bookmarks ride in the same `nz.saved` list as the home feed, so an offer
     saved here is already lit on its card when the customer goes back. */
 function readSaved(): Set<string> {
@@ -1034,7 +1045,8 @@ export default function CustomerOffer({
                   {openNow ? ' · Open now' : ''}
                   {reviewSummary.count > 0 && (
                     <span className="cust-shopcard-rating">
-                      {' · '}★ {reviewSummary.average.toFixed(1)} ({reviewSummary.count})
+                      {' · '}
+                      <StarSvg /> {reviewSummary.average.toFixed(1)} ({reviewSummary.count})
                     </span>
                   )}
                 </small>
