@@ -262,20 +262,17 @@ function OfferCard({
               )}
             </span>
           </span>
-          {onToggleBookmark && (
-            <button
-              type="button"
-              className="chome-card-bookmark"
-              onClick={(event) => {
-                event.stopPropagation()
-                onToggleBookmark()
-              }}
-              aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark'}
-            >
-              <BookmarkSvg filled={bookmarked} />
-            </button>
-          )}
         </button>
+        {onToggleBookmark && (
+          <button
+            type="button"
+            className="chome-card-bookmark"
+            onClick={onToggleBookmark}
+            aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark'}
+          >
+            <BookmarkSvg filled={bookmarked} />
+          </button>
+        )}
       </article>
     </li>
   )

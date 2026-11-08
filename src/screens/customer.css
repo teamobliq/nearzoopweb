@@ -1791,6 +1791,7 @@
 }
 
 .chome-card {
+  position: relative;
   margin: 0;
 }
 
@@ -1799,7 +1800,7 @@
   align-items: center;
   gap: 0.7rem;
   width: 100%;
-  padding: 0.65rem 0.8rem;
+  padding: 0.65rem 3rem 0.65rem 0.8rem;
   background-color: var(--color-paper);
   border: 2.5px solid var(--color-ink);
   border-radius: 1.2rem;
