@@ -1978,6 +1978,7 @@
 
 /* Mobile bottom bar — the four customer tabs. */
 .chome-tabs {
+  position: relative;
   flex: none;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1987,7 +1988,33 @@
   border-top: 2.5px solid var(--color-ink);
 }
 
+/* The yellow glider — positioned and sized from the active icon's own
+   box (measured live, so it fits on phones and the desktop dock alike).
+   Sits behind the tab content; slides, never snaps. */
+.chome-tab-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 999px;
+  background-color: var(--color-yellow);
+  box-shadow: 2px 3px 0 0 var(--color-ink);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .chome-tab-marker {
+    transition:
+      transform 0.34s cubic-bezier(0.34, 1.32, 0.4, 1),
+      width 0.34s cubic-bezier(0.34, 1.32, 0.4, 1),
+      height 0.34s cubic-bezier(0.34, 1.32, 0.4, 1);
+  }
+}
+
 .chome-tab {
+  position: relative;
+  z-index: 1;
   display: grid;
   justify-items: center;
   gap: 0.25rem;
@@ -2020,12 +2047,6 @@
 
 .chome-tab.is-on {
   color: var(--color-ink);
-}
-
-.chome-tab.is-on .chome-tab-ico {
-  background-color: var(--color-yellow);
-  border-color: var(--color-ink);
-  box-shadow: 2px 3px 0 0 var(--color-ink);
 }
 
 .chome-tab.is-on .chome-tab-label {

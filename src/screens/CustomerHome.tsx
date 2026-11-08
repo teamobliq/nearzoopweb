@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type {
   KeyboardEvent as ReactKeyboardEvent,
   PointerEvent as ReactPointerEvent,
@@ -337,6 +337,31 @@ export default function CustomerHome({
   const [minDiscount, setMinDiscount] = useState<number | null>(null)
   const [filterPanelOpen, setFilterPanelOpen] = useState(false)
   const [sortMenuOpen, setSortMenuOpen] = useState(false)
+  // The yellow marker behind the active tab's icon — measured from the
+  // live DOM (equal-width grid cells on phones, content-width auto on
+  // desktop) so the glider always fits exactly.
+  const tabsRef = useRef<HTMLElement | null>(null)
+  const [marker, setMarker] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
+
+  useLayoutEffect(() => {
+    const nav = tabsRef.current
+    if (!nav) return
+    const sync = () => {
+      const active = nav.querySelector<HTMLElement>('.chome-tab.is-on .chome-tab-ico')
+      if (!active) return
+      const navRect = nav.getBoundingClientRect()
+      const rect = active.getBoundingClientRect()
+      setMarker({
+        left: rect.left - navRect.left,
+        top: rect.top - navRect.top,
+        width: rect.width,
+        height: rect.height,
+      })
+    }
+    sync()
+    window.addEventListener('resize', sync)
+    return () => window.removeEventListener('resize', sync)
+  }, [view])
 
   useEffect(() => {
     if (session.variant !== 'signed-in' || !session.uid) return
@@ -1068,7 +1093,18 @@ export default function CustomerHome({
         )}
       </section>
 
-      <nav className="chome-tabs" aria-label="Customer sections">
+      <nav ref={tabsRef} className="chome-tabs" aria-label="Customer sections">
+        {marker && (
+          <span
+            className="chome-tab-marker"
+            aria-hidden="true"
+            style={{
+              transform: `translate(${marker.left}px, ${marker.top}px)`,
+              width: marker.width,
+              height: marker.height,
+            }}
+          />
+        )}
         {TABS.map((tab) => {
           const Icon = tab.icon
           return (
