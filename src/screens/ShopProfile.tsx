@@ -13,6 +13,9 @@ import { watchShopReviews, type ReviewSummary } from '../business/reviews'
 import { watchFeed, type FeedRecord } from '../business/feed'
 import { fmtDay, rel } from '../business/when'
 import { nzMapStyle } from '../business/maplibreUtils'
+import { useMapRetry, watchMapFailure } from '../business/mapResilience'
+import { MapFailure } from '../business/MapFailure'
+import GooglePinMap from '../business/GooglePinMap'
 import './customer.css'
 
 /* ---- Icons ------------------------------------------------------------- */
@@ -363,6 +366,11 @@ function readSaved(): Set<string> {
 
 /** The shop's map — its own small MapLibre canvas so the profile controls
     the framing and the single pin. */
+/** Engine switch — Google Maps when VITE_GMAPS_KEY is set, MapLibre
+    otherwise (and permanently once Google fails to load). When Google is
+    underneath, the MapLibre effect below finds no host and stays quiet. */
+const GMAPS_KEY = import.meta.env.VITE_GMAPS_KEY as string | undefined
+
 function ShopMap({
   lat,
   lng,
@@ -373,6 +381,9 @@ function ShopMap({
   title: string
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null)
+  const loadedRef = useRef(false)
+  const { attempt, failed, fail, retry } = useMapRetry()
+  const [googleFailed, setGoogleFailed] = useState(false)
 
   useEffect(() => {
     const host = hostRef.current
@@ -381,6 +392,7 @@ function ShopMap({
     let map: MLMap | null = null
     let marker: Marker | null = null
     let observer: ResizeObserver | null = null
+    loadedRef.current = false
 
     void (async () => {
       const style = await nzMapStyle()
@@ -396,6 +408,10 @@ function ShopMap({
         pitchWithRotate: false,
       })
       map.addControl(new AttributionControl({ compact: true }), 'top-left')
+      watchMapFailure(map, () => loadedRef.current, fail)
+      map.on('load', () => {
+        loadedRef.current = true
+      })
 
       const el = document.createElement('div')
       el.className = 'shop-map-pin'
@@ -419,7 +435,21 @@ function ShopMap({
       map?.remove()
       map = null
     }
-  }, [lat, lng])
+    // attempt re-mounts the map after the failure overlay's retry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lat, lng, attempt])
+
+  if (GMAPS_KEY && !googleFailed) {
+    return (
+      <GooglePinMap
+        lat={lat}
+        lng={lng}
+        className="shop-map-canvas"
+        zoom={14.6}
+        onFail={() => setGoogleFailed(true)}
+      />
+    )
+  }
 
   return (
     <div
@@ -427,7 +457,9 @@ function ShopMap({
       className="shop-map-canvas"
       role="region"
       aria-label={`Map showing ${title}`}
-    />
+    >
+      {failed && <MapFailure onRetry={retry} />}
+    </div>
   )
 }
 

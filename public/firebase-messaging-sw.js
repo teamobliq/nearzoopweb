@@ -1,10 +1,22 @@
 // Background push for NearZoop — receives new-offer pushes and shows
 // the system notification. The Firebase config here is the public web
 // config (already shipped in the JS bundle); nothing secret lives here.
+// These values are inlined literally because everything in public/ is
+// copied to the build verbatim — there is no build-time substitution
+// step for this file. Keep them in sync with the VITE_FIREBASE_* block
+// in .env / Vercel if the project ever changes.
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
 
-firebase.initializeApp(${JSON.stringify(cfg)});
+firebase.initializeApp({
+  apiKey: 'AIzaSyBZ4HrrMjrgk5Q2l5nMJ2fTRuFgxqsOITc',
+  authDomain: 'nearzoop.firebaseapp.com',
+  projectId: 'nearzoop',
+  storageBucket: 'nearzoop.firebasestorage.app',
+  messagingSenderId: '287400314808',
+  appId: '1:287400314808:web:8b77864276819d3aad714d',
+  measurementId: 'G-X5Z4YVZZQ0',
+});
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {

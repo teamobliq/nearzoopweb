@@ -13,6 +13,9 @@ import {
   type GeoJSONSource,
 } from 'maplibre-gl'
 import { nzMapStyle } from '../business/maplibreUtils'
+import { useMapRetry, watchMapFailure } from '../business/mapResilience'
+import { MapFailure } from '../business/MapFailure'
+import GoogleCustomerMap from '../business/GoogleCustomerMap'
 import { FALLBACK_FIX } from '../business/geocode'
 import type { Coords, MapPin } from './mapUtils'
 
@@ -94,7 +97,21 @@ type Props = {
   attributionCorner?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 }
 
-export default function CustomerMap({
+/** Engine switch, mirroring the merchant location step's picker:
+    Google Maps when VITE_GMAPS_KEY is set, the MapLibre engine —
+    keyless OpenFreeMap with a retry overlay when the tile host can't be
+    reached — otherwise, and permanently once Google fails to load. */
+const GMAPS_KEY = import.meta.env.VITE_GMAPS_KEY as string | undefined
+
+export default function CustomerMap(props: Props) {
+  const [googleFailed, setGoogleFailed] = useState(false)
+  if (GMAPS_KEY && !googleFailed) {
+    return <GoogleCustomerMap {...props} onFail={() => setGoogleFailed(true)} />
+  }
+  return <MapLibreCustomerMap {...props} />
+}
+
+function MapLibreCustomerMap({
   fix,
   radiusKm,
   fitKey,
@@ -106,7 +123,9 @@ export default function CustomerMap({
   const hostRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<MLMap | null>(null)
   const markersRef = useRef<Map<string, Marker>>(new Map())
+  const loadedRef = useRef(false)
   const [ready, setReady] = useState(false)
+  const { attempt, failed, fail, retry } = useMapRetry()
   // Latest props without re-creating the map — load and effects read here.
   const liveRef = useRef({
     fix,
@@ -168,6 +187,7 @@ export default function CustomerMap({
     if (!host) return
     const markers = markersRef.current
     let cancelled = false
+    loadedRef.current = false
 
     void (async () => {
       const style = await nzMapStyle()
@@ -190,8 +210,10 @@ export default function CustomerMap({
         attributionCorner,
       )
 
+      watchMapFailure(created, () => loadedRef.current, fail)
       created.on('load', () => {
         if (cancelled) return
+        loadedRef.current = true
         created.addSource(RADIUS_SRC, {
           type: 'geojson',
           data: circleData(liveRef.current.fix, liveRef.current.radiusKm),
@@ -250,9 +272,10 @@ export default function CustomerMap({
       mapRef.current = null
     }
     // Mount-once effect — the props flow in through liveRef and the effects
-    // below.
+    // below. `attempt` re-mounts the map after the failure overlay's
+    // retry; everything is torn down above before re-creating.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [attempt])
 
   // Push fix/radius changes into the sources once the style is loaded.
   useEffect(() => {
@@ -292,5 +315,9 @@ export default function CustomerMap({
     // fitKey intentionally drives this effect — see comment above.
   }, [ready, fitKey])
 
-  return <div ref={hostRef} className={className} />
+  return (
+    <div ref={hostRef} className={className}>
+      {failed && <MapFailure onRetry={retry} />}
+    </div>
+  )
 }

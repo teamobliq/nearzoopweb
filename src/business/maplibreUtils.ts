@@ -7,9 +7,19 @@
     the fetch fails. The React canvas lives in MaplibrePicker. */
 
 import {
+  setWorkerUrl,
   type StyleSpecification,
   type SymbolLayerSpecification,
 } from 'maplibre-gl'
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+
+// Serve the MapLibre worker through Vite's worker pipeline — the dep
+// optimizer's copy can come back with a broken MIME type in dev, and the
+// production bundle emits no sibling `maplibre-gl-worker.mjs` next to the
+// hashed asset. Every map in the app imports this module before it builds
+// its MLMap, so one call here covers them all (previously only the merchant
+// picker had it, and the customer map rendered a blank canvas).
+setWorkerUrl(maplibreWorkerUrl)
 
 const POSITRON_URL = 'https://tiles.openfreemap.org/styles/positron'
 
@@ -228,10 +238,27 @@ const MINIMAL_STYLE: StyleSpecification = {
   ],
 }
 
-/** The NearZoop-painted map style: Positron fetched once, repainted into
-    the app palette and enriched with POI labels. Falls back to the minimal
-    keyless style when the fetch fails. Shared by the picker and previews. */
-export async function nzMapStyle(): Promise<StyleSpecification> {
+/** The NearZoop-painted map style: Positron fetched once per session,
+    repainted into the app palette and enriched with POI labels. Falls
+    back to the minimal keyless style when the fetch fails. Shared by the
+    picker and previews. The promise is cached at module scope because
+    the host throttles per IP and the response is expensive — without
+    the cache, StrictMode's double effect in dev fetched it twice per
+    mount. A minimal-style fallback is NOT cached, so the failure
+    overlay's retry always refetches. */
+let stylePromise: Promise<StyleSpecification> | null = null
+
+export function nzMapStyle(): Promise<StyleSpecification> {
+  if (!stylePromise) {
+    stylePromise = fetchPaintedStyle().then((style) => {
+      if (style === MINIMAL_STYLE) stylePromise = null
+      return style
+    })
+  }
+  return stylePromise
+}
+
+async function fetchPaintedStyle(): Promise<StyleSpecification> {
   try {
     const res = await fetch(POSITRON_URL, { signal: AbortSignal.timeout(5000) })
     if (!res.ok) throw new Error(String(res.status))

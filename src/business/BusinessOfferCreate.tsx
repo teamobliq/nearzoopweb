@@ -13,6 +13,9 @@ import {
 } from './shop'
 import { uploadToImgbb } from './imgbb'
 import { nzMapStyle } from './maplibreUtils'
+import { useMapRetry, watchMapFailure } from './mapResilience'
+import { MapFailure } from './MapFailure'
+import GooglePinMap from './GooglePinMap'
 import { fmtDay, fmtWhen } from './when'
 
 /** The offer builder — four steps plus the sent screen. Lives inside the
@@ -280,14 +283,20 @@ function RedeemIcon({ kind }: { kind: 'phone' | 'tag' | 'scan' | 'store' }) {
 
 /** Non-interactive map preview with the offer's pin — same painted style as
     the location picker, keyless tiles, centred on the shop's saved pin. */
+const GMAPS_KEY = import.meta.env.VITE_GMAPS_KEY as string | undefined
+
 function OfferMapPreview({ lat, lng, label }: { lat: number; lng: number; label: string }) {
   const hostRef = useRef<HTMLDivElement | null>(null)
+  const loadedRef = useRef(false)
+  const { attempt, failed, fail, retry } = useMapRetry()
+  const [googleFailed, setGoogleFailed] = useState(false)
 
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
     let cancelled = false
     let map: MLMap | null = null
+    loadedRef.current = false
 
     void (async () => {
       const style = await nzMapStyle()
@@ -303,6 +312,10 @@ function OfferMapPreview({ lat, lng, label }: { lat: number; lng: number; label:
         attributionControl: false,
       })
       map = created
+      watchMapFailure(created, () => loadedRef.current, fail)
+      created.on('load', () => {
+        loadedRef.current = true
+      })
 
       const pin = document.createElement('div')
       pin.className = 'biz-map-pin'
@@ -316,11 +329,31 @@ function OfferMapPreview({ lat, lng, label }: { lat: number; lng: number; label:
       cancelled = true
       map?.remove()
     }
-  }, [lat, lng, label])
+    // attempt re-mounts the map after the failure overlay's retry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lat, lng, label, attempt])
+
+  if (GMAPS_KEY && !googleFailed) {
+    return (
+      <div className="biz-ob-map">
+        <GooglePinMap
+          lat={lat}
+          lng={lng}
+          className="biz-ob-map-canvas"
+          zoom={15.5}
+          pinLabel={label}
+          pinClassName="biz-map-pin"
+          onFail={() => setGoogleFailed(true)}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="biz-ob-map">
-      <div ref={hostRef} className="biz-ob-map-canvas" />
+      <div ref={hostRef} className="biz-ob-map-canvas">
+        {failed && <MapFailure onRetry={retry} />}
+      </div>
     </div>
   )
 }

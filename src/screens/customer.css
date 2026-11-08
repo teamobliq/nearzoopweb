@@ -4815,3 +4815,11 @@
   font-weight: 700;
   color: var(--color-stone);
 }
+
+/* Google Maps mounts into hosts that don't carry .maplibregl-map (the
+   chained rules above size those for MapLibre only). Give the Google
+   engine's hosts the same absolute fill explicitly. */
+.nz-gm-host {
+  position: absolute;
+  inset: 0;
+}

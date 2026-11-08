@@ -2931,6 +2931,7 @@
 }
 
 .biz-ob-map-canvas {
+  position: relative;
   width: 100%;
   height: 100%;
 }

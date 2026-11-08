@@ -63,3 +63,56 @@ body {
 #root {
   min-height: 100dvh;
 }
+
+/* Full-cover failure state for any MapLibre canvas — rendered by
+   <MapFailure /> when the tile host can't be reached (see
+   src/business/mapResilience.ts). Sits above the canvas and controls. */
+.nz-map-failure {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.45rem;
+  padding: 1.25rem;
+  background: var(--color-cream);
+  text-align: center;
+}
+
+.nz-map-failure-title {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--color-ink);
+}
+
+.nz-map-failure-sub {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  max-width: 36ch;
+}
+
+.nz-map-failure-retry {
+  margin-top: 0.3rem;
+  padding: 0.62rem 1.7rem;
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 0.85rem;
+  color: var(--color-paper);
+  background: var(--color-orange);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 999px;
+  box-shadow: var(--shadow-pill);
+  cursor: pointer;
+}
+
+.nz-map-failure-retry:hover {
+  translate: 1px 1px;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
+}
+
+.nz-map-failure-retry:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 2px;
+}

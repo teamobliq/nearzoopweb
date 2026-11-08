@@ -28,6 +28,9 @@ import {
 import { requestRatePrompt, watchShopReviews, type ReviewSummary } from '../business/reviews'
 import { fmtDay, fmtWhen, rel } from '../business/when'
 import { nzMapStyle } from '../business/maplibreUtils'
+import { useMapRetry, watchMapFailure } from '../business/mapResilience'
+import { MapFailure } from '../business/MapFailure'
+import GooglePinMap from '../business/GooglePinMap'
 import './customer.css'
 
 /** The shared-offer landing — `<base>/<shopUid>/<offerId>?source=…` lands
@@ -278,6 +281,12 @@ function readSaved(): Set<string> {
   }
 }
 
+/** Engine switch — Google Maps when VITE_GMAPS_KEY is set, MapLibre
+    otherwise (and permanently once Google fails to load). When Google is
+    underneath, the MapLibre effect below finds no host and stays
+    quiet. */
+const GMAPS_KEY = import.meta.env.VITE_GMAPS_KEY as string | undefined
+
 /** The shop's map — its own small MapLibre canvas so the card controls the
     framing and the single pin. */
 function ShopMap({
@@ -292,6 +301,9 @@ function ShopMap({
   expanded: boolean
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null)
+  const loadedRef = useRef(false)
+  const { attempt, failed, fail, retry } = useMapRetry()
+  const [googleFailed, setGoogleFailed] = useState(false)
 
   useEffect(() => {
     const host = hostRef.current
@@ -300,6 +312,7 @@ function ShopMap({
     let map: MLMap | null = null
     let marker: Marker | null = null
     let observer: ResizeObserver | null = null
+    loadedRef.current = false
 
     void (async () => {
       const style = await nzMapStyle()
@@ -314,6 +327,10 @@ function ShopMap({
         interactive: false,
       })
       map.addControl(new AttributionControl({ compact: true }), 'top-left')
+      watchMapFailure(map, () => loadedRef.current, fail)
+      map.on('load', () => {
+        loadedRef.current = true
+      })
 
       const el = document.createElement('div')
       el.className = 'shop-map-pin'
@@ -337,7 +354,9 @@ function ShopMap({
       map?.remove()
       map = null
     }
-  }, [lat, lng])
+    // attempt re-mounts the map after the failure overlay's retry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lat, lng, attempt])
 
   useEffect(() => {
     // The expanded state only grows the container; maplibre needs the nudge.
@@ -349,13 +368,27 @@ function ShopMap({
     return () => window.cancelAnimationFrame(frame)
   }, [expanded])
 
+  if (GMAPS_KEY && !googleFailed) {
+    return (
+      <GooglePinMap
+        lat={lat}
+        lng={lng}
+        className={`shop-map-canvas${expanded ? ' is-expanded' : ''}`}
+        zoom={14.6}
+        onFail={() => setGoogleFailed(true)}
+      />
+    )
+  }
+
   return (
     <div
       ref={hostRef}
       className={`shop-map-canvas${expanded ? ' is-expanded' : ''}`}
       role="region"
       aria-label={`Map showing ${title}`}
-    />
+    >
+      {failed && <MapFailure onRetry={retry} />}
+    </div>
   )
 }
 

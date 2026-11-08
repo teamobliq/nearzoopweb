@@ -11,6 +11,7 @@
 
 import { useEffect, useRef } from 'react'
 import { cachedCoords, FALLBACK_FIX, resolveAddress, type LocationFix } from './geocode'
+import { NZ_GOOGLE_STYLE, loadGoogleMaps } from './googleMaps'
 
 type Props = {
   apiKey: string
@@ -22,85 +23,7 @@ type Props = {
   onFail: () => void
 }
 
-/** The design's map palette in Google's styling vocabulary. Label fill and
-    stroke are always set together — Google varies them by zoom otherwise. */
-const NZ_STYLE: google.maps.MapTypeStyle[] = [
-  // Base: tan land, cream label halos, olive label ink.
-  { elementType: 'geometry', stylers: [{ color: '#ecdcba' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#fff8e6' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#7c6b4d' }] },
-  // Administrative borders: olive.
-  {
-    featureType: 'administrative',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#b3a37e' }],
-  },
-  // Buildings (man-made structures): deeper tan, readable against the land.
-  {
-    featureType: 'landscape.man_made',
-    elementType: 'geometry',
-    stylers: [{ color: '#e2cfa6' }],
-  },
-  { featureType: 'landscape.natural', elementType: 'geometry', stylers: [{ color: '#ecdcba' }] },
-  {
-    featureType: 'landscape.natural.landcover',
-    elementType: 'geometry',
-    stylers: [{ color: '#ecdcba' }],
-  },
-  // Points of interest: soft tan parcels, parks green, icons off — names only.
-  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#e4d2ac' }] },
-  { featureType: 'poi', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#d4eac2' }] },
-  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#7c6b4d' }] },
-  { featureType: 'poi.business', elementType: 'labels.text.fill', stylers: [{ color: '#6b5b3e' }] },
-  // Roads: white fills with tan casings.
-  { featureType: 'road', elementType: 'geometry.fill', stylers: [{ color: '#ffffff' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#d9c49b' }] },
-  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#8a7a5b' }] },
-  // Rail and transit: tan lines, no icons.
-  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#cdbd93' }] },
-  { featureType: 'transit', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit.station', elementType: 'labels.text.fill', stylers: [{ color: '#8a7a5b' }] },
-  // Water: design blue.
-  { featureType: 'water', elementType: 'geometry.fill', stylers: [{ color: '#a9d3ee' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#4f7fa8' }] },
-]
-
 const INITIAL_ZOOM = 17
-
-/** Loads the Maps JavaScript API once per page — later mounts reuse the same
-    script. Rejects on network failure, on auth failure (Google fires the
-    gm_authFailure hook for bad keys) or after a 12s timeout. */
-let loader: Promise<void> | null = null
-
-function loadGoogleMaps(apiKey: string): Promise<void> {
-  if (loader) return loader
-  loader = new Promise<void>((resolve, reject) => {
-    if (window.google?.maps) {
-      resolve()
-      return
-    }
-    const callbackName = '__nzGmapsLoaded'
-    const globals = window as unknown as Record<string, unknown>
-    const settle = (error?: Error) => {
-      delete globals[callbackName]
-      delete globals.gm_authFailure
-      if (error) reject(error)
-      else resolve()
-    }
-    globals[callbackName] = () => settle()
-    globals.gm_authFailure = () => settle(new Error('Google Maps rejected the API key'))
-    const script = document.createElement('script')
-    script.src =
-      `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}` +
-      `&v=weekly&loading=async&callback=${callbackName}`
-    script.async = true
-    script.onerror = () => settle(new Error('Google Maps script failed to load'))
-    window.setTimeout(() => settle(new Error('Google Maps took too long to load')), 12000)
-    document.head.appendChild(script)
-  })
-  return loader
-}
 
 export default function GooglePicker({ apiKey, onPick, onMoved, onFail }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null)
@@ -126,7 +49,7 @@ export default function GooglePicker({ apiKey, onPick, onMoved, onFail }: Props)
         map = new google.maps.Map(host, {
           center: start ?? { ...FALLBACK_FIX },
           zoom: INITIAL_ZOOM,
-          styles: NZ_STYLE,
+          styles: NZ_GOOGLE_STYLE,
           disableDefaultUI: true,
           gestureHandling: 'greedy',
           clickableIcons: false,
