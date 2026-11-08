@@ -332,6 +332,14 @@ export default function CustomerHome({
   const [now, setNow] = useState(() => Date.now())
   // Unread inbox items — the bell's badge. Signed-in customers only.
   const [unread, setUnread] = useState(0)
+  // Explore's filter state — everything works on live feed data, nothing
+  // is hardcoded. `sortBy` drives the ordering chip, the two facets
+  // (category + minimum discount) drive the count and the pills.
+  const [sortBy, setSortBy] = useState<'nearest' | 'ending' | 'discount'>('nearest')
+  const [categories, setCategories] = useState<Set<string>>(() => new Set())
+  const [minDiscount, setMinDiscount] = useState<number | null>(null)
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false)
+  const [sortMenuOpen, setSortMenuOpen] = useState(false)
 
   useEffect(() => {
     if (session.variant !== 'signed-in' || !session.uid) return
@@ -476,16 +484,91 @@ export default function CustomerHome({
           : null,
     }))
 
+  /** The largest percentage anywhere in a discount label ("50% OFF" → 50),
+      or null for non-percentage deals (BOGO, FLAT…). */
+  function maxDiscountPct(item: FeedRecord): number | null {
+    const matches = (item.discountLabel ?? '').matchAll(/(\d+(?:\.\d+)?)\s*%/g)
+    let best: number | null = null
+    for (const match of matches) {
+      const value = Number(match[1])
+      if (Number.isFinite(value) && (best === null || value > best)) best = value
+    }
+    return best
+  }
+
+  const SORTS: Array<{ key: typeof sortBy; label: string }> = [
+    { key: 'nearest', label: 'Nearest' },
+    { key: 'ending', label: 'Ending soon' },
+    { key: 'discount', label: 'Biggest discount' },
+  ]
+  const sortLabel = SORTS.find((entry) => entry.key === sortBy)?.label ?? 'Nearest'
+
+  // Every category present in the live feed, most-common first — the rail
+  // only offers what this locality actually has.
+  const categoryCounts = new Map<string, number>()
+  for (const item of live) {
+    const cat = item.shopCategory?.trim()
+    if (!cat) continue
+    categoryCounts.set(cat, (categoryCounts.get(cat) ?? 0) + 1)
+  }
+  const categoryOptions = [...categoryCounts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([cat]) => cat)
+
   // Nearby: inside the radius, nearest first. Explore: everything live,
-  // nearest (or soonest-ending without a fix) first.
+  // filtered by the two facets and ordered by the chosen sort.
   const nearby = withDistance(live)
     .filter((item) => item.km !== null && item.km <= radiusKm)
     .sort((a, b) => (a.km ?? 0) - (b.km ?? 0))
-  const explore = withDistance(live).sort(
-    (a, b) =>
-      (a.km ?? Number.POSITIVE_INFINITY) - (b.km ?? Number.POSITIVE_INFINITY) ||
-      (a.endsAt ?? '9999').localeCompare(b.endsAt ?? '9999'),
-  )
+  const exploreAll = withDistance(live)
+  const explore = exploreAll
+    .filter(
+      (item) =>
+        categories.size === 0 ||
+        (item.shopCategory ? categories.has(item.shopCategory.trim()) : false),
+    )
+    .filter(
+      (item) =>
+        minDiscount === null ||
+        (maxDiscountPct(item) ?? 0) >= minDiscount,
+    )
+    .sort((a, b) => {
+      if (sortBy === 'discount') {
+        return (
+          (maxDiscountPct(b) ?? -1) - (maxDiscountPct(a) ?? -1) ||
+          (a.km ?? Number.POSITIVE_INFINITY) - (b.km ?? Number.POSITIVE_INFINITY)
+        )
+      }
+      if (sortBy === 'ending') {
+        const aEnd = a.endsAt ? Date.parse(a.endsAt) : Number.POSITIVE_INFINITY
+        const bEnd = b.endsAt ? Date.parse(b.endsAt) : Number.POSITIVE_INFINITY
+        return aEnd - bEnd
+      }
+      return (
+        (a.km ?? Number.POSITIVE_INFINITY) - (b.km ?? Number.POSITIVE_INFINITY) ||
+        (a.endsAt ?? '9999').localeCompare(b.endsAt ?? '9999')
+      )
+    })
+
+  const activeFilterCount =
+    categories.size + (minDiscount !== null ? 1 : 0)
+
+  function clearExploreFilters() {
+    setCategories(new Set())
+    setMinDiscount(null)
+  }
+
+  function removeExploreFilter(key: string) {
+    if (key === 'discount') {
+      setMinDiscount(null)
+      return
+    }
+    setCategories((current) => {
+      const next = new Set(current)
+      next.delete(key)
+      return next
+    })
+  }
 
   // Ending soon: live offers closing within the next 48 hours, soonest
   // first. A clock is the headline here, so distance takes a back seat.
@@ -705,9 +788,10 @@ export default function CustomerHome({
               <p className="chome-loading" role="status">
                 Looking around…
               </p>
-            ) : explore.length > 0 ? (
+            ) : exploreAll.length > 0 ? (
               <>
-                {/* Explore header — matches the mobile app design. */}
+                {/* Explore header — real filter/sort state on the live
+                    feed; every chip does something. */}
                 <header className="chx-header">
                   <h1 className="chx-title">All offers</h1>
                   <p className="chx-sub">
@@ -715,29 +799,171 @@ export default function CustomerHome({
                     {locality ?? 'your area'}
                   </p>
                   <div className="chx-filters">
-                    <button type="button" className="chx-chip chx-chip--active">
-                      Filters · 2
-                    </button>
-                    <button type="button" className="chx-chip">
-                      ↑ Nearest ▾
-                    </button>
-                    <button type="button" className="chx-chip">
-                      Category ▾
-                    </button>
-                  </div>
-                  <div className="chx-pills">
-                    <span className="chx-pill">Food, Mishti</span>
-                    <span className="chx-pill">10%+ off</span>
                     <button
                       type="button"
-                      className="chx-pill chx-pill--clear"
-                      onClick={() => {}}
+                      className={`chx-chip${
+                        filterPanelOpen || activeFilterCount > 0 ? ' chx-chip--active' : ''
+                      }`}
+                      onClick={() => setFilterPanelOpen((v) => !v)}
+                      aria-expanded={filterPanelOpen}
+                      aria-controls="chx-panel"
                     >
-                      Clear all
+                      Filters{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
+                    </button>
+                    <div className="chx-sortwrap">
+                      <button
+                        type="button"
+                        className="chx-chip"
+                        onClick={() => setSortMenuOpen((v) => !v)}
+                        aria-expanded={sortMenuOpen}
+                        aria-haspopup="menu"
+                      >
+                        ↑ {sortLabel} ▾
+                      </button>
+                      {sortMenuOpen && (
+                        <>
+                          <button
+                            type="button"
+                            className="chx-sortbackdrop"
+                            aria-label="Close sort menu"
+                            onClick={() => setSortMenuOpen(false)}
+                          />
+                          <div className="chx-sortmenu" role="menu" aria-label="Sort offers">
+                            {SORTS.map((entry) => (
+                              <button
+                                key={entry.key}
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={sortBy === entry.key}
+                                className={`chx-sortitem${
+                                  sortBy === entry.key ? ' is-on' : ''
+                                }`}
+                                onClick={() => {
+                                  setSortBy(entry.key)
+                                  setSortMenuOpen(false)
+                                }}
+                              >
+                                {entry.label}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className={`chx-chip${
+                        categories.size > 0 ? ' chx-chip--active' : ''
+                      }`}
+                      onClick={() => setFilterPanelOpen((v) => !v)}
+                      aria-expanded={filterPanelOpen}
+                      aria-controls="chx-panel"
+                    >
+                      Category{categories.size > 0 ? ` · ${categories.size}` : ''} ▾
                     </button>
                   </div>
+                  {filterPanelOpen && (
+                    <div className="chx-panel" id="chx-panel">
+                      <div className="chx-panel-block">
+                        <span className="chx-panel-label">Category</span>
+                        <div className="chx-panel-chips">
+                          {categoryOptions.map((cat) => {
+                            const on = categories.has(cat)
+                            return (
+                              <button
+                                key={cat}
+                                type="button"
+                                className={`chx-panel-chip${on ? ' is-on' : ''}`}
+                                aria-pressed={on}
+                                onClick={() =>
+                                  setCategories((current) => {
+                                    const next = new Set(current)
+                                    if (next.has(cat)) next.delete(cat)
+                                    else next.add(cat)
+                                    return next
+                                  })
+                                }
+                              >
+                                {cat}
+                              </button>
+                            )
+                          })}
+                          {categoryOptions.length === 0 && (
+                            <span className="chx-panel-empty">
+                              No categories in the live feed yet.
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="chx-panel-block">
+                        <span className="chx-panel-label">Discount</span>
+                        <div className="chx-panel-chips">
+                          {[
+                            { key: 'any', label: 'Any', value: null as number | null },
+                            { key: '10', label: '10%+', value: 10 },
+                            { key: '20', label: '20%+', value: 20 },
+                            { key: '30', label: '30%+', value: 30 },
+                            { key: '50', label: '50%+', value: 50 },
+                          ].map((opt) => {
+                            const on = minDiscount === opt.value
+                            return (
+                              <button
+                                key={opt.key}
+                                type="button"
+                                className={`chx-panel-chip${on ? ' is-on' : ''}`}
+                                aria-pressed={on}
+                                onClick={() => setMinDiscount(opt.value)}
+                              >
+                                {opt.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="chx-panel-clear"
+                        onClick={clearExploreFilters}
+                      >
+                        Clear all filters
+                      </button>
+                    </div>
+                  )}
+                  {(categories.size > 0 || minDiscount !== null) && (
+                    <div className="chx-pills">
+                      {[...categories].map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          className="chx-pill chx-pill--x"
+                          onClick={() => removeExploreFilter(cat)}
+                          aria-label={`Remove category ${cat}`}
+                        >
+                          {cat} <span aria-hidden="true">×</span>
+                        </button>
+                      ))}
+                      {minDiscount !== null && (
+                        <button
+                          type="button"
+                          className="chx-pill chx-pill--x"
+                          onClick={() => removeExploreFilter('discount')}
+                          aria-label={`Remove minimum discount ${minDiscount}%`}
+                        >
+                          {minDiscount}%+ off <span aria-hidden="true">×</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="chx-pill chx-pill--clear"
+                        onClick={clearExploreFilters}
+                      >
+                        Clear all
+                      </button>
+                    </div>
+                  )}
                   <p className="chx-count">
-                    {explore.length} of {explore.length} offers · sorted by nearest
+                    {explore.length} of {exploreAll.length} offers · sorted by{' '}
+                    {sortLabel.toLowerCase()}
                   </p>
                   <button
                     type="button"
@@ -747,19 +973,32 @@ export default function CustomerHome({
                     Trending near you →
                   </button>
                 </header>
-                <ul className="chome-cards">
-                  {explore.map((item) => (
-                    <OfferCard
-                      key={item.offerId}
-                      item={item}
-                      selected={selected === item.offerId}
-                      onSelect={() => openOffer(item)}
-                      bookmarked={saved.has(item.offerId)}
-                      onToggleBookmark={() => toggleSaved(item.offerId)}
-                      onOpenShop={onOpenShop}
-                    />
-                  ))}
-                </ul>
+                {explore.length > 0 ? (
+                  <ul className="chome-cards">
+                    {explore.map((item) => (
+                      <OfferCard
+                        key={item.offerId}
+                        item={item}
+                        selected={selected === item.offerId}
+                        onSelect={() => openOffer(item)}
+                        bookmarked={saved.has(item.offerId)}
+                        onToggleBookmark={() => toggleSaved(item.offerId)}
+                        onOpenShop={onOpenShop}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="chome-empty-filter">
+                    <p>No offers match those filters.</p>
+                    <button
+                      type="button"
+                      className="btn-primary chome-you-btn"
+                      onClick={clearExploreFilters}
+                    >
+                      Clear filters
+                    </button>
+                  </div>
+                )}
                 {endingSoon.length > 0 && (
                   <section className="chome-ending" aria-label="Ending soon">
                     <h2 className="chome-ending-head">Ending soon</h2>
