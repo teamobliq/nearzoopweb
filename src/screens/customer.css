@@ -176,7 +176,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
-  margin-bottom: 0.85rem;
+  margin-top: 0.65rem;
 }
 
 .cust-pill {
@@ -4126,11 +4126,14 @@
   background: currentColor;
 }
 
-/* Inside a strong line (Hours) the chip sits inline with its text. */
-.cust-shopcard-rmain strong .cust-minichip {
+/* The Hours row pins the status chip to the row's far right edge. */
+.cust-shopcard-row--hours .cust-shopcard-rmain {
+  flex: 1;
+}
+
+.cust-shopcard-row--hours .cust-minichip--row {
   margin-top: 0;
-  margin-left: 0.45rem;
-  vertical-align: 0.05em;
+  flex: none;
 }
 
 .cust-minichip--green {

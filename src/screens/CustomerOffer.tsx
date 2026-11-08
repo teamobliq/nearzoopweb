@@ -299,9 +299,8 @@ function ShopMap({
         center: [lng, lat],
         zoom: 14.6,
         attributionControl: false,
-        scrollZoom: false,
-        dragRotate: false,
-        pitchWithRotate: false,
+        // Display-only pin — no pan, zoom, rotate or keyboard focus.
+        interactive: false,
       })
       map.addControl(new AttributionControl({ compact: true }), 'top-left')
 
@@ -430,6 +429,13 @@ export default function CustomerOffer({
     count: 0,
     average: 0,
   })
+  const [note, setNote] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!note) return
+    const timer = window.setTimeout(() => setNote(null), 2400)
+    return () => window.clearTimeout(timer)
+  }, [note])
   // A ticking clock — the open/closed chip and the offer's Started/Scheduled
   // chip flip on their own as time passes, without a reload.
   const [nowTs, setNowTs] = useState(() => Date.now())
@@ -593,13 +599,37 @@ export default function CustomerOffer({
       url,
     }
     try {
-      if (navigator.share) {
+      // Native share sheet first — the right answer on phones.
+      if (typeof navigator.share === 'function') {
         await navigator.share(data)
         return
       }
+    } catch (err) {
+      // Cancelled by the user — leave quietly, nothing to report.
+      if (err instanceof DOMException && err.name === 'AbortError') return
+    }
+    // Clipboard is the second path; it can refuse (permissions, focus),
+    // so the third fallback is a prompt with the URL selectable.
+    try {
       await navigator.clipboard.writeText(url)
+      setNote('Link copied')
+      return
     } catch {
-      // Share sheet dismissed or clipboard blocked — nothing to report.
+      try {
+        const scratch = document.createElement('textarea')
+        scratch.value = url
+        scratch.setAttribute('readonly', '')
+        scratch.style.position = 'absolute'
+        scratch.style.left = '-9999px'
+        document.body.appendChild(scratch)
+        scratch.select()
+        document.execCommand('copy')
+        scratch.remove()
+        setNote('Link copied')
+        return
+      } catch {
+        window.prompt('Copy this link', url)
+      }
     }
   }
 
@@ -859,6 +889,9 @@ export default function CustomerOffer({
                 {small && <span className="cust-offer-tile-small">{small}</span>}
               </div>
               <div className="cust-offer-idblock">
+                <h1 className="cust-offer-headline">
+                  {item.title ?? 'Untitled offer'}
+                </h1>
                 <div className="cust-offer-pills">
                   {chip && (
                     <span className={`cust-pill cust-pill--${chip.kind}`}>
@@ -868,9 +901,6 @@ export default function CustomerOffer({
                     </span>
                   )}
                 </div>
-                <h1 className="cust-offer-headline">
-                  {item.title ?? 'Untitled offer'}
-                </h1>
               </div>
             </div>
 
@@ -1016,22 +1046,20 @@ export default function CustomerOffer({
               )}
             </button>
 
-            <div className="cust-shopcard-row">
+            <div className="cust-shopcard-row cust-shopcard-row--hours">
               <span className="cust-shopcard-ricon" aria-hidden="true">
                 <ClockSvg />
               </span>
               <span className="cust-shopcard-rmain">
-                <strong>
-                  Hours
-                  {shopStatus && (
-                    <span className={`cust-minichip cust-minichip--${shopStatus.kind}`}>
-                      <i aria-hidden="true" />
-                      {shopStatus.label}
-                    </span>
-                  )}
-                </strong>
+                <strong>Hours</strong>
                 <small>{hoursText}</small>
               </span>
+              {shopStatus && (
+                <span className={`cust-minichip cust-minichip--${shopStatus.kind} cust-minichip--row`}>
+                  <i aria-hidden="true" />
+                  {shopStatus.label}
+                </span>
+              )}
             </div>
 
             {phone && (
@@ -1231,6 +1259,12 @@ export default function CustomerOffer({
             )}
           </div>
         </div>
+      )}
+
+      {note && (
+        <p className="shop-toast" role="status">
+          {note}
+        </p>
       )}
     </div>
   )
