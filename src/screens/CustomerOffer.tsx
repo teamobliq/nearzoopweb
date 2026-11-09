@@ -1,6 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
-import { AttributionControl, Map as MLMap, Marker } from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
+import { useEffect, useState } from 'react'
 import type { FeedRecord } from '../business/feed'
 import {
   fetchFeedOffer,
@@ -27,10 +25,6 @@ import {
 } from '../business/coupons'
 import { requestRatePrompt, watchShopReviews, type ReviewSummary } from '../business/reviews'
 import { fmtDay, fmtWhen, rel } from '../business/when'
-import { nzMapStyle } from '../business/maplibreUtils'
-import { useMapRetry, watchMapFailure } from '../business/mapResilience'
-import { MapFailure } from '../business/MapFailure'
-import GooglePinMap from '../business/GooglePinMap'
 import './customer.css'
 
 /** The shared-offer landing — `<base>/<shopUid>/<offerId>?source=…` lands
@@ -249,17 +243,6 @@ function ChevronSvg() {
   )
 }
 
-function ExpandSvg() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M15 3h6v6" />
-      <path d="M9 21H3v-6" />
-      <path d="M21 3l-7 7" />
-      <path d="M3 21l7-7" />
-    </svg>
-  )
-}
-
 function StarSvg() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -279,117 +262,6 @@ function readSaved(): Set<string> {
   } catch {
     return new Set<string>()
   }
-}
-
-/** Engine switch — Google Maps when VITE_GMAPS_KEY is set, MapLibre
-    otherwise (and permanently once Google fails to load). When Google is
-    underneath, the MapLibre effect below finds no host and stays
-    quiet. */
-const GMAPS_KEY = import.meta.env.VITE_GMAPS_KEY as string | undefined
-
-/** The shop's map — its own small MapLibre canvas so the card controls the
-    framing and the single pin. */
-function ShopMap({
-  lat,
-  lng,
-  title,
-  expanded,
-}: {
-  lat: number
-  lng: number
-  title: string
-  expanded: boolean
-}) {
-  const hostRef = useRef<HTMLDivElement | null>(null)
-  const loadedRef = useRef(false)
-  const { attempt, failed, fail, retry } = useMapRetry()
-  const [googleFailed, setGoogleFailed] = useState(false)
-
-  useEffect(() => {
-    const host = hostRef.current
-    if (!host) return
-    let cancelled = false
-    let map: MLMap | null = null
-    let marker: Marker | null = null
-    let observer: ResizeObserver | null = null
-    loadedRef.current = false
-
-    void (async () => {
-      const style = await nzMapStyle()
-      if (cancelled || !hostRef.current) return
-      map = new MLMap({
-        container: hostRef.current,
-        style,
-        center: [lng, lat],
-        zoom: 14.6,
-        attributionControl: false,
-        // Display-only pin — no pan, zoom, rotate or keyboard focus.
-        interactive: false,
-      })
-      map.addControl(new AttributionControl({ compact: true }), 'top-left')
-      watchMapFailure(map, () => loadedRef.current, fail)
-      map.on('load', () => {
-        loadedRef.current = true
-      })
-
-      const el = document.createElement('div')
-      el.className = 'shop-map-pin'
-      el.innerHTML =
-        '<svg viewBox="0 0 32 40" width="30" height="38" aria-hidden="true">' +
-        '<path d="M16 38.5S2.5 24.2 2.5 15.2C2.5 7.9 8.5 2 16 2s13.5 5.9 13.5 13.2C29.5 24.2 16 38.5 16 38.5Z" fill="#fb4b32" stroke="#1c1b19" stroke-width="2.2"/>' +
-        '<circle cx="16" cy="15" r="4.3" fill="#ffffff"/>' +
-        '</svg>'
-      marker = new Marker({ element: el, anchor: 'bottom' })
-        .setLngLat([lng, lat])
-        .addTo(map)
-
-      observer = new ResizeObserver(() => map?.resize())
-      observer.observe(host)
-    })()
-
-    return () => {
-      cancelled = true
-      observer?.disconnect()
-      marker?.remove()
-      map?.remove()
-      map = null
-    }
-    // attempt re-mounts the map after the failure overlay's retry.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lat, lng, attempt])
-
-  useEffect(() => {
-    // The expanded state only grows the container; maplibre needs the nudge.
-    const host = hostRef.current
-    if (!host) return
-    const frame = window.requestAnimationFrame(() => {
-      host.style.setProperty('--expanded', expanded ? '1' : '0')
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [expanded])
-
-  if (GMAPS_KEY && !googleFailed) {
-    return (
-      <GooglePinMap
-        lat={lat}
-        lng={lng}
-        className={`shop-map-canvas${expanded ? ' is-expanded' : ''}`}
-        zoom={14.6}
-        onFail={() => setGoogleFailed(true)}
-      />
-    )
-  }
-
-  return (
-    <div
-      ref={hostRef}
-      className={`shop-map-canvas${expanded ? ' is-expanded' : ''}`}
-      role="region"
-      aria-label={`Map showing ${title}`}
-    >
-      {failed && <MapFailure onRetry={retry} />}
-    </div>
-  )
 }
 
 /** The argued offering — the claim dialog body. */
@@ -461,7 +333,7 @@ export default function CustomerOffer({
   const [claimError, setClaimError] = useState('')
   const [claimDialog, setClaimDialog] = useState<CouponRecord | null>(null)
   const [claimDialogQr, setClaimDialogQr] = useState<{ code: string; svg: string } | null>(null)
-  const [mapExpanded, setMapExpanded] = useState(false)
+  const [navDialogOpen, setNavDialogOpen] = useState(false)
   const [savedIds, setSavedIds] = useState<Set<string>>(() => readSaved())
   // A fix for the distance labels, read from the shared customer cache.
   // Null when the device never granted location — every label hides then.
@@ -616,6 +488,21 @@ export default function CustomerOffer({
       '_blank',
       'noopener,noreferrer',
     )
+  }
+
+  /** The address row's map chooser — Google Maps (web) or Apple Maps. */
+  function openInMaps(provider: 'google' | 'apple') {
+    const destination =
+      typeof item?.lat === 'number' && typeof item?.lng === 'number'
+        ? `${item.lat},${item.lng}`
+        : encodeURIComponent(shopDoc?.address ?? '')
+    if (!destination) return
+    const url =
+      provider === 'google'
+        ? `https://www.google.com/maps/dir/?api=1&destination=${destination}`
+        : `https://maps.apple.com/?daddr=${destination}`
+    setNavDialogOpen(false)
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   function toggleSaved() {
@@ -1123,7 +1010,12 @@ export default function CustomerOffer({
               </a>
             )}
 
-            <div className="cust-shopcard-row">
+            <button
+              type="button"
+              className="cust-shopcard-row cust-shopcard-row--address"
+              onClick={() => setNavDialogOpen(true)}
+              aria-label={`Navigate to ${shopDoc?.address ?? item.shopName}`}
+            >
               <span className="cust-shopcard-ricon" aria-hidden="true">
                 <PinSvg />
               </span>
@@ -1131,51 +1023,61 @@ export default function CustomerOffer({
                 <strong>{shopDoc?.address ?? 'Location not pinned'}</strong>
                 <small>{distanceLine}</small>
               </span>
-            </div>
-
-            <div className="cust-shopcard-map">
-              {typeof item.lat === 'number' && typeof item.lng === 'number' ? (
-                <ShopMap
-                  lat={item.lat}
-                  lng={item.lng}
-                  title={item.shopName}
-                  expanded={mapExpanded}
-                />
-              ) : (
-                <div className="cust-shopcard-mapholder">
-                  <PinSvg />
-                  <span>Location not pinned</span>
-                </div>
-              )}
-              <button
-                type="button"
-                className="cust-shopcard-expand"
-                onClick={() => setMapExpanded((v) => !v)}
-                aria-label={mapExpanded ? 'Shrink map' : 'Expand map'}
-                aria-pressed={mapExpanded}
-              >
-                <ExpandSvg />
-              </button>
-              <div className="cust-shopcard-mapfoot">
-                <span className="cust-shopcard-mapdist">
-                  <PinSvg />
-                  {distanceLine}
-                </span>
-                <button
-                  type="button"
-                  className="cust-shopcard-getdir"
-                  onClick={openDirections}
-                >
-                  <PlaneSvg />
-                  <span>Get Directions</span>
-                </button>
-              </div>
-            </div>
+              <span className="cust-shopcard-chev" aria-hidden="true">
+                <ChevronSvg />
+              </span>
+            </button>
           </aside>
         </div>
 
         {coupon && <CouponPass coupon={coupon} qr={shownCouponQr} />}
       </div>
+
+      {navDialogOpen && (
+        <div
+          className="cust-claimdialog-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setNavDialogOpen(false)
+          }}
+        >
+          <div
+            className="cust-navdialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Choose a map app"
+          >
+            <header className="cust-claimdialog-head">
+              <h2>Get directions</h2>
+              <button
+                type="button"
+                className="cust-claimdialog-close"
+                onClick={() => setNavDialogOpen(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </header>
+            <div className="cust-navdialog-options">
+              <button
+                type="button"
+                className="cust-navdialog-option"
+                onClick={() => openInMaps('google')}
+              >
+                <PlaneSvg />
+                <span>Google Maps</span>
+              </button>
+              <button
+                type="button"
+                className="cust-navdialog-option"
+                onClick={() => openInMaps('apple')}
+              >
+                <PinSvg />
+                <span>Apple Maps</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {claimDialog && (
         <div

@@ -677,113 +677,6 @@
   text-overflow: ellipsis;
 }
 
-.cust-shopcard-map {
-  position: relative;
-}
-
-.cust-shopcard-map .shop-map-canvas {
-  width: 100%;
-  height: 20rem;
-  transition: height 0.25s ease;
-}
-
-.cust-shopcard-map .shop-map-canvas.is-expanded {
-  height: 32rem;
-}
-
-.cust-shopcard-mapholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  height: 20rem;
-  background-color: #ece1cb;
-  color: var(--color-stone);
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
-.cust-shopcard-mapholder svg {
-  width: 1.7rem;
-  height: 1.7rem;
-}
-
-.cust-shopcard-expand {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 2.3rem;
-  height: 2.3rem;
-  padding: 0;
-  background-color: rgba(255, 253, 247, 0.94);
-  border: 2px solid var(--color-ink);
-  border-radius: 0.55rem;
-  color: var(--color-ink);
-  cursor: pointer;
-}
-
-.cust-shopcard-expand svg {
-  width: 1.15rem;
-  height: 1.15rem;
-}
-
-.cust-shopcard-mapfoot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.7rem;
-  padding: 0.55rem 0.7rem;
-  background-color: #fffdf7;
-  border-top: 1.5px solid #e7ddc9;
-}
-
-.cust-shopcard-mapdist {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.38rem;
-  min-width: 0;
-  font-size: 0.93rem;
-  font-weight: 700;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--color-ink);
-}
-
-.cust-shopcard-mapdist svg {
-  width: 1.05rem;
-  height: 1.05rem;
-  flex: none;
-}
-
-.cust-shopcard-getdir {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.55rem 1rem;
-  background-color: #fffdf7;
-  border: 2.5px solid var(--color-ink);
-  border-radius: 999px;
-  box-shadow: 2px 3px 0 0 var(--color-ink);
-  font: inherit;
-  font-size: 0.93rem;
-  font-weight: 800;
-  white-space: nowrap;
-  color: var(--color-ink);
-  cursor: pointer;
-}
-
-.cust-shopcard-getdir svg {
-  width: 1.05rem;
-  height: 1.05rem;
-}
-
 .cust-report-backdrop {
   position: fixed;
   inset: 0;
@@ -1217,8 +1110,8 @@
   border-radius: 999px;
   background: linear-gradient(
       to right,
-      var(--color-orange) var(--pct),
-      #eeddb8 var(--pct)
+      var(--color-orange) calc(var(--pct) * (100% - 1.9rem) + 0.95rem),
+      #eeddb8 calc(var(--pct) * (100% - 1.9rem) + 0.95rem)
     )
     center / 100% 0.8rem no-repeat;
   cursor: pointer;
@@ -4833,4 +4726,78 @@
 .nz-gm-host {
   position: absolute;
   inset: 0;
+}
+
+/* ---- Address row (tap → map chooser) ---------------------------------- */
+.cust-shopcard-row--address {
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  width: 100%;
+  background: none;
+  border: none;
+  transition: background-color 0.12s ease;
+}
+
+.cust-shopcard-row--address:hover,
+.cust-shopcard-row--address:focus-visible {
+  background-color: rgba(255, 230, 162, 0.4);
+}
+
+.cust-shopcard-chev {
+  margin-left: auto;
+  color: var(--color-stone);
+  display: grid;
+  place-items: center;
+}
+
+.cust-shopcard-chev svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+/* ---- Map chooser dialog ----------------------------------------------- */
+.cust-navdialog {
+  width: 100%;
+  max-width: 20rem;
+  background-color: #fff8e8;
+  border: 3px solid var(--color-ink);
+  border-radius: 1.35rem;
+  box-shadow: var(--shadow-card);
+  padding: 1.25rem;
+}
+
+.cust-navdialog-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.cust-navdialog-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1rem;
+  background-color: #ffffff;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 1rem;
+  box-shadow: 3px 4px 0 0 var(--color-ink);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--color-ink);
+  cursor: pointer;
+  transition: translate 0.08s ease, box-shadow 0.08s ease;
+}
+
+.cust-navdialog-option:hover {
+  translate: 1px 1px;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
+}
+
+.cust-navdialog-option svg {
+  width: 1.3rem;
+  height: 1.3rem;
 }
