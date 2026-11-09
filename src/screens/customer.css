@@ -1921,11 +1921,18 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-stone);
+  white-space: nowrap;
+}
+
+.chome-card-meta > span {
+  flex: none;
+  white-space: nowrap;
 }
 
 .chome-card-dist {
   font-weight: 700;
   color: var(--color-ink);
+  white-space: nowrap;
 }
 
 .chome-cta {
@@ -3033,12 +3040,14 @@
 
 .trending-card-meta {
   display: flex;
+  align-items: center;
   gap: 1rem;
   font-family: var(--font-mono);
   font-size: 0.85rem;
   letter-spacing: 0.08em;
   color: var(--color-ink);
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .trending-card-dist,
@@ -3046,6 +3055,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+  flex: none;
+  white-space: nowrap;
 }
 
 .trending-card-dist svg,
