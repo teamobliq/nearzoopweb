@@ -512,6 +512,16 @@ export default function CustomerHome({
           : null,
     }))
 
+  // The Saved tab's list: the live feed narrowed to bookmarked offers.
+  // Anything saved that has expired or been deleted simply won't appear
+  // (its bookmark stays stored until the user un-bookmarks it).
+  const savedItems = withDistance(live)
+    .filter((item) => saved.has(item.offerId))
+    .sort(
+      (a, b) =>
+        (a.km ?? Number.POSITIVE_INFINITY) - (b.km ?? Number.POSITIVE_INFINITY),
+    )
+
   /** The largest percentage anywhere in a discount label ("50% OFF" → 50),
       or null for non-percentage deals (BOGO, FLAT…). */
   function maxDiscountPct(item: FeedRecord): number | null {
@@ -1060,11 +1070,33 @@ export default function CustomerHome({
 
         {view === 'saved' && (
           <div className="chome-body">
-            <h1 className="chome-title">Nothing saved yet.</h1>
-            <p className="chome-lede">
-              Bookmark an offer from its card and it waits here while it's
-              live.
-            </p>
+            {savedItems.length > 0 ? (
+              <>
+                <h1 className="chome-title">Saved offers</h1>
+                <p className="chome-lede">Pinned from your browsing — still live, ready when you are.</p>
+                <ul className="chome-cards">
+                  {savedItems.map((item) => (
+                    <OfferCard
+                      key={item.offerId}
+                      item={item}
+                      selected={selected === item.offerId}
+                      onSelect={() => openOffer(item)}
+                      bookmarked={saved.has(item.offerId)}
+                      onToggleBookmark={() => toggleSaved(item.offerId)}
+                      onOpenShop={onOpenShop}
+                    />
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <>
+                <h1 className="chome-title">Nothing saved yet.</h1>
+                <p className="chome-lede">
+                  Bookmark an offer from its card and it waits here while it's
+                  live.
+                </p>
+              </>
+            )}
           </div>
         )}
 
