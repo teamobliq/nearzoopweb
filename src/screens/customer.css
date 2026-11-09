@@ -553,11 +553,18 @@
 /* ---- Right column: the shop card — Shop Profile's detail-card type. -- */
 
 .cust-shopcard {
+  display: flex;
+  flex-direction: column;
   background-color: #fffdf7;
   border: 3px solid var(--color-ink);
   border-radius: 1.25rem;
   box-shadow: 5px 6px 0 0 var(--color-ink);
   overflow: hidden;
+}
+
+.cust-shopcard-map {
+  flex: 1;
+  min-height: 100%;
 }
 
 .cust-shopcard-head {
@@ -679,17 +686,19 @@
 
 .cust-shopcard-map {
   position: relative;
+  flex: 1;
+  min-height: 44rem;
 }
 
 .cust-shopcard-map .shop-map-canvas {
   width: 100%;
-  height: 32rem;
-  min-height: 32rem;
+  height: 44rem;
+  min-height: 44rem;
   transition: height 0.25s ease;
 }
 
 .cust-shopcard-map .shop-map-canvas.is-expanded {
-  height: 44rem;
+  height: 56rem;
 }
 
 .cust-shopcard-mapholder {
@@ -698,8 +707,8 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  height: 32rem;
-  min-height: 32rem;
+  height: 44rem;
+  min-height: 44rem;
   background-color: #ece1cb;
   color: var(--color-stone);
   font-size: 0.95rem;
@@ -2347,12 +2356,13 @@
   }
 
   .cust-shopcard-map .shop-map-canvas {
-    height: 28rem;
-    min-height: 28rem;
+    height: 40rem;
+    min-height: 40rem;
   }
 
   .cust-shopcard-mapholder {
-    height: 28rem;
+    height: 40rem;
+    min-height: 40rem;
   }
 
   .cust-shopcard-mapfoot {
