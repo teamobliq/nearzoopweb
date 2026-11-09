@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Never index the ops console or the serverless API.
+Disallow: /nz-admin
+Disallow: /nz-admin/
+Disallow: /nz-admin/*
+Disallow: /api/
+Disallow: /api/*
+
+Sitemap: https://nearzoop.teamobliq.in/sitemap.xml

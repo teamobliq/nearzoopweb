@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- NearZoop public surface: home, shop profiles, offer details and the
+     merchant storefront areas (/business, /busdash). The admin console
+     (/nz-admin) and the API (/api) are excluded here and in robots.txt —
+     the merchant flow itself restricts store access to its owner via the
+     app's own sign-in gate, so indexing it is safe. -->
+  <url>
+    <loc>https://nearzoop.teamobliq.in/</loc>
+    <changefreq>hourly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Example offer detail URLs. Real offer URLs follow the pattern:
+       /<shopUid>/<offerId>?source=nearby
+       Real shop profile URLs follow the pattern:
+       /shop?id=<shopUid>
+       Generate per-shop entries from the public feed when a crawl API or
+       server-rendered listing exists — static files can't query Firestore. -->
+
+  <url>
+    <loc>https://nearzoop.teamobliq.in/shop?id=example-shop-uid</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://nearzoop.teamobliq.in/example-shop-uid/example-offer-id?source=nearby</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+</urlset>
