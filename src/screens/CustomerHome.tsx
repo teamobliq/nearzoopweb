@@ -351,9 +351,15 @@ export default function CustomerHome({
       if (!active) return
       const navRect = nav.getBoundingClientRect()
       const rect = active.getBoundingClientRect()
+      // Absolute children anchor to the nav's *padding* box, while
+      // getBoundingClientRect reports the *border* box — subtract the
+      // border so the marker lands exactly on the icon, not 3px right.
+      const navStyle = getComputedStyle(nav)
+      const borderLeft = Number.parseFloat(navStyle.borderLeftWidth) || 0
+      const borderTop = Number.parseFloat(navStyle.borderTopWidth) || 0
       setMarker({
-        left: rect.left - navRect.left,
-        top: rect.top - navRect.top,
+        left: rect.left - navRect.left - borderLeft,
+        top: rect.top - navRect.top - borderTop,
         width: rect.width,
         height: rect.height,
       })
