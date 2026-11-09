@@ -3413,20 +3413,23 @@
 
 .shop-offer-tile {
   flex: none;
-  width: 6.5rem;
-  aspect-ratio: 1;
+  width: 5.7rem;
+  height: 5.7rem;
+  padding: 0.4rem;
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.1rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.05rem;
-  border-radius: 1rem;
+  gap: 0.15rem;
   text-align: center;
   color: #ffffff;
 }
 
 .shop-offer-tile--red {
   background-color: var(--color-orange);
+  color: #ffffff;
 }
 
 .shop-offer-tile--yellow {
@@ -3436,23 +3439,26 @@
 
 .shop-offer-tile--pink {
   background-color: #f06bac;
+  color: #ffffff;
 }
 
 .shop-offer-tile--green {
   background-color: var(--color-green);
+  color: #ffffff;
 }
 
 .shop-offer-tile-big {
-  font-size: 2.2rem;
+  font-size: 1.5rem;
   font-weight: 900;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.02em;
   line-height: 1;
 }
 
 .shop-offer-tile-small {
-  font-size: 0.92rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   line-height: 1.1;
   text-transform: uppercase;
 }
@@ -3933,12 +3939,12 @@
   }
 
   .shop-offer-tile {
-    width: 5rem;
-    border-radius: 0.8rem;
+    width: 4.6rem;
+    height: 4.6rem;
   }
 
   .shop-offer-tile-big {
-    font-size: 1.7rem;
+    font-size: 1.25rem;
   }
 
   .shop-offer-tile-small {
