@@ -600,6 +600,14 @@ export default function ShopProfile({
         : 'Hours not set'
 
   const openNow = shop ? isOpenNow(shop) : false
+  // The live status chip — holiday wins over the hours window.
+  const shopStatus = shop
+    ? shop.holidayMode
+      ? { label: 'On holiday', kind: 'amber' as const }
+      : openNow
+        ? { label: 'Open now', kind: 'green' as const }
+        : { label: 'Closed', kind: 'red' as const }
+    : null
   const phone =
     shop && shop.showPhone !== false ? shop.customerPhone?.trim() : ''
   const hasCoords =
@@ -790,7 +798,7 @@ export default function ShopProfile({
     <section className="shop-section">
       <h2 className="shop-section-title">Details</h2>
       <div className="shop-detail-card">
-        <div className="shop-detail-row">
+        <div className="shop-detail-row shop-detail-row--hours">
           <span className="shop-detail-icon">
             <ClockSvg />
           </span>
@@ -798,6 +806,12 @@ export default function ShopProfile({
             <strong>Today</strong>
             <span>{hoursText}</span>
           </div>
+          {shopStatus && (
+            <span className={`cust-minichip cust-minichip--${shopStatus.kind}`}>
+              <i aria-hidden="true" />
+              {shopStatus.label}
+            </span>
+          )}
         </div>
         {phone && (
           <div className="shop-detail-row">
