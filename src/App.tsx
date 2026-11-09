@@ -15,7 +15,9 @@ import CouponPass from './screens/CouponPass'
 import TrendingNearby from './screens/TrendingNearby'
 import CustomerNotifications from './screens/CustomerNotifications'
 import ShopProfile from './screens/ShopProfile'
+import Offline from './screens/Offline'
 import { cachedCoords } from './business/geocode'
+import { useOnline } from './business/connectivity'
 import './App.css'
 
 // The admin console ships as its own chunk — absent from the main bundle.
@@ -140,6 +142,8 @@ function readDeepLink(): DeepLink | null {
 }
 
 function App() {
+  const [onlineRetry, setOnlineRetry] = useState(0)
+  const online = useOnline(onlineRetry)
   const [route, setRoute] = useState<Route>(readRoute)
   const [deepLink, setDeepLink] = useState<DeepLink | null>(readDeepLink)
   const [screen, setScreen] = useState<Screen>('splash')
@@ -304,6 +308,17 @@ function App() {
     }
     setDeepLink(null)
     go('auth')
+  }
+
+  // The offline gate — no network, no app. The check runs every 10s in
+  // the background; this screen replaces every route until a check passes.
+  if (!online) {
+    return (
+      <Offline
+        onRetry={() => setOnlineRetry((n) => n + 1)}
+        checking={false}
+      />
+    )
   }
 
   if (route === 'business') {

@@ -579,3 +579,22 @@
   padding-inline: 1.6rem;
   font-size: 1.05rem;
 }
+
+/* Offline fallback — rides the Done card (see done-* above). */
+.offline-icon {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  margin-bottom: 1.2rem;
+  background-color: var(--color-yellow);
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 1.1rem;
+  box-shadow: var(--shadow-card);
+  color: var(--color-ink);
+}
+
+.offline-icon svg {
+  width: 2rem;
+  height: 2rem;
+}
