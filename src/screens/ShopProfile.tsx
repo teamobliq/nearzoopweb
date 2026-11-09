@@ -636,10 +636,7 @@ export default function ShopProfile({
 
   async function shareShop() {
     if (!shop) return
-    const offer = liveOffers[0]
-    const url = offer
-      ? `${window.location.origin}${import.meta.env.BASE_URL}${encodeURIComponent(uid)}/${encodeURIComponent(offer.offerId)}`
-      : window.location.href
+    const url = `${window.location.origin}${import.meta.env.BASE_URL}shop?id=${encodeURIComponent(uid)}`
     const data = {
       title: shop.name,
       text: `${shop.name} on NearZoop`,
@@ -652,8 +649,16 @@ export default function ShopProfile({
       }
       await navigator.clipboard.writeText(url)
       setNote('Shop link copied')
-    } catch {
-      // Share sheet dismissed or clipboard blocked — nothing to report.
+    } catch (err) {
+      // Share sheet dismissed — nothing to report. Anything else, fall
+      // back to the clipboard path so the share always works somewhere.
+      if (err instanceof DOMException && err.name === 'AbortError') return
+      try {
+        await navigator.clipboard.writeText(url)
+        setNote('Shop link copied')
+      } catch {
+        window.prompt('Copy this link', url)
+      }
     }
   }
 
