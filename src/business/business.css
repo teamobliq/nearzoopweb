@@ -4982,15 +4982,8 @@ button.biz-report {
 
 .biz-notiflist-page {
   margin-top: 0.4rem;
-}
-
-@media (min-width: 64rem) {
-  .biz-notiflist-page {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.2rem;
-    align-items: start;
-  }
+  /* One notification per row on every screen size. */
+  max-width: 46rem;
 }
 
 /* Report cards are buttons — same row, reset to inherit the card's type. */
