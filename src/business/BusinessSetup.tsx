@@ -314,6 +314,8 @@ export default function BusinessSetup({
   const [name, setName] = useState('')
   const [category, setCategory] = useState<string | null>(null)
   const [owner, setOwner] = useState('')
+  const [email, setEmail] = useState('')
+  const [emailError, setEmailError] = useState('')
   const [customerPhone, setCustomerPhone] = useState(
     phone ? `+91 ${phone}` : '',
   )
@@ -513,6 +515,17 @@ export default function BusinessSetup({
     event.preventDefault()
     if (saving || verifying || payOpening || payConfirming) return
     const completed = substep
+    if (completed === 0) {
+      const value = email.trim()
+      if (!value) {
+        setEmailError('Enter your email address to register your shop.')
+        return
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        setEmailError('Enter a valid email address.')
+        return
+      }
+    }
     if (completed === 1) {
       const hoursErrorText = validateHours(hours)
       if (hoursErrorText) {
@@ -548,6 +561,7 @@ export default function BusinessSetup({
             name: name.trim(),
             category: category ?? '',
             ownerName: owner.trim(),
+            email: email.trim(),
             customerPhone: customerPhone.trim(),
             showPhone,
             shopPhotoUrl,
@@ -880,6 +894,31 @@ export default function BusinessSetup({
               placeholder="Full name"
               onChange={(event) => setOwner(event.target.value)}
             />
+
+            <label className="biz-label biz-field" htmlFor="biz-email">
+              Email address <span className="biz-required">*</span>
+            </label>
+            <input
+              id="biz-email"
+              className="biz-input"
+              type="email"
+              value={email}
+              maxLength={120}
+              placeholder="you@yourshop.com"
+              autoComplete="email"
+              aria-invalid={Boolean(emailError)}
+              aria-describedby={emailError ? 'biz-email-error' : undefined}
+              onChange={(event) => {
+                setEmail(event.target.value)
+                setEmailError('')
+              }}
+            />
+            <p className="biz-hint">
+              Required for your registration and important shop updates.
+            </p>
+            {emailError && (
+              <p id="biz-email-error" className="biz-photoerror">{emailError}</p>
+            )}
 
             <label className="biz-label biz-field">Phone for customers (optional)</label>
             <div className="biz-inputrow">

@@ -307,6 +307,10 @@
   color: var(--color-ink);
 }
 
+.biz-required {
+  color: var(--color-red);
+}
+
 .biz-intro {
   margin: 1.6rem 0 0;
   color: var(--color-stone);

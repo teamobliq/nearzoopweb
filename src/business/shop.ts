@@ -43,6 +43,9 @@ export type ShopDraft = {
   name: string
   category: string
   ownerName: string
+  /** Merchant contact email — required at registration. Stored on the
+      private users/{uid} account doc, never on the public shop doc. */
+  email?: string
   customerPhone: string
   showPhone: boolean
   address: string
@@ -134,13 +137,19 @@ const FEED_SHOP_KEYS = [
   'feeExpiresAt',
 ] as const
 
-/** Merges a partial write into the merchant's shop doc (creates it if needed). */
+/** Merges a partial write into the merchant's shop doc (creates it if needed).
+ *  `email` is pulled out and written to the private users/{uid} account doc —
+ *  shops/{uid} is world-readable, so contact details must not live there. */
 export async function saveShop(uid: string, patch: ShopPatch): Promise<void> {
+  const { email, ...shopPatch } = patch
   await setDoc(
     doc(db, 'shops', uid),
-    { ...patch, updatedAt: serverTimestamp() },
+    { ...shopPatch, updatedAt: serverTimestamp() },
     { merge: true },
   )
+  if (email !== undefined) {
+    await setDoc(doc(db, 'users', uid), { email }, { merge: true })
+  }
   // Mirror upkeep: a field the public feed copies changed, so re-sync
   // every mirror this shop owns. Fire-and-forget — a failed sync (e.g.
   // rules deploying late) must never fail the merchant's own save.
