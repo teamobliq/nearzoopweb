@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { User } from 'firebase/auth'
-import PageTransition from './components/PageTransition'
 import { auth } from './firebase'
 import type { CouponRecord } from './business/coupons'
 import Splash from './screens/Splash'
@@ -331,16 +330,15 @@ function App() {
             ? `offer:${deepLink.uid}/${deepLink.offerId}`
             : screen
 
-  /** Every screen enters through the same layer. `lift` is for pages that
-      open over the list (offer, shop, coupon pass); `fade` for gates and
-      chunk loads; `up` for ordinary screens. */
-  function view(variant: 'up' | 'lift' | 'fade', node: ReactNode) {
-    return (
-      <PageTransition key={navKey} id={navKey} variant={variant}>
-        {node}
-      </PageTransition>
-    )
+  // Screens are plain swaps — no enter animation. Each navigation still
+  // gets a fresh mount and starts at the top of the page.
+  function view(_variant: 'up' | 'lift' | 'fade', node: ReactNode) {
+    return node
   }
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [navKey])
 
   // The offline gate — no network, no app. The check runs every 10s in
   // the background; this screen replaces every route until a check passes.
