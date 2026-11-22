@@ -6,6 +6,8 @@ import {
   type FormEvent,
 } from 'react'
 import ImageCropDialog from './ImageCropDialog'
+import VerifyCode from '../screens/VerifyCode'
+import { sendEmailOtp, verifyEmailOtp } from './emailOtp'
 import LocationPicker, { type LocationFix } from './LocationPicker'
 import { verifyGstin } from './gstin'
 import { deleteImage, nextImagePath, uploadImage } from './images'
@@ -316,6 +318,8 @@ export default function BusinessSetup({
   const [owner, setOwner] = useState('')
   const [email, setEmail] = useState('')
   const [emailError, setEmailError] = useState('')
+  const [otpEmail, setOtpEmail] = useState('')
+  const [emailPending, setEmailPending] = useState(false)
   const [customerPhone, setCustomerPhone] = useState(
     phone ? `+91 ${phone}` : '',
   )
@@ -511,9 +515,38 @@ export default function BusinessSetup({
     }
   }
 
+  /** Persists step 1's fields — called only after the email code verifies. */
+  async function saveBusinessDetails() {
+    const previousPhoto = shopPhoto
+    const shopPhotoUrl = await commitShopPhoto()
+    await onSave(
+      {
+        name: name.trim(),
+        category: category ?? '',
+        ownerName: owner.trim(),
+        email: email.trim(),
+        customerPhone: customerPhone.trim(),
+        showPhone,
+        shopPhotoUrl,
+      },
+      0,
+    )
+    if (shopPhotoUrl && shopPhotoUrl !== previousPhoto) {
+      void deleteImage(previousPhoto)
+    }
+  }
+
+  /** Called by VerifyCode once the server confirms the 6-digit code. */
+  async function confirmEmail(code: string) {
+    await verifyEmailOtp(code)
+    await saveBusinessDetails()
+    setEmailPending(false)
+    setSubstep(1)
+  }
+
   async function handleContinue(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (saving || verifying || payOpening || payConfirming) return
+    if (saving || verifying || payOpening || payConfirming || emailPending) return
     const completed = substep
     if (completed === 0) {
       const value = email.trim()
@@ -525,6 +558,18 @@ export default function BusinessSetup({
         setEmailError('Enter a valid email address.')
         return
       }
+      setSaving(true)
+      setEmailError('')
+      try {
+        await sendEmailOtp(value)
+        setOtpEmail(value)
+        setEmailPending(true)
+      } catch (err) {
+        setEmailError(err instanceof Error ? err.message : "Couldn't send the code. Try again.")
+      } finally {
+        setSaving(false)
+      }
+      return
     }
     if (completed === 1) {
       const hoursErrorText = validateHours(hours)
@@ -553,25 +598,7 @@ export default function BusinessSetup({
     setSaving(true)
     setPhotoError('')
     try {
-      if (completed === 0) {
-        const previousPhoto = shopPhoto
-        const shopPhotoUrl = await commitShopPhoto()
-        await onSave(
-          {
-            name: name.trim(),
-            category: category ?? '',
-            ownerName: owner.trim(),
-            email: email.trim(),
-            customerPhone: customerPhone.trim(),
-            showPhone,
-            shopPhotoUrl,
-          },
-          0,
-        )
-        if (shopPhotoUrl && shopPhotoUrl !== previousPhoto) {
-          void deleteImage(previousPhoto)
-        }
-      } else if (completed === 1) {
+      if (completed === 1) {
         await onSave(
           {
             address: address.trim(),
@@ -671,7 +698,29 @@ export default function BusinessSetup({
           <p className="biz-stepcap">{info.caption}</p>
         </header>
 
-        {substep === 2 ? (
+        {emailPending ? (
+          <>
+            <VerifyCode
+              phone={otpEmail}
+              sub={`We emailed a 6-digit code to ${otpEmail}.`}
+              submitLabel="Verify email & continue"
+              onSubmit={confirmEmail}
+              onResend={async () => {
+                await sendEmailOtp(otpEmail)
+              }}
+            />
+            <button
+              type="button"
+              className="biz-linkbtn"
+              onClick={() => {
+                setEmailPending(false)
+                setEmailError('')
+              }}
+            >
+              Use a different email
+            </button>
+          </>
+        ) : substep === 2 ? (
           <>
             <p className="biz-intro">
               Verified shops get a badge customers trust. You can post offers
