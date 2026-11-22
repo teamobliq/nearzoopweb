@@ -32,7 +32,7 @@ import { requestRatePrompt, watchShopReviews, type ReviewSummary } from '../busi
 import { fmtDay, fmtWhen, rel } from '../business/when'
 import './customer.css'
 
-/** The shared-offer landing — `<base>/?shop=<shopUid>&offer=<offerId>` (or
+/** The shared-offer landing — `<base>/offer?shop=<shopUid>&offer=<offerId>` (or
     a legacy path link) lands here. Reads the offer's public feed mirror
     (feed.ts): the only copy of
     an offer a visitor is allowed to see. The shop card on the right reads

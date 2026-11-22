@@ -110,7 +110,7 @@ function readShopId(): string | null {
   }
 }
 
-/** A shared offer link — `<base>/?shop=<uid>&offer=<id>` — resolves to the
+/** A shared offer link — `<base>/offer?shop=<uid>&offer=<id>` — resolves to the
     offer's own landing screen. The older `<base>/<uid>/<offerId>` paths are
     still accepted so previously shared links keep working. In-app taps do
     not write either form to the address bar. */

@@ -12,7 +12,7 @@
   </url>
 
   <!-- Example offer detail URLs. Real offer URLs follow the pattern:
-       /?shop=<shopUid>&offer=<offerId>
+       /offer?shop=<shopUid>&offer=<offerId>
        Real shop profile URLs follow the pattern:
        /shop?id=<shopUid>
        Generate per-shop entries from the public feed when a crawl API or
@@ -25,7 +25,7 @@
   </url>
 
   <url>
-    <loc>https://nearzoop.teamobliq.in/?shop=example-shop-uid&amp;offer=example-offer-id</loc>
+    <loc>https://nearzoop.teamobliq.in/offer?shop=example-shop-uid&amp;offer=example-offer-id</loc>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
