@@ -15,9 +15,7 @@ import CouponPass from './screens/CouponPass'
 import TrendingNearby from './screens/TrendingNearby'
 import CustomerNotifications from './screens/CustomerNotifications'
 import ShopProfile from './screens/ShopProfile'
-import Offline from './screens/Offline'
 import { cachedCoords } from './business/geocode'
-import { useOnline } from './business/connectivity'
 import './App.css'
 
 // The admin console ships as its own chunk — absent from the main bundle.
@@ -148,8 +146,6 @@ function readDeepLink(): DeepLink | null {
 }
 
 function App() {
-  const [onlineRetry, setOnlineRetry] = useState(0)
-  const online = useOnline(onlineRetry)
   const [route, setRoute] = useState<Route>(readRoute)
   const [deepLink, setDeepLink] = useState<DeepLink | null>(readDeepLink)
   const [screen, setScreen] = useState<Screen>('splash')
@@ -316,11 +312,8 @@ function App() {
     go('auth')
   }
 
-  /** One key per navigation state. The transition wrapper is remounted when
-      this changes, so its CSS enter animation replays without a router. */
-  const navKey = !online
-    ? 'offline'
-    : route === 'business'
+  /** One key per navigation state — used to reset scroll on each screen. */
+  const navKey = route === 'business'
       ? 'business'
       : route === 'admin'
         ? 'admin'
@@ -339,15 +332,6 @@ function App() {
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [navKey])
-
-  // The offline gate — no network, no app. The check runs every 10s in
-  // the background; this screen replaces every route until a check passes.
-  if (!online) {
-    return view(
-      'fade',
-      <Offline onRetry={() => setOnlineRetry((n) => n + 1)} checking={false} />,
-    )
-  }
 
   if (route === 'business') {
     return view('up', <BusinessSignIn />)
