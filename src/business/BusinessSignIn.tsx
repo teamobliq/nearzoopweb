@@ -486,9 +486,21 @@ export default function BusinessSignIn() {
   }
 
   if (step === 'setup') {
+    const setupUid = auth.currentUser?.uid
+    if (!setupUid) {
+      return (
+        <main className="biz-page">
+          <div className="biz-shell">
+            <div className="biz-center">
+              <p className="biz-boot">Session expired. Reload to continue.</p>
+            </div>
+          </div>
+        </main>
+      )
+    }
     return (
       <BusinessSetup
-        uid={user.uid}
+        uid={setupUid}
         phone={merchantPhone()}
         startStep={setupStart}
         submitError={setupError}

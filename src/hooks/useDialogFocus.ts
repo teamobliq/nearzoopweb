@@ -25,6 +25,7 @@ export function useDialogFocus<T extends HTMLElement>(
     if (!active) return
     const root = ref.current
     if (!root) return
+    const dialog: HTMLElement = root
     const previous = document.activeElement as HTMLElement | null
 
     const focusables = () =>
@@ -52,10 +53,10 @@ export function useDialogFocus<T extends HTMLElement>(
       const first = items[0]
       const last = items[items.length - 1]
       const current = document.activeElement
-      if (event.shiftKey && (current === first || !root.contains(current))) {
+      if (event.shiftKey && (current === first || !dialog.contains(current))) {
         event.preventDefault()
         last.focus()
-      } else if (!event.shiftKey && (current === last || !root.contains(current))) {
+      } else if (!event.shiftKey && (current === last || !dialog.contains(current))) {
         event.preventDefault()
         first.focus()
       }
