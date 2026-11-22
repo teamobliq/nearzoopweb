@@ -1,5 +1,16 @@
 {
   "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(bot|Bot|WhatsApp|Slack|Telegram|Discord|Facebook|Twitter|LinkedIn|Skype|Embedly).*"
+        }
+      ],
+      "destination": "/api/link-preview"
+    },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
