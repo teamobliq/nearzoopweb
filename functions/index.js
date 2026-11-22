@@ -11,10 +11,17 @@
  * scheduled/ended offers, and the merchant's sync handles removals.
  */
 const { onSchedule } = require('firebase-functions/v2/scheduler')
+const { onDocumentCreated } = require('firebase-functions/v2/firestore')
+const { defineSecret } = require('firebase-functions/params')
+const { Resend } = require('resend')
 const { initializeApp } = require('firebase-admin/app')
 const { getFirestore, FieldValue } = require('firebase-admin/firestore')
+const { notificationEmail } = require('./emailTemplate')
 
 initializeApp()
+
+const resendKey = defineSecret('RESEND_API_KEY')
+const resendFrom = defineSecret('RESEND_FROM_EMAIL')
 
 const MIRROR_STATUSES = ['live', 'scheduled', 'ended', 'paused']
 const BATCH_LIMIT = 400
@@ -90,5 +97,68 @@ exports.revalidateOffers = onSchedule(
         `${flagged.length} flagged`,
       flagged.slice(0, 20),
     )
+  },
+)
+
+/**
+ * Every business notification gets a NearZoop-themed email at the verified
+ * merchant address. One onCreate trigger covers all writers (approvals,
+ * verification verdicts, customer reports, removals). A marker doc makes the
+ * trigger idempotent — Firestore can redeliver events.
+ */
+exports.emailBusinessNotification = onDocumentCreated(
+  {
+    document: 'shops/{shopUid}/notifications/{notificationId}',
+    region: 'asia-south1',
+    secrets: [resendKey, resendFrom],
+  },
+  async (event) => {
+    const snapshot = event.data
+    if (!snapshot) return
+    const notification = snapshot.data()
+    const { shopUid, notificationId } = event.params
+    const firestore = getFirestore()
+
+    const markerRef = firestore
+      .collection('shops')
+      .doc(shopUid)
+      .collection('notificationEmails')
+      .doc(notificationId)
+    // Already handled on a previous delivery — do not email twice.
+    if ((await markerRef.get()).exists) return
+
+    const [userSnap, shopSnap] = await Promise.all([
+      firestore.collection('users').doc(shopUid).get(),
+      firestore.collection('shops').doc(shopUid).get(),
+    ])
+    const email = userSnap.get('email')
+    if (!email || userSnap.get('emailVerified') !== true) {
+      console.log(`notificationEmail: ${shopUid} has no verified email — skipping`)
+      return
+    }
+
+    const mail = notificationEmail({
+      title: notification.title,
+      body: notification.body,
+      kind: notification.kind,
+      shopName: shopSnap.get('name'),
+      url: 'https://nearzoop.teamobliq.in/business/notifications',
+    })
+
+    const result = await new Resend(resendKey.value()).emails.send({
+      from: resendFrom.value() || 'NearZoop <onboarding@resend.dev>',
+      to: [email],
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html,
+    })
+    if (result.error) throw new Error(result.error.message || 'Resend rejected the email')
+
+    await markerRef.set({
+      sentAt: FieldValue.serverTimestamp(),
+      to: email,
+      kind: notification.kind || 'unknown',
+    })
+    console.log(`notificationEmail: sent ${notification.kind} to ${shopUid}`)
   },
 )
