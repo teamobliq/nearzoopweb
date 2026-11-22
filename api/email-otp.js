@@ -77,7 +77,10 @@ export default async function handler(req, res) {
 
       const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0')
       const result = await mailer().emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'NearZoop <onboarding@resend.dev>',
+        from:
+          process.env.RESEND_SECURITY_FROM ||
+          process.env.RESEND_FROM_EMAIL ||
+          'NearZoop Security <onboarding@resend.dev>',
         to: [email],
         subject: 'Your NearZoop verification code',
         text: `${code} is your NearZoop merchant verification code. It expires in 5 minutes. If you didn't request this, ignore this email.`,

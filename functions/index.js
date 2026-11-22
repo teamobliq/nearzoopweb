@@ -22,6 +22,7 @@ initializeApp()
 
 const resendKey = defineSecret('RESEND_API_KEY')
 const resendFrom = defineSecret('RESEND_FROM_EMAIL')
+const resendUpdatesFrom = defineSecret('RESEND_UPDATES_FROM')
 
 const MIRROR_STATUSES = ['live', 'scheduled', 'ended', 'paused']
 const BATCH_LIMIT = 400
@@ -110,7 +111,7 @@ exports.emailBusinessNotification = onDocumentCreated(
   {
     document: 'shops/{shopUid}/notifications/{notificationId}',
     region: 'asia-south1',
-    secrets: [resendKey, resendFrom],
+    secrets: [resendKey, resendFrom, resendUpdatesFrom],
   },
   async (event) => {
     const snapshot = event.data
@@ -146,7 +147,10 @@ exports.emailBusinessNotification = onDocumentCreated(
     })
 
     const result = await new Resend(resendKey.value()).emails.send({
-      from: resendFrom.value() || 'NearZoop <onboarding@resend.dev>',
+      from:
+        resendUpdatesFrom.value() ||
+        resendFrom.value() ||
+        'NearZoop Updates <onboarding@resend.dev>',
       to: [email],
       subject: mail.subject,
       text: mail.text,
