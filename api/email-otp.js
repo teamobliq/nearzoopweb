@@ -68,7 +68,7 @@ export default async function handler(req, res) {
       }
 
       const snap = await ref.get()
-      const previous = snap.exists() ? snap.data() : null
+      const previous = snap.exists ? snap.data() : null
       const sentAt = previous?.sentAt?.toMillis?.() ?? 0
       const wait = Math.ceil((COOLDOWN_MS - (Date.now() - sentAt)) / 1000)
       if (wait > 0) {
@@ -103,7 +103,7 @@ export default async function handler(req, res) {
 
     if (body.action === 'verify') {
       const snap = await ref.get()
-      const record = snap.exists() ? snap.data() : null
+      const record = snap.exists ? snap.data() : null
       if (!record) {
         return sendJson(res, 400, { error: 'Request a code first.' })
       }
