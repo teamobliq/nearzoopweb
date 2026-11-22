@@ -330,6 +330,7 @@ export default function BusinessSetup({
   const [hours, setHours] = useState<OpeningHours>({ monSat: null, sunday: null })
   const [openHoursRow, setOpenHoursRow] = useState<'monSat' | 'sunday' | null>(null)
   const [hoursError, setHoursError] = useState('')
+  const [stepError, setStepError] = useState('')
   const [docError, setDocError] = useState('')
   const [showPhone, setShowPhone] = useState(true)
   const [shopPhoto, setShopPhoto] = useState<string | null>(null)
@@ -548,7 +549,29 @@ export default function BusinessSetup({
     event.preventDefault()
     if (saving || verifying || payOpening || payConfirming || emailPending) return
     const completed = substep
+    setStepError('')
     if (completed === 0) {
+      if (!name.trim()) {
+        setStepError('Enter your shop name.')
+        return
+      }
+      if (!category) {
+        setStepError('Choose a category.')
+        return
+      }
+      if (!owner.trim()) {
+        setStepError("Enter the owner / manager's name.")
+        return
+      }
+      const phoneDigits = customerPhone.replace(/\D/g, '')
+      if (phoneDigits.length < 10) {
+        setStepError('Enter a valid phone number for customers.')
+        return
+      }
+      if (!shopPhoto && !shopPhotoStage) {
+        setStepError('Add a shop front photo.')
+        return
+      }
       const value = email.trim()
       if (!value) {
         setEmailError('Enter your email address to register your shop.')
@@ -572,6 +595,18 @@ export default function BusinessSetup({
       return
     }
     if (completed === 1) {
+      if (!address.trim()) {
+        setStepError('Enter your shop address.')
+        return
+      }
+      if (!latlng) {
+        setStepError('Place the map pin on your shop location.')
+        return
+      }
+      if (hours.monSat === null || hours.sunday === null) {
+        setHoursError('Set hours for both Mon — Sat and Sunday (or mark closed).')
+        return
+      }
       const hoursErrorText = validateHours(hours)
       if (hoursErrorText) {
         setHoursError(hoursErrorText)
@@ -579,6 +614,10 @@ export default function BusinessSetup({
       }
     }
     if (completed === 2) {
+      if (!doc) {
+        setDocError('Choose a verification document.')
+        return
+      }
       // The document is the point of this step — block submitting without it.
       if (doc === 'gstin' && !gstinValid) {
         setDocError('Enter your 15-character GSTIN to submit.')
@@ -682,7 +721,12 @@ export default function BusinessSetup({
 
   return (
     <main className="biz-page">
-      <form className="biz-shell" onSubmit={handleContinue} noValidate>
+      <form
+        className="biz-shell"
+        onSubmit={handleContinue}
+        onInput={() => setStepError('')}
+        noValidate
+      >
         <header>
           <div className="biz-steptop">
             <h1 className="biz-steptitle">{info.title}</h1>
@@ -727,7 +771,9 @@ export default function BusinessSetup({
               while we check — they go live once you’re verified.
             </p>
 
-            <label className="biz-label biz-field">Choose one document</label>
+            <label className="biz-label biz-field">
+              Choose one document <span className="biz-required">*</span>
+            </label>
             <div
               className="biz-choicelist"
               role="radiogroup"
@@ -764,7 +810,7 @@ export default function BusinessSetup({
             {doc === 'gstin' ? (
               <>
                 <label className="biz-label biz-field" htmlFor="biz-gstin">
-                  GSTIN
+                  GSTIN <span className="biz-required">*</span>
                 </label>
                 <div className="biz-inputrow">
                   <input
@@ -810,7 +856,7 @@ export default function BusinessSetup({
             ) : (
               <>
                 <label className="biz-label biz-field">
-                  {DOC_PHOTO_LABEL[doc]}
+                  {DOC_PHOTO_LABEL[doc]} <span className="biz-required">*</span>
                 </label>
                 <PhotoBox
                   tag="tap to add photo"
@@ -836,7 +882,7 @@ export default function BusinessSetup({
 
             <div className="biz-locfields">
               <label className="biz-label biz-field" htmlFor="biz-address">
-                Address
+                Address <span className="biz-required">*</span>
               </label>
               <div className="biz-inputrow">
                 <svg
@@ -866,7 +912,9 @@ export default function BusinessSetup({
                 />
               </div>
 
-              <label className="biz-label biz-field">Opening hours</label>
+              <label className="biz-label biz-field">
+                Opening hours <span className="biz-required">*</span>
+              </label>
               <div className="biz-hours">
                 <HoursGroup
                   label="Mon — Sat"
@@ -898,7 +946,7 @@ export default function BusinessSetup({
         {substep === 0 ? (
           <>
             <label className="biz-label biz-field" htmlFor="biz-name">
-              Shop name
+              Shop name <span className="biz-required">*</span>
             </label>
             <input
               id="biz-name"
@@ -911,7 +959,7 @@ export default function BusinessSetup({
             <p className="biz-hint">As written on your signboard.</p>
 
             <label className="biz-label biz-field" id="biz-category-label">
-              Category
+              Category <span className="biz-required">*</span>
             </label>
             <div
               className="biz-chips"
@@ -933,7 +981,7 @@ export default function BusinessSetup({
             </div>
 
             <label className="biz-label biz-field" htmlFor="biz-owner">
-              Owner / manager name
+              Owner / manager name <span className="biz-required">*</span>
             </label>
             <input
               id="biz-owner"
@@ -969,9 +1017,12 @@ export default function BusinessSetup({
               <p id="biz-email-error" className="biz-photoerror">{emailError}</p>
             )}
 
-            <label className="biz-label biz-field">Phone for customers (optional)</label>
+            <label className="biz-label biz-field" htmlFor="biz-phone">
+              Phone for customers <span className="biz-required">*</span>
+            </label>
             <div className="biz-inputrow">
               <input
+                id="biz-phone"
                 className="biz-input-plain"
                 value={customerPhone}
                 maxLength={14}
@@ -994,7 +1045,9 @@ export default function BusinessSetup({
             </div>
             <p className="biz-hint">Shown on your shop page with a Call button.</p>
 
-            <label className="biz-label biz-field">Shop front photo</label>
+            <label className="biz-label biz-field">
+              Shop front photo <span className="biz-required">*</span>
+            </label>
             <PhotoBox
               tag="tap to add photo"
               url={shopPhoto}
@@ -1077,8 +1130,10 @@ export default function BusinessSetup({
           </>
         ) : null}
 
-        {(submitError || photoError || docError) && (
-          <p className="biz-photoerror">{submitError || photoError || docError}</p>
+        {(submitError || photoError || stepError || docError) && (
+          <p className="biz-photoerror" role="alert">
+            {submitError || photoError || stepError || docError}
+          </p>
         )}
 
         <div className="biz-formfoot">
