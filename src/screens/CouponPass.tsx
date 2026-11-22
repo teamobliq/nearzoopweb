@@ -65,7 +65,7 @@ export default function CouponPass({ coupon, onBack }: Props) {
         <div className="cpass-topbar">
           <button
             type="button"
-            className="cpass-back"
+            className="cpass-back nz-icon-btn"
             onClick={onBack}
             aria-label="Go back"
           >

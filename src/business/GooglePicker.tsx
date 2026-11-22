@@ -17,15 +17,17 @@ type Props = {
   apiKey: string
   /** Fires once on load and after every pan/zoom settles. */
   onPick: (fix: LocationFix) => void
-  /** First drag — the shell hides the "drag the map" tip. */
+  /** First drag or map tap — the shell hides the "drag the map" tip. */
   onMoved: () => void
+  /** A tap dropped the pin on an exact spot. */
+  onPinSet?: () => void
   /** Google failed to load — the shell switches to MapLibre. */
   onFail: () => void
 }
 
 const INITIAL_ZOOM = 17
 
-export default function GooglePicker({ apiKey, onPick, onMoved, onFail }: Props) {
+export default function GooglePicker({ apiKey, onPick, onMoved, onPinSet, onFail }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -69,6 +71,14 @@ export default function GooglePicker({ apiKey, onPick, onMoved, onFail }: Props)
         // settles — Google's equivalent of MapLibre's moveend.
         map.addListener('idle', report)
         map.addListener('dragstart', () => onMoved())
+        // Tap anywhere to drop the centre pin exactly on that spot — idle
+        // then reports the new coordinates and resolves its address.
+        map.addListener('click', (event: google.maps.MapMouseEvent) => {
+          if (!event.latLng) return
+          map?.panTo(event.latLng)
+          onMoved()
+          onPinSet?.()
+        })
 
         // No cached fix (e.g. splash was skipped) — ask once, quietly.
         if (!start && 'geolocation' in navigator) {

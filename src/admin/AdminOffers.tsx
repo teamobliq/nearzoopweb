@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useDialogFocus } from '../hooks/useDialogFocus'
+import { TableSkeleton } from '../components/Skeletons'
 import type { AdminOfferEntry, AdminShopEntry, OfferRecord } from '../business/shop'
 import { offerDiscountLabel } from '../business/shop'
 import { fmtWhen, rel } from '../business/when'
@@ -40,7 +42,7 @@ export default function AdminOffers({ offers, shops, loading, onDecide, onDelete
   }, [openKey])
 
   if (loading) {
-    return <p className="admin-empty">Loading offers…</p>
+    return <TableSkeleton label="Loading offers" rows={5} />
   }
 
   const names = new Map(
@@ -164,7 +166,7 @@ function OfferRow({
 
   return (
     <tr className="admin-offerrow-row" onClick={onOpen}>
-      <td>
+      <td data-label="Offer">
         <button
           type="button"
           className="admin-offerlink"
@@ -181,14 +183,14 @@ function OfferRow({
           </span>
         )}
       </td>
-      <td>{shopName}</td>
-      <td>
+      <td data-label="Shop">{shopName}</td>
+      <td data-label="Status">
         <span className={`admin-chip admin-chip-${offer.status ?? 'draft'}`}>
           {offer.status ?? 'draft'}
         </span>
       </td>
-      <td className="admin-nowrap">{dealLabel(offer)}</td>
-      <td className="admin-nowrap">
+      <td className="admin-nowrap" data-label="Discount">{dealLabel(offer)}</td>
+      <td className="admin-nowrap" data-label="Window">
         {offer.startsAt && offer.endsAt
           ? `${fmtWhen(offer.startsAt)} → ${fmtWhen(offer.endsAt)}`
           : '—'}
@@ -219,10 +221,13 @@ function OfferDialog({
   const photos = offer.photos ?? []
   const redeem = redeemLine(offer)
   const terms = termsLine(offer)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useDialogFocus(dialogRef)
 
   return (
     <div className="admin-modal-backdrop" onClick={onClose}>
       <div
+        ref={dialogRef}
         className="admin-modal"
         role="dialog"
         aria-modal="true"

@@ -8,7 +8,7 @@ import {
 import ImageCropDialog from './ImageCropDialog'
 import LocationPicker, { type LocationFix } from './LocationPicker'
 import { verifyGstin } from './gstin'
-import { uploadToImgbb } from './imgbb'
+import { deleteImage, nextImagePath, uploadImage } from './images'
 import {
   createOrder,
   loadCheckout,
@@ -20,6 +20,8 @@ import { hoursLabel, validateHours } from './setupShared'
 import type { DayHours, OpeningHours, ShopPatch } from './shop'
 
 type Props = {
+  /** Merchant uid — owns the Storage paths for their photos. */
+  uid: string
   /** Registered business number (10 digits) — pre-fills "Phone for customers". */
   phone: string
   /** Substep to open on (retrying document upload re-enters at step 3;
@@ -154,7 +156,7 @@ function ArrowIcon() {
 
 /** Upload-any-photo box: hatched placeholder that becomes a live preview.
     Choosing an image only STAGES it (local preview) — the parent uploads to
-    imgbb when the step's Continue runs. Pass `aspect` to force the crop
+    Firebase Storage when the step's Continue runs. Pass `aspect` to force the crop
     dialog. */
 function PhotoBox({
   tag,
@@ -299,6 +301,7 @@ function HoursGroup({
 }
 
 export default function BusinessSetup({
+  uid,
   phone,
   startStep = 0,
   onSave,
@@ -354,7 +357,7 @@ export default function BusinessSetup({
   async function commitShopPhoto(): Promise<string | null> {
     if (!shopPhotoStage) return shopPhoto
     try {
-      const hosted = await uploadToImgbb(shopPhotoStage)
+      const hosted = await uploadImage(shopPhotoStage, nextImagePath(uid, 'shop'))
       setShopPhoto(hosted)
       setShopPhotoStage(null)
       setShopPhotoPreview(null)
@@ -371,7 +374,7 @@ export default function BusinessSetup({
   async function commitDocPhoto(): Promise<string | null> {
     if (!docPhotoStage) return docPhoto
     try {
-      const hosted = await uploadToImgbb(docPhotoStage)
+      const hosted = await uploadImage(docPhotoStage, nextImagePath(uid, 'documents'))
       setDocPhoto(hosted)
       setDocPhotoStage(null)
       setDocPhotoPreview(null)
@@ -538,6 +541,7 @@ export default function BusinessSetup({
     setPhotoError('')
     try {
       if (completed === 0) {
+        const previousPhoto = shopPhoto
         const shopPhotoUrl = await commitShopPhoto()
         await onSave(
           {
@@ -550,6 +554,9 @@ export default function BusinessSetup({
           },
           0,
         )
+        if (shopPhotoUrl && shopPhotoUrl !== previousPhoto) {
+          void deleteImage(previousPhoto)
+        }
       } else if (completed === 1) {
         await onSave(
           {
@@ -591,12 +598,15 @@ export default function BusinessSetup({
             },
             2,
           )
+          void deleteImage(docPhoto)
         } else {
           // Lookup unreachable (key, credits, rate limit, network) — don't
           // block the merchant; fall back to the manual-review path.
           await onSave({ docKind: 'gstin', gstin, docPhotoUrl: null }, 2)
+          void deleteImage(docPhoto)
         }
       } else {
+        const previousDoc = docPhoto
         const docPhotoUrl = await commitDocPhoto()
         await onSave(
           {
@@ -606,6 +616,9 @@ export default function BusinessSetup({
           },
           2,
         )
+        if (docPhotoUrl && docPhotoUrl !== previousDoc) {
+          void deleteImage(previousDoc)
+        }
       }
     } catch {
       // Upload or save failed — the error is surfaced; stay on this step.

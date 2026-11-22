@@ -21,13 +21,15 @@ import { MapFailure } from './MapFailure'
 type Props = {
   /** Fires once on load and after every drag/zoom settles. */
   onPick: (fix: LocationFix) => void
-  /** First drag — the shell hides the "drag the map" tip. */
+  /** First drag or map tap — the shell hides the "drag the map" tip. */
   onMoved: () => void
+  /** A tap dropped the pin on an exact spot. */
+  onPinSet?: () => void
 }
 
 const INITIAL_ZOOM = 17
 
-export default function MaplibrePicker({ onPick, onMoved }: Props) {
+export default function MaplibrePicker({ onPick, onMoved, onPinSet }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const loadedRef = useRef(false)
   const { attempt, failed, fail, retry } = useMapRetry()
@@ -69,6 +71,13 @@ export default function MaplibrePicker({ onPick, onMoved }: Props) {
       report()
       created.on('moveend', report)
       created.on('dragstart', onMoved)
+      // Tap anywhere to drop the centre pin exactly on that spot — moveend
+      // then reports the new coordinates and resolves its address.
+      created.on('click', (event) => {
+        created.easeTo({ center: [event.lngLat.lng, event.lngLat.lat], duration: 280 })
+        onMoved()
+        onPinSet?.()
+      })
 
       // No cached fix (e.g. splash was skipped) — ask once, quietly.
       if (!start && 'geolocation' in navigator) {

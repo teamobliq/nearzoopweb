@@ -457,8 +457,10 @@
   border-radius: 999px;
   background-color: #ffffff;
   border: 2.5px solid var(--color-ink);
-  translate: 0 -50%;
-  transition: left 0.16s ease;
+  /* Transform instead of `left`: the knob glides on the compositor, with
+     no layout work on every frame. */
+  transform: translateY(-50%);
+  transition: transform 0.16s ease;
   /* The knob paints above the invisible checkbox — let clicks fall through. */
   pointer-events: none;
 }
@@ -469,7 +471,7 @@
 }
 
 .biz-toggle.is-on .biz-toggle-knob {
-  left: calc(100% - 1.75rem);
+  transform: translate(1.65rem, -50%);
 }
 
 /* Photo upload box */
@@ -662,6 +664,13 @@
   font-size: 0.98rem;
   line-height: 1.35;
   pointer-events: none;
+}
+
+.biz-pintip.is-pinned {
+  background-color: var(--color-green);
+  color: #ffffff;
+  font-size: 0.9rem;
+  box-shadow: var(--shadow-pill);
 }
 
 /* Hours card — two expandable day groups (Mon–Sat, Sunday). Rows are
@@ -2957,7 +2966,7 @@
   font-size: 0.95rem;
 }
 
-/* Selected offer chip — yellow, matching the selected pin variant. */
+/* The selected business keeps the yellow chip variant. */
 .biz-map-pin.is-sel {
   background-color: var(--color-yellow);
   color: var(--color-ink);
@@ -2980,6 +2989,62 @@
   border-right: 2.5px solid var(--color-ink);
   border-bottom: 2.5px solid var(--color-ink);
   border-bottom-right-radius: 0.25rem;
+}
+
+/* The selected pill expands into a tooltip with the business details. */
+.biz-map-pin-info {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.6rem);
+  translate: -50% 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: max-content;
+  max-width: min(17rem, 72vw);
+  padding: 0.55rem 0.7rem;
+  background-color: var(--color-paper);
+  border: 2.5px solid var(--color-ink);
+  border-radius: 0.9rem;
+  box-shadow: var(--shadow-pill);
+  text-align: left;
+}
+
+.biz-map-pin-info-dot {
+  flex: none;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: 0.1rem;
+  border: 3px solid #3b7ff0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(59, 127, 240, 0.22);
+}
+
+.biz-map-pin-info-body {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.biz-map-pin-info-body strong {
+  overflow: hidden;
+  color: var(--color-ink);
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.biz-map-pin-info-sub {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--color-stone);
+  font-size: 0.68rem;
+  line-height: 1.25;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 /* Summary card with Edit jumps. */
@@ -4531,59 +4596,8 @@ button.biz-shoprow {
   color: var(--color-stone);
 }
 
-/* Pill switch — green on, pale off. */
-
-.biz-switch {
-  position: relative;
-  display: inline-block;
-  flex: 0 0 auto;
-  cursor: pointer;
-}
-
-.biz-switch input {
-  position: absolute;
-  opacity: 0;
-  inset: 0;
-  margin: 0;
-  cursor: pointer;
-}
-
-.biz-switch-track {
-  display: block;
-  width: 3.4rem;
-  height: 2rem;
-  border: 2.5px solid var(--color-ink);
-  border-radius: 999px;
-  background: #f6e7c8;
-  transition: background 0.15s ease;
-}
-
-.biz-switch-track::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 0.28rem;
-  width: 1.35rem;
-  height: 1.35rem;
-  border-radius: 50%;
-  background: #fff;
-  border: 2.5px solid var(--color-ink);
-  transform: translateY(-50%);
-  transition: left 0.15s ease;
-}
-
-.biz-switch input:checked + .biz-switch-track {
-  background: var(--color-green);
-}
-
-.biz-switch input:checked + .biz-switch-track::after {
-  left: calc(100% - 1.63rem);
-}
-
-.biz-switch input:focus-visible + .biz-switch-track {
-  outline: 3px solid var(--color-yellow);
-  outline-offset: 2px;
-}
+/* Switches use one control only: `.biz-toggle` above, shared with the
+   merchant setup screen. The old `.biz-switch` variant is gone. */
 
 /* ---- Shop editor (ShopEdit) ---- */
 

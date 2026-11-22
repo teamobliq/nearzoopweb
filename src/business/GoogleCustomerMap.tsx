@@ -9,6 +9,7 @@
     ignored. */
 
 import { useEffect, useRef, useState } from 'react'
+import { renderPinElement } from '../screens/pinDom'
 import {
   createHtmlPin,
   loadGoogleMaps,
@@ -156,8 +157,7 @@ export default function GoogleCustomerMap({
         lng: pin.lng,
         anchor: 'bottom',
         build: (el) => {
-          el.className = `biz-map-pin${pin.selected ? ' is-sel' : ''}`
-          el.textContent = pin.label ?? ''
+          renderPinElement(el, pin)
           el.style.cursor = 'pointer'
           el.addEventListener('click', (event) => {
             event.stopPropagation()

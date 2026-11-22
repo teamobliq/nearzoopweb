@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { useDialogFocus } from '../hooks/useDialogFocus'
+import { offerShareUrl } from './offerLink'
 import type { OfferRecord, OfferStatus } from './shop'
 import { deleteOffer, setOfferStatus } from './shop'
 import { fmtDay, fmtWhen, rel } from './when'
@@ -217,6 +219,9 @@ export default function BusinessOfferDetail({
   const [shareOpen, setShareOpen] = useState(false)
   const [endOpen, setEndOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const shareRef = useRef<HTMLDivElement>(null)
+  const endRef = useRef<HTMLDivElement>(null)
+  const deleteRef = useRef<HTMLDivElement>(null)
 
   // Escape closes whichever overlay is open — share dialog, end-offer
   // confirm, delete confirm, or the ⋯ menu.
@@ -233,6 +238,11 @@ export default function BusinessOfferDetail({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [shareOpen, endOpen, deleteOpen, menuOpen])
+
+  // Escape is handled above; these keep Tab inside the open dialog.
+  useDialogFocus(shareRef, { active: shareOpen })
+  useDialogFocus(endRef, { active: endOpen })
+  useDialogFocus(deleteRef, { active: deleteOpen })
 
   // Badge split — the same first-space rule the list tiles use.
   const label = offer.discountLabel?.trim() ?? ''
@@ -298,12 +308,9 @@ export default function BusinessOfferDetail({
     if (await act('ended')) setEndOpen(false)
   }
 
-  // The shared link lands directly on this offer:
-  //   <base>/<shopUid>/<offerId>?source=<provider>
-  // The customer app resolves that route to the offer's own screen; the
-  // source value rides along for per-channel analytics when they exist.
-  const linkFor = (source: string) =>
-    `${window.location.origin}${import.meta.env.BASE_URL}${uid}/${offer.id}?source=${source}`
+  // Share links are query deep links on the same SPA page. In-app browsing
+  // keeps the plain base URL; only the shared link carries the offer ids.
+  const linkFor = (source: string) => offerShareUrl(uid, offer.id, source)
   const summary = [
     offer.discountLabel ?? '',
     offer.title ?? '',
@@ -391,7 +398,7 @@ export default function BusinessOfferDetail({
       <header className="biz-ob-top">
         <button
           type="button"
-          className="biz-ob-back"
+          className="biz-ob-back nz-icon-btn"
           aria-label="Back to my offers"
           onClick={onBack}
         >
@@ -403,7 +410,7 @@ export default function BusinessOfferDetail({
           {shareable && (
           <button
             type="button"
-            className="biz-detail-circle"
+            className="biz-detail-circle nz-icon-btn"
             aria-label="Share offer"
             title="Share offer"
             aria-haspopup="dialog"
@@ -415,7 +422,7 @@ export default function BusinessOfferDetail({
           <div className="biz-detail-menuwrap">
             <button
               type="button"
-              className="biz-detail-circle"
+              className="biz-detail-circle nz-icon-btn"
               aria-label="More actions"
               aria-expanded={menuOpen}
               onClick={() => {
@@ -479,6 +486,7 @@ export default function BusinessOfferDetail({
       {shareOpen && (
         <div className="biz-share-backdrop" onClick={() => setShareOpen(false)}>
           <div
+            ref={shareRef}
             className="biz-share-dialog"
             role="dialog"
             aria-modal="true"
@@ -489,7 +497,7 @@ export default function BusinessOfferDetail({
               <h2 className="biz-share-title">Share offer</h2>
               <button
                 type="button"
-                className="biz-detail-circle biz-share-close"
+                className="biz-detail-circle biz-share-close nz-icon-btn"
                 aria-label="Close share dialog"
                 onClick={() => setShareOpen(false)}
               >
@@ -669,6 +677,7 @@ export default function BusinessOfferDetail({
       {endOpen && (
         <div className="biz-modal-backdrop" onClick={() => setEndOpen(false)}>
           <div
+            ref={endRef}
             className="biz-modal-card"
             role="dialog"
             aria-modal="true"
@@ -718,6 +727,7 @@ export default function BusinessOfferDetail({
           onClick={() => setDeleteOpen(false)}
         >
           <div
+            ref={deleteRef}
             className="biz-modal-card"
             role="dialog"
             aria-modal="true"

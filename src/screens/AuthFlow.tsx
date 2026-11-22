@@ -144,7 +144,7 @@ export default function AuthFlow({ onSignedIn, onSkip, onBusiness }: Props) {
         <header className="flow-top">
           <button
             type="button"
-            className="btn-circle"
+            className="btn-circle nz-icon-btn"
             aria-label="Back"
             onClick={step === 'code' ? () => setStep('phone') : onSkip}
           >

@@ -295,9 +295,9 @@ export default function AdminPanel() {
     <main className="admin-page admin-page-wide">
       <div className="admin-frame">
         <header className="admin-topbar">
-          <span className="admin-brand">
+          <h1 className="admin-brand">
             NearZoop <em>Admin</em>
-          </span>
+          </h1>
           <span className="admin-topmeta">{myEmail}</span>
           <button
             type="button"

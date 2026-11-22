@@ -6,6 +6,7 @@
     whenever the view should re-frame around the circle. */
 
 import { useEffect, useRef, useState } from 'react'
+import { renderPinElement } from './pinDom'
 import {
   AttributionControl,
   Map as MLMap,
@@ -157,12 +158,10 @@ function MapLibreCustomerMap({
       if (existing) {
         existing.setLngLat([pin.lng, pin.lat])
         const el = existing.getElement()
-        el.className = `biz-map-pin${pin.selected ? ' is-sel' : ''}`
-        el.textContent = pin.label ?? ''
+        renderPinElement(el, pin)
       } else {
         const el = document.createElement('div')
-        el.className = `biz-map-pin${pin.selected ? ' is-sel' : ''}`
-        el.textContent = pin.label ?? ''
+        renderPinElement(el, pin)
         el.style.cursor = 'pointer'
         el.addEventListener('click', (event) => {
           event.stopPropagation()

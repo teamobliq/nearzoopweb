@@ -23,6 +23,21 @@
 
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Shared status-chip palette — one green/amber/red/gray for every screen. */
+  --chip-green-bg: #dff3e7;
+  --chip-green-fg: #0e8a4c;
+  --chip-amber-bg: #fdecc8;
+  --chip-amber-fg: #6b4f12;
+  --chip-red-bg: #fbdcdc;
+  --chip-red-fg: #b42318;
+  --chip-gray-bg: #eceae4;
+  --chip-gray-fg: var(--color-stone);
+
+  /* Shared surface tokens for dialogs and cards. */
+  --nz-scrim: rgba(28, 27, 25, 0.55);
+  --nz-surface: var(--color-paper);
+  --nz-surface-radius: 1.3rem;
 }
 
 *,
@@ -40,24 +55,57 @@ html,
 body {
   margin: 0;
   padding: 0;
+  /* Screen transitions nudge the page a few pixels sideways — clip the
+     overspill without creating a scroll container (`hidden` would). */
+  overflow-x: clip;
 }
 
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
 }
 
-/* Scrolling stays enabled everywhere — pages, panes, pickers — but the
-   scrollbar chrome itself is hidden on every engine. */
+/* One baseline ring for every interactive element. Component-specific focus
+   styles keep their own, higher-specificity treatments. */
+:where(a, button, input, select, textarea, [role='button'], [tabindex]):focus-visible {
+  outline: 3px solid var(--color-orange);
+  outline-offset: 2px;
+}
+
+/* Respect the OS setting everywhere: marquee, scanner, drawer, page
+   transitions and all micro-interactions become effectively instant. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Scrollbars stay usable but quiet: a thin thumb instead of no affordance
+   at all, so long panes still signal that they scroll. */
 * {
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-hairline) transparent;
 }
 
 *::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--color-hairline);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 #root {

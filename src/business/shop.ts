@@ -20,6 +20,7 @@ import {
   type Timestamp,
 } from 'firebase/firestore'
 import { db } from '../firebase'
+import { deleteImages } from './images'
 import { removeOfferFeed, syncOffer, syncShopFeed } from './feed'
 import { notifyOfferLive } from './follows'
 
@@ -259,9 +260,9 @@ export function watchViewEvents(
   }
 }
 
-/** Counts a save, with the same day bucketing as views. Nothing calls this
-    until the customer app exists — shipped now so the insights "Saved"
-    row is range-correct from the very first save. */
+/** Counts a save, with the same day bucketing as views. Customer bookmarks
+    are stored per account in users/{uid}/savedOffers and deliberately do not
+    write to this aggregate from the browser (offer writes are owner-only). */
 export function countOfferSave(uid: string, offerId: string): void {
   updateDoc(doc(db, 'shops', uid, 'offers', offerId), {
     saves: increment(1),
@@ -830,15 +831,22 @@ export async function deleteOffer(
   offerId: string,
   options: { title?: string; notify?: boolean } = {},
 ): Promise<void> {
+  // Read the photos before the doc goes away, then delete them from Storage
+  // once the Firestore delete succeeds (legacy/external URLs are ignored).
+  const ref = doc(db, 'shops', shopUid, 'offers', offerId)
+  const snap = await getDoc(ref)
+  const photos = snap.exists() ? ((snap.data().photos as string[] | undefined) ?? []) : []
+
   if (!options.notify) {
-    await deleteDoc(doc(db, 'shops', shopUid, 'offers', offerId))
+    await deleteDoc(ref)
+    deleteImages(photos)
     void removeOfferFeed(shopUid, offerId).catch((err) =>
       console.warn('feed sync', err),
     )
     return
   }
   const batch = writeBatch(db)
-  batch.delete(doc(db, 'shops', shopUid, 'offers', offerId))
+  batch.delete(ref)
   batch.set(doc(collection(db, 'shops', shopUid, 'notifications')), {
     kind: 'offer-removed',
     title: `“${options.title ?? 'Your offer'}” was removed`,
@@ -847,6 +855,7 @@ export async function deleteOffer(
     read: false,
   })
   await batch.commit()
+  deleteImages(photos)
   void removeOfferFeed(shopUid, offerId).catch((err) =>
     console.warn('feed sync', err),
   )

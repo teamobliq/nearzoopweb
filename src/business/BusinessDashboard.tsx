@@ -6,6 +6,7 @@ import BusinessNotifications from './BusinessNotifications'
 import BusinessOffers from './BusinessOffers'
 import BusinessShop from './BusinessShop'
 import BusinessScan from './BusinessScan'
+import { DashboardSkeleton } from '../components/Skeletons'
 import { syncShopFeed } from './feed'
 import { fmtDay } from './when'
 import {
@@ -352,7 +353,7 @@ export default function BusinessDashboard({
       <main className="biz-page">
         <div className="biz-shell">
           <div className="biz-center">
-            <p className="biz-boot">Loading your shop…</p>
+            <DashboardSkeleton />
           </div>
         </div>
       </main>

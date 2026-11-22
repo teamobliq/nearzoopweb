@@ -3,6 +3,9 @@ import { haversineKm, cachedCoords } from '../business/geocode'
 import { watchFeed, type FeedRecord } from '../business/feed'
 import { fmtDay } from '../business/when'
 import { fmtKm, type Coords } from './mapUtils'
+import { OfferListSkeleton } from '../components/Skeletons'
+import { setSavedOffer } from '../business/saved'
+import { useSavedOffers } from '../business/useSavedOffers'
 import './customer.css'
 
 function CloseSvg() {
@@ -83,12 +86,17 @@ function RankBadge({ rank }: { rank: number }) {
 type Props = {
   /** Called when the back arrow is tapped — returns to the previous screen. */
   onBack: () => void
+  /** Absent for a guest — bookmarks then route to sign-in. */
+  viewerUid?: string
+  onSignIn?: () => void
+  onOpenOffer?: (shopUid: string, offerId: string) => void
 }
 
 /** "Trending near you" — offers ranked by views + saves in the last 7 days,
     within ~2 km of the user's fix. Standalone screen with its own back arrow,
     opened from the customer app's Explore tab or a deep link. */
-export default function TrendingNearby({ onBack }: Props) {
+export default function TrendingNearby({ onBack, viewerUid, onSignIn, onOpenOffer }: Props) {
+  const { saved } = useSavedOffers(viewerUid)
   const [fix] = useState<Coords | null>(() => cachedCoords())
   const [feed, setFeed] = useState<FeedRecord[] | null>(null)
   const [feedError, setFeedError] = useState(false)
@@ -118,11 +126,19 @@ export default function TrendingNearby({ onBack }: Props) {
 
   const top4 = trending.slice(0, 4)
 
+  function toggleSaved(offerId: string): void {
+    if (!viewerUid) {
+      onSignIn?.()
+      return
+    }
+    void setSavedOffer(viewerUid, offerId, !saved.has(offerId))
+  }
+
   if (feedError) {
     return (
       <main className="trending">
         <header className="trending-head">
-          <button type="button" className="trending-back" onClick={onBack} aria-label="Back">
+          <button type="button" className="trending-back nz-icon-btn" onClick={onBack} aria-label="Back">
             <CloseSvg />
           </button>
           <h1 className="trending-title">Trending near you</h1>
@@ -132,10 +148,24 @@ export default function TrendingNearby({ onBack }: Props) {
     )
   }
 
+  if (feed === null) {
+    return (
+      <main className="trending">
+        <header className="trending-head">
+          <button type="button" className="trending-back nz-icon-btn" onClick={onBack} aria-label="Back">
+            <CloseSvg />
+          </button>
+          <h1 className="trending-title">Trending near you</h1>
+        </header>
+        <OfferListSkeleton count={4} />
+      </main>
+    )
+  }
+
   return (
     <main className="trending">
       <header className="trending-head">
-        <button type="button" className="trending-back" onClick={onBack} aria-label="Back">
+        <button type="button" className="trending-back nz-icon-btn" onClick={onBack} aria-label="Back">
           <CloseSvg />
         </button>
         <h1 className="trending-title">Trending near you</h1>
@@ -154,10 +184,19 @@ export default function TrendingNearby({ onBack }: Props) {
           return (
             <article key={item.offerId} className="trending-card">
               <RankBadge rank={rank} />
-              <button
-                type="button"
+              <div
                 className="trending-card-hit"
+                role="button"
+                tabIndex={0}
                 aria-label={item.title ?? 'Offer'}
+                onClick={() => onOpenOffer?.(item.shopUid, item.offerId)}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    onOpenOffer?.(item.shopUid, item.offerId)
+                  }
+                }}
               >
                 <span
                   className={`biz-otile biz-otile-${item.tileColor ?? 'yellow'}`}
@@ -187,11 +226,15 @@ export default function TrendingNearby({ onBack }: Props) {
                 <button
                   type="button"
                   className="trending-card-bookmark"
-                  aria-label="Bookmark"
+                  aria-label={saved.has(item.offerId) ? 'Remove bookmark' : 'Bookmark offer'}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    toggleSaved(item.offerId)
+                  }}
                 >
-                  <BookmarkSvg filled={false} />
+                  <BookmarkSvg filled={saved.has(item.offerId)} />
                 </button>
-              </button>
+              </div>
               <p className="trending-card-stats">
                 {(item.views ?? 0).toLocaleString('en-IN')} VIEWS ·{' '}
                 {(item.saves ?? 0).toLocaleString('en-IN')} SAVES THIS WEEK

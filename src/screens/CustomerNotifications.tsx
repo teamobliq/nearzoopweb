@@ -6,6 +6,7 @@ import {
   type CustomerNotification,
 } from '../business/follows'
 import RateReviewDialog from './RateReviewDialog'
+import { RowListSkeleton } from '../components/Skeletons'
 import { rel } from '../business/when'
 
 /** The customer's in-app inbox — every live offer from the shops they
@@ -89,7 +90,7 @@ export default function CustomerNotifications({
           <div className="cust-topbar">
             <button
               type="button"
-              className="cust-back"
+              className="cust-back nz-icon-btn"
               onClick={onBack}
               aria-label="Go back"
             >
@@ -137,7 +138,7 @@ export default function CustomerNotifications({
         <div className="cust-topbar">
           <button
             type="button"
-            className="cust-back"
+            className="cust-back nz-icon-btn"
             onClick={onBack}
             aria-label="Go back"
           >
@@ -148,7 +149,7 @@ export default function CustomerNotifications({
         </div>
 
         {items === null ? (
-          <p className="cust-loading" role="status">···</p>
+          <RowListSkeleton label="Loading notifications" count={4} avatar />
         ) : items.length === 0 ? (
           <div className="notif-empty">
             <span className="notif-empty-icon" aria-hidden="true">

@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { User } from 'firebase/auth'
+import PageTransition from './components/PageTransition'
 import { auth } from './firebase'
 import type { CouponRecord } from './business/coupons'
 import Splash from './screens/Splash'
@@ -112,10 +113,16 @@ function readShopId(): string | null {
   }
 }
 
-/** A shared offer link — `<base>/<shopUid>/<offerId>?source=…` — resolves
-    to the offer's own landing screen. Anything else (including `/` and
-    unknown paths) falls through to the normal customer flow. */
+/** A shared offer link — `<base>/?shop=<uid>&offer=<id>` — resolves to the
+    offer's own landing screen. The older `<base>/<uid>/<offerId>` paths are
+    still accepted so previously shared links keep working. In-app taps do
+    not write either form to the address bar. */
 function readDeepLink(): DeepLink | null {
+  const params = new URLSearchParams(window.location.search)
+  const shop = params.get('shop')
+  const offer = params.get('offer')
+  if (shop && offer) return { uid: shop, offerId: offer }
+
   const base = import.meta.env.BASE_URL
   let path = window.location.pathname
   if (base === '/') {
@@ -234,12 +241,12 @@ function App() {
     setRoute('business')
   }
 
-  /** Opens one offer's page from the customer list or the shop profile —
-      a real URL, so Back, reload and sharing all land on the same offer. */
+  /** Opens one offer's page. The address bar stays on the clean base URL —
+      this is still one SPA screen swap, not a new page. Sharing uses
+      offerShareUrl() to build a deep link for recipients. */
   function openOffer(uid: string, offerId: string) {
-    const target = `${import.meta.env.BASE_URL}${encodeURIComponent(uid)}/${encodeURIComponent(offerId)}?source=nearby`
     try {
-      window.history.pushState({ nzOffer: true }, '', target)
+      window.history.pushState({ nzOffer: true }, '', import.meta.env.BASE_URL || '/')
     } catch {
       // History unavailable — the screen still opens, the URL just lags.
     }
@@ -310,23 +317,47 @@ function App() {
     go('auth')
   }
 
+  /** One key per navigation state. The transition wrapper is remounted when
+      this changes, so its CSS enter animation replays without a router. */
+  const navKey = !online
+    ? 'offline'
+    : route === 'business'
+      ? 'business'
+      : route === 'admin'
+        ? 'admin'
+        : route === 'shop'
+          ? `shop:${readShopId() ?? 'missing'}`
+          : deepLink
+            ? `offer:${deepLink.uid}/${deepLink.offerId}`
+            : screen
+
+  /** Every screen enters through the same layer. `lift` is for pages that
+      open over the list (offer, shop, coupon pass); `fade` for gates and
+      chunk loads; `up` for ordinary screens. */
+  function view(variant: 'up' | 'lift' | 'fade', node: ReactNode) {
+    return (
+      <PageTransition key={navKey} id={navKey} variant={variant}>
+        {node}
+      </PageTransition>
+    )
+  }
+
   // The offline gate — no network, no app. The check runs every 10s in
   // the background; this screen replaces every route until a check passes.
   if (!online) {
-    return (
-      <Offline
-        onRetry={() => setOnlineRetry((n) => n + 1)}
-        checking={false}
-      />
+    return view(
+      'fade',
+      <Offline onRetry={() => setOnlineRetry((n) => n + 1)} checking={false} />,
     )
   }
 
   if (route === 'business') {
-    return <BusinessSignIn />
+    return view('up', <BusinessSignIn />)
   }
 
   if (route === 'admin') {
-    return (
+    return view(
+      'fade',
       <Suspense
         fallback={
           <main
@@ -339,12 +370,12 @@ function App() {
               color: 'var(--color-stone)',
             }}
           >
-            <p>···</p>
+            <p role="status">Loading admin console…</p>
           </main>
         }
       >
         <AdminPanel />
-      </Suspense>
+      </Suspense>,
     )
   }
 
@@ -353,7 +384,8 @@ function App() {
     // onboarding. Back falls to Home when the link didn't come from the app.
     const shopId = readShopId()
     if (!shopId) {
-      return (
+      return view(
+        'fade',
         <main
           style={{
             minHeight: '100dvh',
@@ -392,10 +424,11 @@ function App() {
               Go to NearZoop
             </button>
           </div>
-        </main>
+        </main>,
       )
     }
-    return (
+    return view(
+      'lift',
       <ShopProfile
         uid={shopId}
         onBack={closeShop}
@@ -405,13 +438,14 @@ function App() {
           setAuthReturn('home')
           go('auth')
         }}
-      />
+      />,
     )
   }
 
   if (route === 'customer' && deepLink) {
     // Shared links skip splash/onboarding — the visitor came for one offer.
-    return (
+    return view(
+      'lift',
       <CustomerOffer
         uid={deepLink.uid}
         offerId={deepLink.offerId}
@@ -420,7 +454,7 @@ function App() {
         onSignIn={signInFromOffer}
         onBack={closeOffer}
         onOpenShop={openShop}
-      />
+      />,
     )
   }
 
@@ -428,7 +462,8 @@ function App() {
     // Splash gates navigation: it calls onProceed only on location grant,
     // handing back the session Firebase restored while it ran. Returning
     // users skip onboarding and auth — straight Home.
-    return (
+    return view(
+      'fade',
       <Splash
         onProceed={(_coords, user) => {
           if (user) {
@@ -444,16 +479,17 @@ function App() {
           }
           go(hasOnboarded() ? 'auth' : 'onboard')
         }}
-      />
+      />,
     )
   }
 
   if (screen === 'onboard') {
-    return <Onboarding onExit={() => go('auth')} />
+    return view('up', <Onboarding onExit={() => go('auth')} />)
   }
 
   if (screen === 'auth') {
-    return (
+    return view(
+      'up',
       <AuthFlow
         onSignedIn={(label, uid) => {
           // A real session supersedes a previous browse-as-guest choice.
@@ -469,14 +505,15 @@ function App() {
           go(authReturn)
         }}
         onBusiness={goBusiness}
-      />
+      />,
     )
   }
 
   if (screen === 'locate') {
     // Cancel is offered only when Home is actually behind this screen — on
     // the first run there is nothing to return to and the step is mandatory.
-    return (
+    return view(
+      'up',
       <Locate
         onDone={() => go('home')}
         onBack={
@@ -484,12 +521,13 @@ function App() {
             ? () => go('home')
             : undefined
         }
-      />
+      />,
     )
   }
 
   if (screen === 'myCoupons') {
-    return (
+    return view(
+      'up',
       <MyCoupons
         user={session.variant === 'signed-in' ? auth.currentUser : null}
         onBack={() => go('home')}
@@ -497,30 +535,41 @@ function App() {
           setCouponToOpen(c)
           go('couponPass')
         }}
-      />
+      />,
     )
   }
 
   if (screen === 'couponPass') {
-    return (
+    return view(
+      'lift',
       <CouponPass
         coupon={couponToOpen!}
         onBack={() => {
           setCouponToOpen(null)
           go('myCoupons')
         }}
-      />
+      />,
     )
   }
 
   if (screen === 'trending') {
-    return (
-      <TrendingNearby onBack={() => go('home')} />
+    return view(
+      'up',
+      <TrendingNearby
+        onBack={() => go('home')}
+        viewerUid={session.variant === 'signed-in' ? session.uid : undefined}
+        onSignIn={() => {
+          setAuthReturn('home')
+          go('auth')
+        }}
+        onOpenOffer={openOffer}
+      />,
     )
   }
 
   if (screen === 'notifications') {
-    return (
+    return view(
+      'up',
       <CustomerNotifications
         viewerUid={session.variant === 'signed-in' ? session.uid : undefined}
         viewerName={session.label}
@@ -530,12 +579,13 @@ function App() {
           setAuthReturn('home')
           go('auth')
         }}
-      />
+      />,
     )
   }
 
   if (screen === 'shop') {
-    return (
+    return view(
+      'lift',
       <ShopProfile
         uid={shopUid ?? ''}
         onBack={() => go('home')}
@@ -545,11 +595,12 @@ function App() {
           setAuthReturn('home')
           go('auth')
         }}
-      />
+      />,
     )
   }
 
-  return (
+  return view(
+    'up',
     <CustomerHome
       session={session}
       user={session.variant === 'signed-in' ? auth.currentUser : null}
@@ -567,7 +618,7 @@ function App() {
         go('auth')
       }}
       onSignOut={() => setSession({ variant: 'guest' })}
-    />
+    />,
   )
 }
 

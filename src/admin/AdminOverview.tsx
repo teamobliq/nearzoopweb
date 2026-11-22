@@ -1,3 +1,4 @@
+import { OverviewSkeleton } from '../components/Skeletons'
 import type { AdminOfferEntry, AdminShopEntry } from '../business/shop'
 import { StatusChip } from './bits'
 import { formatWhen, inr, statusOf, truncate } from './bitsShared'
@@ -11,7 +12,7 @@ type Props = {
 /** The overview tab: live totals, fee revenue, and the latest shop activity. */
 export default function AdminOverview({ shops, offers, loading }: Props) {
   if (loading) {
-    return <p className="admin-empty">Loading live data…</p>
+    return <OverviewSkeleton />
   }
 
   const verified = shops.filter(

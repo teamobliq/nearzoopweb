@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
+import { useDialogFocus } from '../hooks/useDialogFocus'
 
 type Props = {
   /** Image chosen by the user; its object URL is revoked on close. */
@@ -75,9 +76,14 @@ export default function ImageCropDialog({ file, aspect, onCancel, onDone }: Prop
     return () => window.removeEventListener('keydown', onKey)
   }, [onCancel])
 
+  // Only the loaded cropper has controls worth trapping; the loading frame
+  // remounts the element, so the effect re-runs when `src` becomes ready.
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useDialogFocus(dialogRef, { active: Boolean(src && natural) })
+
   if (!src || !natural) {
     return (
-      <div className="biz-cropback" role="dialog" aria-modal="true">
+      <div ref={dialogRef} className="biz-cropback" role="dialog" aria-modal="true">
         <div className="biz-crop">
           <h2 className="biz-croptitle">Position your photo</h2>
           <p className="biz-cropsub">Loading photo…</p>
@@ -134,6 +140,7 @@ export default function ImageCropDialog({ file, aspect, onCancel, onDone }: Prop
 
   return (
     <div
+      ref={dialogRef}
       className="biz-cropback"
       role="dialog"
       aria-modal="true"

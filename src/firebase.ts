@@ -9,6 +9,7 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
+import { getStorage } from 'firebase/storage'
 import { getAnalytics, isSupported } from 'firebase/analytics'
 
 function requireEnv(key: string): string {
@@ -39,6 +40,9 @@ export const auth = getAuth(firebaseApp)
 
 // Firestore — shop profiles (shops/{uid}) and offers live here
 export const db = getFirestore(firebaseApp)
+
+// Firebase Storage — shop, document and offer photos (formerly imgbb).
+export const storage = getStorage(firebaseApp)
 
 // Analytics only runs in environments that support it (real browsers with
 // IndexedDB/localStorage). Guarding with isSupported() prevents crashes in

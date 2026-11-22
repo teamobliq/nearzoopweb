@@ -4,7 +4,8 @@
 
 export type Coords = { lat: number; lng: number }
 
-/** One offer pin on the customer map. */
+/** One business pin on the customer map. Multiple offers from the same shop
+    share a single pill; `id` is the shop uid. */
 export type MapPin = {
   id: string
   lat: number
@@ -12,6 +13,10 @@ export type MapPin = {
   selected?: boolean
   /** Discount label shown on the map chip (e.g. "40%"). */
   label?: string
+  /** Shown in the selected pin's tooltip. */
+  shopName?: string
+  shopCategory?: string
+  address?: string | null
 }
 
 /** "2 km" / "2.5 km" — the Locate slider's value and Home's location chip

@@ -1,0 +1,84 @@
+/* Screen transitions — one enter animation per navigation. The final frame
+   is always `transform: none` (not `translate(0)`), so the wrapper does not
+   become a containing block for fixed dialogs once the animation ends. */
+
+.nz-page {
+  /* Long enough to read as a deliberate screen change, not a flicker. */
+  animation: nz-page-up 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform;
+}
+
+@keyframes nz-page-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Back gestures bring the previous screen in from the left. */
+.nz-page--back {
+  animation-name: nz-page-back;
+}
+
+@keyframes nz-page-back {
+  from {
+    opacity: 0;
+    transform: translate3d(-22px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Offer and shop pages feel like a card lifted over the list. */
+.nz-page--lift {
+  animation-name: nz-page-lift;
+}
+
+@keyframes nz-page-lift {
+  from {
+    opacity: 0;
+    transform: scale(0.985) translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Plain crossfade for the splash, the offline gate and chunk loads. */
+.nz-page--fade {
+  animation-name: nz-page-fade;
+}
+
+@keyframes nz-page-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Dialogs share one small entrance. The backdrop stays put; only its
+   surface lifts in, so overlays never flash into place. */
+@keyframes nz-dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[role='dialog'] > * {
+  animation: nz-dialog-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform;
+}

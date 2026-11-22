@@ -72,7 +72,16 @@ export type FeedRecord = {
       trending ranking. Default to 0 when not yet synced. */
   views?: number
   saves?: number
+  /** Last mirror sync — the legacy stamp; prefer `lastCheckedAt` for the
+      customer-facing "checked …" copy. */
   updatedAt?: import('firebase/firestore').Timestamp
+  /** Written by the periodic Cloud Function revalidateOffers — the genuine
+      "when was this offer last verified" time. */
+  lastCheckedAt?: import('firebase/firestore').Timestamp
+  /** Result of the last periodic check. */
+  checkOk?: boolean
+  checkStatus?: 'live' | 'scheduled' | 'ended' | 'paused'
+  checkIssues?: string[]
 }
 
 /** Doc id for one offer's mirror — stable, so re-syncs overwrite in place. */
@@ -146,7 +155,17 @@ export async function syncOfferFeed(
     await deleteDoc(ref)
     return
   }
-  await setDoc(ref, mirrorData(shopUid, shop, offer))
+  // A re-sync is not a check — carry the periodic check fields over so an
+  // offer does not look stale just because the merchant edited something.
+  const existing = await getDoc(ref)
+  const data = mirrorData(shopUid, shop, offer)
+  if (existing.exists()) {
+    const previous = existing.data()
+    for (const key of ['lastCheckedAt', 'checkOk', 'checkStatus', 'checkIssues'] as const) {
+      if (key in previous) data[key] = previous[key]
+    }
+  }
+  await setDoc(ref, data)
 }
 
 /** Re-syncs one offer from the current shop + offer docs — the hook the

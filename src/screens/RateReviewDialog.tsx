@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useDialogFocus } from '../hooks/useDialogFocus'
 import './customer.css'
 import { saveReview } from '../business/reviews'
 
@@ -58,6 +59,17 @@ export default function RateReviewDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  useDialogFocus(dialogRef)
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
 
   async function submit() {
     if (shopRating === 0 || busy) return
@@ -120,7 +132,7 @@ export default function RateReviewDialog({
         if (event.target === event.currentTarget) onClose()
       }}
     >
-      <div className="rate-dialog" role="dialog" aria-modal="true" aria-label="Rate the offer and shop">
+      <div ref={dialogRef} className="rate-dialog" role="dialog" aria-modal="true" aria-label="Rate the offer and shop">
         {done ? (
           <>
             <h2>Thanks!</h2>

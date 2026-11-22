@@ -5,7 +5,7 @@ import {
   type OpeningHours,
   type ShopRecord,
 } from './shop'
-import { uploadToImgbb } from './imgbb'
+import { deleteImage, nextImagePath, uploadImage } from './images'
 import { validateHours } from './setupShared'
 
 /** The Shop screen — the merchant's public profile plus the settings that
@@ -80,7 +80,8 @@ function BellSvg() {
   )
 }
 
-/** Pill switch — green when on, pale when off, per the design. */
+/** One switch control for the whole merchant side — the same `.biz-toggle`
+    markup and CSS the setup screen uses, so there is only one to maintain. */
 function Switch({
   checked,
   label,
@@ -91,15 +92,16 @@ function Switch({
   onChange: (next: boolean) => void
 }) {
   return (
-    <label className="biz-switch">
+    <span className={`biz-toggle${checked ? ' is-on' : ''}`}>
       <input
+        className="biz-toggle-input"
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
         aria-label={label}
       />
-      <span className="biz-switch-track" aria-hidden="true" />
-    </label>
+      <span className="biz-toggle-knob" aria-hidden="true" />
+    </span>
   )
 }
 
@@ -398,7 +400,7 @@ function ShopEdit({
     setError('')
     try {
       let photoUrl = shop.shopPhotoUrl ?? null
-      if (staged) photoUrl = await uploadToImgbb(staged)
+      if (staged) photoUrl = await uploadImage(staged, nextImagePath(uid, 'shop'))
       // A verified shop that changes its name goes back to pending — the
       // admin re-checks the signboard against the new name.
       const nameChanged = trimmedName !== (shop.name ?? '')
@@ -412,6 +414,9 @@ function ShopEdit({
           ? { verification: 'pending' as const }
           : {}),
       })
+      if (photoUrl && photoUrl !== shop.shopPhotoUrl) {
+        void deleteImage(shop.shopPhotoUrl)
+      }
       onDone()
     } catch {
       setError("Couldn't save. Check the connection and try again.")
@@ -424,7 +429,7 @@ function ShopEdit({
       <header className="biz-shopedit-head">
         <button
           type="button"
-          className="biz-shopedit-back"
+          className="biz-shopedit-back nz-icon-btn"
           onClick={onDone}
           aria-label="Back to shop page"
         >

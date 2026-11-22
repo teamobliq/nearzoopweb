@@ -488,6 +488,7 @@ export default function BusinessSignIn() {
   if (step === 'setup') {
     return (
       <BusinessSetup
+        uid={user.uid}
         phone={merchantPhone()}
         startStep={setupStart}
         submitError={setupError}

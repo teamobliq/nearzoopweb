@@ -248,10 +248,12 @@
 .onboard-dots {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  /* Room for the dots' enlarged (invisible) tap targets. */
+  gap: 1.1rem;
 }
 
 .onboard-dot {
+  position: relative;
   flex: none;
   width: 0.55rem;
   height: 0.55rem;
@@ -261,6 +263,13 @@
   background-color: #c9bfae;
   cursor: pointer;
   transition: width 0.18s ease, background-color 0.18s ease;
+}
+
+/* The dot stays tiny, but the whole 44px box is clickable. */
+.onboard-dot::after {
+  content: '';
+  position: absolute;
+  inset: -1.1rem -0.9rem;
 }
 
 .onboard-dot:hover {

@@ -40,16 +40,28 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // The customer's own record — the doc that actually carries an account's
-    // data today: profile { name, phone, email, stampMs }, phoneVerified,
-    // saved offers and the last area. Owner-only for reads and writes (the
-    // profile editor writes here); admins may read, nobody deletes.
+    // The customer's own record — profile { name, phone, email, stampMs }
+    // and phoneVerified. Owner-only for reads and writes (the profile editor
+    // writes here); admins may read, nobody deletes.
     match /users/{uid} {
       allow get: if signedIn()
         && (request.auth.uid == uid || isAdmin());
       allow list: if isAdmin();
       allow create, update: if signedIn() && request.auth.uid == uid;
       allow delete: if false;
+
+      // Saved offers — one doc per bookmark, id = offer id. Guests can't
+      // write here (no auth), and nobody can read another customer's list.
+      match /savedOffers/{offerId} {
+        allow read: if signedIn()
+          && (request.auth.uid == uid || isAdmin());
+        allow create: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['offerId', 'savedAt'])
+          && request.resource.data.offerId == offerId;
+        allow delete: if signedIn() && request.auth.uid == uid;
+        allow update: if false;
+      }
     }
 
     match /shops/{uid} {

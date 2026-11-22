@@ -1,0 +1,173 @@
+/* Loading skeletons — quiet shimmering placeholders that hold the same
+   space (and roughly the same shape) as the content they replace. */
+
+@keyframes nz-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.nz-sk {
+  display: block;
+  border-radius: 0.55rem;
+  background-color: var(--color-cream);
+  background-image: linear-gradient(
+    90deg,
+    var(--color-cream) 20%,
+    var(--color-hairline) 50%,
+    var(--color-cream) 80%
+  );
+  background-size: 200% 100%;
+  animation: nz-shimmer 1.5s linear infinite;
+}
+
+.nz-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sk-stack {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.sk-line {
+  height: 0.85rem;
+  width: 100%;
+}
+
+.sk-line--sm {
+  height: 0.65rem;
+  width: 42%;
+}
+
+.sk-line--md {
+  width: 68%;
+}
+
+.sk-line--lg {
+  height: 1.8rem;
+  width: 62%;
+}
+
+.sk-pill {
+  height: 1.3rem;
+  width: 6.5rem;
+  border-radius: 999px;
+}
+
+.sk-avatar {
+  flex: none;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 50%;
+}
+
+.sk-tile {
+  flex: none;
+  width: 4.6rem;
+  height: 4.6rem;
+  border-radius: 0.9rem;
+}
+
+.sk-cover {
+  width: 100%;
+  height: 8rem;
+  border-radius: 1.2rem;
+}
+
+/* Offer-card skeleton reuses the real card chrome for an exact footprint. */
+.sk-offer-hit {
+  pointer-events: none;
+}
+
+.sk-offer-hit .nz-sk:first-child {
+  flex: none;
+  width: 4.2rem;
+  height: 4.2rem;
+  border-radius: 0.7rem;
+}
+
+.sk-offer-main {
+  flex: 1;
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* Generic list row (coupons, notifications, redemptions). */
+.sk-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1rem 1.15rem;
+  background-color: var(--color-paper);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.2rem;
+  box-shadow: var(--shadow-card);
+}
+
+.sk-row-main {
+  flex: 1;
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+/* Admin/stat card placeholders. */
+.sk-stat {
+  display: grid;
+  gap: 0.7rem;
+  padding: 1.2rem;
+  background-color: var(--color-paper);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.2rem;
+  box-shadow: var(--shadow-card);
+}
+
+.sk-table {
+  display: grid;
+  gap: 0.4rem;
+  padding: 1rem;
+  background-color: var(--color-paper);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 1.2rem;
+  box-shadow: var(--shadow-card);
+}
+
+.sk-table-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 2px solid var(--color-hairline);
+}
+
+.sk-table-row:last-child {
+  border-bottom: none;
+}
+
+.sk-cell {
+  height: 0.8rem;
+  flex: 1;
+}
+
+.sk-cell--wide {
+  flex: 2;
+}
+
+.sk-cell--pill {
+  flex: none;
+  width: 5rem;
+  border-radius: 999px;
+}

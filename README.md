@@ -56,7 +56,7 @@ All names are listed in `.env.example`. The ones that change behaviour:
 | Variable | Used for | Required? |
 | --- | --- | --- |
 | `VITE_FIREBASE_*` | Firebase web config — baked into the bundle | Yes — app won't boot without it |
-| `VITE_IMGBB_KEY` | imgbb uploads for shop/offer photos | For photo upload only |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase Storage bucket for shop/offer photos | Yes — app won't boot without it |
 | `VITE_GMAPS_KEY` | Google Maps for every map surface (Locate/Home, offer + shop maps, offer preview, merchant location picker) | Optional — falls back to MapLibre + OpenFreeMap |
 | `GSTIN_API_KEY` | GSTIN verification in the merchant wizard (server-side, no `VITE_` prefix) | For GSTIN step only |
 | `VITE_RAZORPAY_KEY_ID` | Razorpay Checkout, public Key ID | For the payment step |

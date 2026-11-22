@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { useDialogFocus } from '../hooks/useDialogFocus'
+import { RowSkeleton } from '../components/Skeletons'
 import { signOut } from 'firebase/auth'
 import type { User } from 'firebase/auth'
 import { auth } from '../firebase'
@@ -81,6 +83,8 @@ export default function Profile({ user, onSignOut, onOpenCoupons }: Props) {
   const [redemptions, setRedemptions] = useState<RedemptionRecord[]>([])
   const [loadingRedemptions, setLoadingRedemptions] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
+  const editDialogRef = useRef<HTMLDivElement>(null)
+  const reportDialogRef = useRef<HTMLDivElement>(null)
   const [reportOfferId, setReportOfferId] = useState('')
   const [reportTitle, setReportTitle] = useState('')
   const [reportAt, setReportAt] = useState('')
@@ -116,6 +120,22 @@ export default function Profile({ user, onSignOut, onOpenCoupons }: Props) {
       .catch(() => setRedemptions([]))
       .finally(() => setLoadingRedemptions(false))
   }, [uid])
+
+  // The report form and the edit overlay close on a backdrop tap — Escape
+  // should work from either, including while a text field has focus.
+  useEffect(() => {
+    if (!reportOpen && !editing) return
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
+      setReportOpen(false)
+      setEditing(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [reportOpen, editing])
+
+  useDialogFocus(editDialogRef, { active: editing && Boolean(user) })
+  useDialogFocus(reportDialogRef, { active: reportOpen })
 
   /** Opens the report form — coupon code is pasted by hand since the wallet
       now lives on its own page. */
@@ -181,7 +201,7 @@ export default function Profile({ user, onSignOut, onOpenCoupons }: Props) {
       </header>
 
       {editing && user && (
-        <div className="profile-edit-backdrop">
+        <div ref={editDialogRef} className="profile-edit-backdrop">
           <EditProfile
             uid={user.uid}
             accountName={user.displayName ?? undefined}
@@ -212,7 +232,10 @@ export default function Profile({ user, onSignOut, onOpenCoupons }: Props) {
       <section className="profile-section">
         <h2 className="profile-section-title">Redemption history</h2>
         {loadingRedemptions ? (
-          <p className="profile-muted">Loading…</p>
+          <div role="status" aria-label="Loading redemption history">
+            <span className="nz-sr-only">Loading redemption history…</span>
+            <RowSkeleton />
+          </div>
         ) : redemptions.length === 0 ? (
           <p className="profile-muted">No redemptions yet.</p>
         ) : (
@@ -269,6 +292,7 @@ export default function Profile({ user, onSignOut, onOpenCoupons }: Props) {
           }}
         >
           <div
+            ref={reportDialogRef}
             className="profile-coupondialog"
             role="dialog"
             aria-modal="true"

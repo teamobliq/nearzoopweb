@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useDialogFocus } from '../hooks/useDialogFocus'
+import { TableSkeleton } from '../components/Skeletons'
 import type { AdminShopEntry } from '../business/shop'
 import { StatusChip } from './bits'
 import {
@@ -56,7 +58,7 @@ export default function AdminShops({ shops, loading, onSetVerification }: Props)
   const open = shops.find((entry) => entry.uid === openUid) ?? null
 
   if (loading) {
-    return <p className="admin-empty">Loading shops…</p>
+    return <TableSkeleton label="Loading shops" rows={6} />
   }
 
   return (
@@ -112,23 +114,23 @@ export default function AdminShops({ shops, loading, onSetVerification }: Props)
                   className="admin-tablerow"
                   onClick={() => setOpenUid(entry.uid)}
                 >
-                  <td>
+                  <td data-label="Shop">
                     <span className="admin-cellmain">
                       {entry.shop.name || 'Unnamed shop'}
                     </span>
                     <span className="admin-cellsub">{entry.shop.category || '—'}</span>
                   </td>
-                  <td>{entry.shop.ownerName || '—'}</td>
-                  <td>
+                  <td data-label="Owner">{entry.shop.ownerName || '—'}</td>
+                  <td data-label="Phone">
                     {entry.shop.customerPhone
                       ? `+91 ${entry.shop.customerPhone}`
                       : '—'}
                   </td>
-                  <td>
+                  <td data-label="Locality">
                     {entry.shop.address ? truncate(entry.shop.address, 34) : '—'}
                   </td>
-                  <td>{DOC_LABEL[entry.shop.docKind]}</td>
-                  <td>
+                  <td data-label="Doc">{DOC_LABEL[entry.shop.docKind]}</td>
+                  <td data-label="Fee">
                     {entry.shop.paymentDone ? (
                       <span className="admin-feepaid" title={entry.shop.paymentId}>
                         ₹1,000
@@ -137,10 +139,12 @@ export default function AdminShops({ shops, loading, onSetVerification }: Props)
                       '—'
                     )}
                   </td>
-                  <td>
+                  <td data-label="Status">
                     <StatusChip status={statusOf(entry.shop)} />
                   </td>
-                  <td className="admin-when">{formatWhen(entry.shop.updatedAt)}</td>
+                  <td className="admin-when" data-label="Updated">
+                    {formatWhen(entry.shop.updatedAt)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -175,6 +179,9 @@ function ShopDrawer({
   const [note, setNote] = useState('')
   const [working, setWorking] = useState(false)
   const [actionError, setActionError] = useState('')
+  const drawerRef = useRef<HTMLElement>(null)
+  // This drawer had no Escape handler at all — the hook supplies it here.
+  useDialogFocus(drawerRef, { escape: true, onClose })
 
   async function act(verdict: Verdict, withNote = ''): Promise<void> {
     setWorking(true)
@@ -195,7 +202,13 @@ function ShopDrawer({
   return (
     <>
       <div className="admin-drawerback" onClick={onClose} />
-      <aside className="admin-drawer" aria-label={`Shop details: ${shop.name}`}>
+      <aside
+        ref={drawerRef}
+        className="admin-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Shop details: ${shop.name}`}
+      >
         <header className="admin-drawerhead">
           <div>
             <h2 className="admin-drawertitle">{shop.name || 'Unnamed shop'}</h2>
@@ -203,7 +216,7 @@ function ShopDrawer({
           </div>
           <button
             type="button"
-            className="admin-drawerclose"
+            className="admin-drawerclose nz-icon-btn"
             onClick={onClose}
             aria-label="Close details"
           >

@@ -332,36 +332,6 @@
   color: #4b4234;
 }
 
-/* The CTA row — white distance pill, big coral claim button. */
-.cust-offer-cta-row {
-  display: flex;
-  align-items: stretch;
-  gap: 0.8rem;
-  margin-top: 1.1rem;
-}
-
-.cust-offer-dir {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.7rem 1.05rem;
-  background-color: #fffdf7;
-  border: 3px solid var(--color-ink);
-  border-radius: 0.85rem;
-  box-shadow: 4px 5px 0 0 var(--color-ink);
-  font: inherit;
-  font-size: 1rem;
-  font-weight: 800;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.cust-offer-dir svg {
-  width: 1.15rem;
-  height: 1.15rem;
-}
-
 .cust-offer-claim {
   flex: 1;
   display: inline-flex;
@@ -558,6 +528,27 @@
   border-radius: 1.25rem;
   box-shadow: 5px 6px 0 0 var(--color-ink);
   overflow: hidden;
+}
+
+/* Right column stacks the card and the independent claim button. */
+.cust-offer-right {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+/* Claim action is its own control below the card — no card chrome. */
+.cust-shopcard-cta {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.cust-shopcard-cta .cust-offer-claim {
+  width: 100%;
+}
+
+.cust-shopcard-cta .cust-fine {
+  text-align: center;
 }
 
 .cust-shopcard-head {
@@ -1830,6 +1821,25 @@
   margin-top: 1.6rem;
 }
 
+/* Back out of a business selected by tapping its map pill. */
+.chome-shopback {
+  margin: 0 0 0.9rem;
+  padding: 0.4rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.chome-shopback:hover {
+  color: var(--color-ink);
+}
+
 /* The You tab — session state, nothing invented. */
 .chome-you {
   margin-top: 1.6rem;
@@ -1957,16 +1967,18 @@
   display: none;
 }
 
-/* Desktop: full-bleed map, the sheet docked left as a full-height panel —
+/* Desktop: full-bleed map, the sheet docked left as a floating panel —
    the phone's stacked layout would waste the width on a centered column.
-   Navigation leaves the panel and floats over the map as a dock,
-   bottom-right (the locate crosshair stacks above it); the panel stays
+   Navigation docks below the panel as its own separate card (same left
+   edge and width, pinned to the same bottom margin); the panel stays
    pure content: chip, headline, cards. */
 @media (min-width: 900px) {
   .chome {
     display: block;
     position: relative;
     overflow: hidden;
+    /* Height of the nav card docked below the sheet. */
+    --chome-tabbar-h: 4.7rem;
   }
 
   .chome-map {
@@ -1981,13 +1993,13 @@
 
   .chome-locatefab {
     right: 1.8rem;
-    bottom: 7.6rem;
+    bottom: 2.6rem;
   }
 
   .chome-note {
     left: auto;
     right: 1.8rem;
-    bottom: 12rem;
+    bottom: 6.8rem;
     max-width: 20rem;
   }
 
@@ -1995,7 +2007,8 @@
     position: absolute;
     left: 1.8rem;
     top: 1.8rem;
-    bottom: 1.8rem;
+    /* Stop above the nav card with a small gap between the two cards. */
+    bottom: calc(1.8rem + var(--chome-tabbar-h) + 0.8rem);
     width: min(24.5rem, 42vw);
     margin-top: 0;
     border: 3px solid var(--color-ink);
@@ -2017,16 +2030,18 @@
     padding: 0;
   }
 
-  /* The four sections as a floating dock over the map — the same icon-
-     pill items the mobile bar wears, lifted off the page edge. */
+  /* The four sections as their own card docked below the panel — the
+     same icon-pill items the mobile bar wears, aligned to the sheet's
+     left edge and width so the two read as a stack. */
   .chome-tabs {
     position: absolute;
-    right: 1.8rem;
+    left: 1.8rem;
     bottom: 1.8rem;
     z-index: 2;
-    grid-template-columns: repeat(4, auto);
+    width: min(24.5rem, 42vw);
+    grid-template-columns: repeat(4, 1fr);
     gap: 0.2rem;
-    padding: 0.45rem 0.55rem;
+    padding: 0.45rem 0.6rem;
     border: 3px solid var(--color-ink);
     border-radius: 1.35rem;
     box-shadow: 3px 4px 0 0 var(--color-ink);
@@ -2156,23 +2171,6 @@
     font-size: 0.8rem;
   }
 
-  /* The CTA stays a row so it matches the design — each button just
-     shrinks to fit instead of stacking at phone widths. */
-  .cust-offer-cta-row {
-    gap: 0.5rem;
-    margin-top: 0.8rem;
-  }
-
-  .cust-offer-dir {
-    font-size: 0.85rem;
-    padding: 0.55rem 0.7rem;
-  }
-
-  .cust-offer-dir svg {
-    width: 1rem;
-    height: 1rem;
-  }
-
   .cust-offer-claim {
     font-size: 0.92rem;
     padding: 0.55rem 0.6rem;
@@ -2265,17 +2263,8 @@
   }
 }
 
-/* Very small phones — the CTA finally stacks; everything else already
-   reflows. */
+/* Very small phones — the dates stack; everything else already reflows. */
 @media (max-width: 380px) {
-  .cust-offer-cta-row {
-    flex-direction: column;
-  }
-
-  .cust-offer-dir {
-    justify-content: center;
-  }
-
   .cust-offer-dates {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -2444,8 +2433,8 @@
   display: grid;
   place-items: center;
   flex: none;
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 2.75rem;
+  height: 2.75rem;
   padding: 0;
   background-color: var(--color-paper);
   color: var(--color-ink);
@@ -2605,8 +2594,8 @@
   display: grid;
   place-items: center;
   flex: none;
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 2.75rem;
+  height: 2.75rem;
   padding: 0;
   background-color: var(--color-paper);
   color: var(--color-ink);
@@ -2655,13 +2644,24 @@
   gap: 0.85rem;
 }
 
-.cpass-qr {
+/* Both states share one box so the code below never jumps when the QR
+   module finishes loading. */
+.cpass-qr,
+.cpass-qrwait {
+  display: grid;
+  place-items: center;
+  width: 13rem;
+  max-width: 100%;
+  height: 13rem;
   margin: 0;
 }
 
+.cpass-qr svg {
+  width: 100%;
+  height: 100%;
+}
+
 .cpass-qrwait {
-  width: 5rem;
-  height: 5rem;
   border: 2px dashed var(--color-stone);
   border-radius: 0.6rem;
 }
@@ -2831,8 +2831,8 @@
   flex: none;
   display: grid;
   place-items: center;
-  width: 2.6rem;
-  height: 2.6rem;
+  width: 2.75rem;
+  height: 2.75rem;
   background-color: #ffffff;
   border: 2.5px solid var(--color-ink);
   border-radius: 999px;
@@ -4034,6 +4034,12 @@
 }
 
 .chome-card-shop-link {
+  /* A real button inside the card, styled like the old inline link. */
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  line-height: inherit;
   font-weight: 700;
   color: var(--color-ink);
   cursor: pointer;
@@ -4049,7 +4055,7 @@
 }
 
 /* ---- Offer details: live status chips -------------------------------- */
-/* Used inside the STARTS datebox (Started/Scheduled) and the shop card's
+/* Used inside the STARTS datebox (scheduled only) and the shop card's
    Hours row (Open now / Closed / On holiday). Real-time, driven by the
    screen's ticking clock. */
 .cust-minichip {

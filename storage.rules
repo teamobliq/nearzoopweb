@@ -1,0 +1,52 @@
+rules_version = '2';
+
+// Firebase Storage rules for NearZoop. Photos live under shops/{uid}/... so
+// ownership is the Firebase Auth uid, mirroring the Firestore rules.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Same allow-list as firestore.rules isAdmin().
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email.lower() in [
+          'supritpahari123@gmail.com',
+          'obliqllc@gmail.com',
+        ];
+    }
+
+    function canManage(uid) {
+      return signedIn() && (request.auth.uid == uid || isAdmin());
+    }
+
+    function validImage() {
+      return request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /shops/{uid} {
+      // Shop fronts and offer photos appear on guest-facing pages.
+      match /shop/{file} {
+        allow read: if true;
+        allow create, update: if canManage(uid) && validImage();
+        allow delete: if canManage(uid);
+      }
+
+      match /offers/{file} {
+        allow read: if true;
+        allow create, update: if canManage(uid) && validImage();
+        allow delete: if canManage(uid);
+      }
+
+      // Verification documents are private to the merchant and ops team.
+      match /documents/{file} {
+        allow read: if canManage(uid);
+        allow create, update: if canManage(uid) && validImage();
+        allow delete: if canManage(uid);
+      }
+    }
+  }
+}

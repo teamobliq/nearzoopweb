@@ -1,4 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useDialogFocus } from '../hooks/useDialogFocus'
+import { DetailSkeleton } from '../components/Skeletons'
+import { offerShareUrl } from '../business/offerLink'
+import { setSavedOffer } from '../business/saved'
+import { useSavedOffers } from '../business/useSavedOffers'
 import type { FeedRecord } from '../business/feed'
 import {
   fetchFeedOffer,
@@ -27,12 +32,13 @@ import { requestRatePrompt, watchShopReviews, type ReviewSummary } from '../busi
 import { fmtDay, fmtWhen, rel } from '../business/when'
 import './customer.css'
 
-/** The shared-offer landing — `<base>/<shopUid>/<offerId>?source=…` lands
-    here. Reads the offer's public feed mirror (feed.ts): the only copy of
+/** The shared-offer landing — `<base>/?shop=<shopUid>&offer=<offerId>` (or
+    a legacy path link) lands here. Reads the offer's public feed mirror
+    (feed.ts): the only copy of
     an offer a visitor is allowed to see. The shop card on the right reads
     the shop doc directly — shops/{uid} is publicly readable — for the
     details the mirror intentionally omits (hours, phone, address).
-    Claiming needs an account, so the CTA routes to sign-in. Internal
+    Claiming and saving need an account, so those CTAs route to sign-in. Internal
     statuses never get a mirror, so they resolve to an honest "not
     available" screen instead of pretending the offer is live. */
 
@@ -254,16 +260,6 @@ function StarSvg() {
   )
 }
 
-/** Bookmarks ride in the same `nz.saved` list as the home feed, so an offer
-    saved here is already lit on its card when the customer goes back. */
-function readSaved(): Set<string> {
-  try {
-    return new Set<string>(JSON.parse(localStorage.getItem('nz.saved') ?? '[]'))
-  } catch {
-    return new Set<string>()
-  }
-}
-
 /** The argued offering — the claim dialog body. */
 function CouponPass({ coupon, qr }: { coupon: CouponRecord; qr: string }) {
   const state = couponState(coupon)
@@ -334,7 +330,10 @@ export default function CustomerOffer({
   const [claimDialog, setClaimDialog] = useState<CouponRecord | null>(null)
   const [claimDialogQr, setClaimDialogQr] = useState<{ code: string; svg: string } | null>(null)
   const [navDialogOpen, setNavDialogOpen] = useState(false)
-  const [savedIds, setSavedIds] = useState<Set<string>>(() => readSaved())
+  const navDialogRef = useRef<HTMLDivElement>(null)
+  const claimDialogRef = useRef<HTMLDivElement>(null)
+  const reportDialogRef = useRef<HTMLDivElement>(null)
+  const { saved: savedIds } = useSavedOffers(viewerUid)
   // A fix for the distance labels, read from the shared customer cache.
   // Null when the device never granted location — every label hides then.
   const [fix] = useState<{ lat: number; lng: number } | null>(() => cachedCoords())
@@ -352,6 +351,24 @@ export default function CustomerOffer({
     const timer = window.setTimeout(() => setNote(null), 2400)
     return () => window.clearTimeout(timer)
   }, [note])
+
+  // All three dialogs close on a backdrop tap — Escape should do the same.
+  useEffect(() => {
+    if (!claimDialog && !navDialogOpen && !reportOpen) return
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
+      setClaimDialog(null)
+      setNavDialogOpen(false)
+      setReportOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [claimDialog, navDialogOpen, reportOpen])
+
+  // Tab stays inside whichever dialog is open; Escape is handled above.
+  useDialogFocus(navDialogRef, { active: navDialogOpen })
+  useDialogFocus(claimDialogRef, { active: Boolean(claimDialog) })
+  useDialogFocus(reportDialogRef, { active: reportOpen })
   // A ticking clock — the open/closed chip and the offer's Started/Scheduled
   // chip flip on their own as time passes, without a reload.
   const [nowTs, setNowTs] = useState(() => Date.now())
@@ -477,19 +494,6 @@ export default function CustomerOffer({
     if (item && status !== 'paused') countOfferView(uid, offerId)
   }, [item, status, uid, offerId])
 
-  function openDirections() {
-    const destination =
-      typeof item?.lat === 'number' && typeof item?.lng === 'number'
-        ? `${item.lat},${item.lng}`
-        : encodeURIComponent(shopDoc?.address ?? '')
-    if (!destination) return
-    window.open(
-      `https://www.google.com/maps/dir/?api=1&destination=${destination}`,
-      '_blank',
-      'noopener,noreferrer',
-    )
-  }
-
   /** The address row's map chooser — Google Maps (web) or Apple Maps. */
   function openInMaps(provider: 'google' | 'apple') {
     const destination =
@@ -506,24 +510,17 @@ export default function CustomerOffer({
   }
 
   function toggleSaved() {
-    setSavedIds((current) => {
-      const next = new Set(current)
-      if (next.has(offerId)) {
-        next.delete(offerId)
-      } else {
-        next.add(offerId)
-      }
-      try {
-        localStorage.setItem('nz.saved', JSON.stringify([...next]))
-      } catch {
-        // Storage blocked — the bookmark lasts this visit only.
-      }
-      return next
-    })
+    if (!viewerUid) {
+      onSignIn()
+      return
+    }
+    void setSavedOffer(viewerUid, offerId, !savedIds.has(offerId))
   }
 
   async function shareOffer() {
-    const url = window.location.href
+    // The address bar stays clean while browsing; only the share sheet
+    // carries the deep link that reopens this exact offer.
+    const url = offerShareUrl(uid, offerId, 'nearby')
     const data = {
       title: item?.title ?? 'NearZoop offer',
       text: item ? `${item.title ?? 'Offer'} at ${item.shopName} — NearZoop` : 'NearZoop offer',
@@ -569,7 +566,7 @@ export default function CustomerOffer({
       <div className="cust-page">
         <div className="cust-shell">
           <div className="cust-topbar">
-            <button type="button" className="cust-back" onClick={onBack} aria-label="Go back">
+            <button type="button" className="cust-back nz-icon-btn" onClick={onBack} aria-label="Go back">
               <BackSvg />
             </button>
             <p className="cust-crumb">offer · {uid}</p>
@@ -589,7 +586,7 @@ export default function CustomerOffer({
       <div className="cust-page">
         <div className="cust-shell">
           <div className="cust-topbar">
-            <button type="button" className="cust-back" onClick={onBack} aria-label="Go back">
+            <button type="button" className="cust-back nz-icon-btn" onClick={onBack} aria-label="Go back">
               <BackSvg />
             </button>
             <p className="cust-crumb">offers paused · {uid}</p>
@@ -611,7 +608,7 @@ export default function CustomerOffer({
       <div className="cust-page">
         <div className="cust-shell">
           <div className="cust-topbar">
-            <button type="button" className="cust-back" onClick={onBack} aria-label="Go back">
+            <button type="button" className="cust-back nz-icon-btn" onClick={onBack} aria-label="Go back">
               <BackSvg />
             </button>
             <p className="cust-crumb">offer · {uid}</p>
@@ -631,13 +628,13 @@ export default function CustomerOffer({
       <div className="cust-page">
         <div className="cust-shell">
           <div className="cust-topbar">
-            <button type="button" className="cust-back" onClick={onBack} aria-label="Go back">
+            <button type="button" className="cust-back nz-icon-btn" onClick={onBack} aria-label="Go back">
               <BackSvg />
             </button>
             <span />
             <span />
           </div>
-          <p className="cust-loading" role="status">···</p>
+          <DetailSkeleton />
         </div>
       </div>
     )
@@ -648,7 +645,7 @@ export default function CustomerOffer({
       <div className="cust-page">
         <div className="cust-shell">
           <div className="cust-topbar">
-            <button type="button" className="cust-back" onClick={onBack} aria-label="Go back">
+            <button type="button" className="cust-back nz-icon-btn" onClick={onBack} aria-label="Go back">
               <BackSvg />
             </button>
             <p className="cust-crumb">offer · {item.shopName}</p>
@@ -715,16 +712,20 @@ export default function CustomerOffer({
   const phoneHref = phone ? `tel:${phone.replace(/[^+\d]/g, '')}` : undefined
   const startsText = fmtFullDate(item.startsAt)
   const endsText = fmtFullDateTime(item.endsAt)
-  // An offer whose start time has passed reads Started; one still ahead
-  // reads Scheduled. No start time set means it went live when approved.
+  // Once the start time has passed the datebox heading itself reads
+  // "Started" — no separate green pill. A future start keeps its amber
+  // Scheduled chip so the two states still look different.
   const startsAtMs = item.startsAt ? Date.parse(item.startsAt) : NaN
+  const started = Number.isFinite(startsAtMs) && startsAtMs <= nowTs
+  const startsLabel = started ? 'Started' : 'Starts'
   const startsChip =
-    Number.isFinite(startsAtMs)
-      ? startsAtMs <= nowTs
-        ? { label: 'Started', kind: 'green' as const }
-        : { label: 'Scheduled', kind: 'amber' as const }
+    Number.isFinite(startsAtMs) && !started
+      ? { label: 'Scheduled', kind: 'amber' as const }
       : null
-  const checkedRel = item.updatedAt ? rel(item.updatedAt.toDate().toISOString()) : null
+  // Prefer the periodic check stamp; fall back to the mirror's last sync
+  // until the first cron run has written one.
+  const checkedAt = item.lastCheckedAt ?? item.updatedAt
+  const checkedRel = checkedAt ? rel(checkedAt.toDate().toISOString()) : null
   const saved = savedIds.has(offerId)
   const initial = (item.shopName?.trim()?.[0] ?? 'S').toUpperCase()
 
@@ -759,6 +760,34 @@ export default function CustomerOffer({
     setClaiming(false)
   }
 
+  // The claim action sits with the shop card on the right — the offer
+  // column keeps only the directions shortcut.
+  const claimControl =
+    status === 'ended' ? (
+      <p className="cust-fine cust-offer-ended">This offer has ended.</p>
+    ) : !signedIn ? (
+      <button type="button" className="cust-offer-claim" onClick={onSignIn}>
+        <TicketSvg />
+        <span>Sign in to claim</span>
+      </button>
+    ) : coupon ? (
+      <p className="cust-fine cust-offer-claimed">
+        Claimed — your coupon is below. Show it at the counter.
+      </p>
+    ) : couponKind ? (
+      <button
+        type="button"
+        className="cust-offer-claim"
+        onClick={() => void claim()}
+        disabled={claiming}
+      >
+        <TicketSvg />
+        <span>{claiming ? 'Claiming…' : 'Claim offer'}</span>
+      </button>
+    ) : counterLine ? (
+      <p className="cust-fine cust-offer-counted">{counterLine}</p>
+    ) : null
+
   async function sendReport(): Promise<void> {
     if (reportBusy || !reportReason) return
     setReportBusy(true)
@@ -789,19 +818,19 @@ export default function CustomerOffer({
     <div className="cust-page">
       <div className="cust-shell">
         <div className="cust-topbar">
-          <button type="button" className="cust-back" onClick={onBack} aria-label="Go back">
+          <button type="button" className="cust-back nz-icon-btn" onClick={onBack} aria-label="Go back">
             <BackSvg />
           </button>
           <p className="cust-crumb">
-            offer photo · {item.shopName}
+            offer · {item.shopName}
           </p>
           <div className="cust-top-actions">
-            <button type="button" className="cust-round" onClick={() => void shareOffer()} aria-label="Share offer">
+            <button type="button" className="cust-round nz-icon-btn" onClick={() => void shareOffer()} aria-label="Share offer">
               <UploadSvg />
             </button>
             <button
               type="button"
-              className={`cust-round${saved ? ' is-on' : ''}`}
+              className={`cust-round nz-icon-btn${saved ? ' is-on' : ''}`}
               onClick={toggleSaved}
               aria-label={saved ? 'Remove bookmark' : 'Bookmark offer'}
               aria-pressed={saved}
@@ -843,7 +872,7 @@ export default function CustomerOffer({
               <div className="cust-offer-dates">
                 {startsText && (
                   <div className="cust-offer-datebox">
-                    <span className="cust-offer-datelabel">Starts</span>
+                    <span className="cust-offer-datelabel">{startsLabel}</span>
                     <strong>{startsText}</strong>
                     {startsChip && (
                       <span className={`cust-minichip cust-minichip--${startsChip.kind}`}>
@@ -894,48 +923,6 @@ export default function CustomerOffer({
               )}
             </div>
 
-            <div className="cust-offer-cta-row">
-              <button
-                type="button"
-                className="cust-offer-dir"
-                onClick={openDirections}
-                aria-label="Get directions to the shop"
-              >
-                <PlaneSvg />
-                <span>{distKm !== null ? fmtDistance(distKm) : 'Directions'}</span>
-              </button>
-              {status === 'ended' ? (
-                <p className="cust-fine cust-offer-ended">This offer has ended.</p>
-              ) : !signedIn ? (
-                <button
-                  type="button"
-                  className="cust-offer-claim"
-                  onClick={onSignIn}
-                >
-                  <TicketSvg />
-                  <span>Sign in to claim</span>
-                </button>
-              ) : coupon ? (
-                <p className="cust-fine cust-offer-claimed">
-                  Claimed — your coupon is below. Show it at the counter.
-                </p>
-              ) : couponKind ? (
-                <button
-                  type="button"
-                  className="cust-offer-claim"
-                  onClick={() => void claim()}
-                  disabled={claiming}
-                >
-                  <TicketSvg />
-                  <span>{claiming ? 'Claiming…' : 'Claim offer'}</span>
-                </button>
-              ) : (
-                counterLine && (
-                  <p className="cust-fine cust-offer-counted">{counterLine}</p>
-                )
-              )}
-            </div>
-            {claimError && <p className="cust-err">{claimError}</p>}
             <button
               type="button"
               className="cust-reportlink"
@@ -945,7 +932,8 @@ export default function CustomerOffer({
             </button>
           </section>
 
-          {/* ---- Right column: the shop card ------------------------- */}
+          {/* ---- Right column: the shop card, then the claim action --- */}
+          <div className="cust-offer-right">
           <aside className="cust-shopcard">
             <button
               type="button"
@@ -1027,7 +1015,14 @@ export default function CustomerOffer({
                 <ChevronSvg />
               </span>
             </button>
+
           </aside>
+
+          <div className="cust-shopcard-cta">
+            {claimControl}
+            {claimError && <p className="cust-err">{claimError}</p>}
+          </div>
+          </div>
         </div>
 
         {coupon && <CouponPass coupon={coupon} qr={shownCouponQr} />}
@@ -1041,6 +1036,7 @@ export default function CustomerOffer({
           }}
         >
           <div
+            ref={navDialogRef}
             className="cust-navdialog"
             role="dialog"
             aria-modal="true"
@@ -1086,7 +1082,7 @@ export default function CustomerOffer({
             if (event.target === event.currentTarget) setClaimDialog(null)
           }}
         >
-          <div className="cust-claimdialog" role="dialog" aria-modal="true" aria-label="Your coupon">
+          <div ref={claimDialogRef} className="cust-claimdialog" role="dialog" aria-modal="true" aria-label="Your coupon">
             <header className="cust-claimdialog-head">
               <h2>You claimed it.</h2>
               <button
@@ -1134,7 +1130,7 @@ export default function CustomerOffer({
             if (event.target === event.currentTarget) closeReport()
           }}
         >
-          <div className="cust-report" role="dialog" aria-modal="true" aria-label="Report a problem">
+          <div ref={reportDialogRef} className="cust-report" role="dialog" aria-modal="true" aria-label="Report a problem">
             {reportDone ? (
               <>
                 <h2>Thanks — sent.</h2>

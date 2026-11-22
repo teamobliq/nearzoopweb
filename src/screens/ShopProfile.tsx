@@ -16,6 +16,9 @@ import { nzMapStyle } from '../business/maplibreUtils'
 import { useMapRetry, watchMapFailure } from '../business/mapResilience'
 import { MapFailure } from '../business/MapFailure'
 import GooglePinMap from '../business/GooglePinMap'
+import { OfferListSkeleton, ShopSkeleton } from '../components/Skeletons'
+import { setSavedOffer } from '../business/saved'
+import { useSavedOffers } from '../business/useSavedOffers'
 import './customer.css'
 
 /* ---- Icons ------------------------------------------------------------- */
@@ -354,16 +357,6 @@ function isOpenNow(shop: ShopRecord): boolean {
     : minutes >= opens || minutes < closes
 }
 
-/** Bookmarks ride in the same `nz.saved` list as the home feed, so an offer
-    saved here is already lit on its card when the customer goes back. */
-function readSaved(): Set<string> {
-  try {
-    return new Set<string>(JSON.parse(localStorage.getItem('nz.saved') ?? '[]'))
-  } catch {
-    return new Set<string>()
-  }
-}
-
 /** The shop's map — its own small MapLibre canvas so the profile controls
     the framing and the single pin. */
 /** Engine switch — Google Maps when VITE_GMAPS_KEY is set, MapLibre
@@ -502,7 +495,7 @@ export default function ShopProfile({
   const [shopLoaded, setShopLoaded] = useState(false)
   const [feed, setFeed] = useState<FeedRecord[] | null>(null)
   const [tab, setTab] = useState<ShopTab>('overview')
-  const [saved, setSaved] = useState<Set<string>>(readSaved)
+  const { saved } = useSavedOffers(viewerUid)
   const [now, setNow] = useState(() => Date.now())
   const [mapExpanded, setMapExpanded] = useState(false)
   const [note, setNote] = useState<string | null>(null)
@@ -695,20 +688,11 @@ export default function ShopProfile({
   }
 
   function toggleSaved(offerId: string) {
-    setSaved((current) => {
-      const next = new Set(current)
-      if (next.has(offerId)) {
-        next.delete(offerId)
-      } else {
-        next.add(offerId)
-      }
-      try {
-        localStorage.setItem('nz.saved', JSON.stringify([...next]))
-      } catch {
-        // Storage blocked — the bookmark lasts this visit only.
-      }
-      return next
-    })
+    if (!viewerUid) {
+      onSignIn?.()
+      return
+    }
+    void setSavedOffer(viewerUid, offerId, !saved.has(offerId))
   }
 
   function toggleMap() {
@@ -722,7 +706,7 @@ export default function ShopProfile({
         <span className="shop-section-count">{liveOffers.length}</span>
       </h2>
       {feed === null ? (
-        <div className="shop-empty-card">Loading offers…</div>
+        <OfferListSkeleton count={2} />
       ) : liveOffers.length === 0 ? (
         <div className="shop-empty-card">
           No live offers right now — check back soon.
@@ -849,7 +833,7 @@ export default function ShopProfile({
           <header className="shop-head">
             <button
               type="button"
-              className="shop-round"
+              className="shop-round nz-icon-btn"
               onClick={goBack}
               aria-label="Go back"
             >
@@ -857,7 +841,7 @@ export default function ShopProfile({
             </button>
             <button
               type="button"
-              className="shop-round"
+              className="shop-round nz-icon-btn"
               aria-label="Share shop"
               disabled
             >
@@ -881,7 +865,7 @@ export default function ShopProfile({
           <header className="shop-head">
             <button
               type="button"
-              className="shop-round"
+              className="shop-round nz-icon-btn"
               onClick={goBack}
               aria-label="Go back"
             >
@@ -889,9 +873,7 @@ export default function ShopProfile({
             </button>
             <span />
           </header>
-          <p className="shop-loading" role="status">
-            Loading shop…
-          </p>
+          <ShopSkeleton />
         </div>
       </main>
     )
@@ -903,7 +885,7 @@ export default function ShopProfile({
         <header className="shop-head">
           <button
             type="button"
-            className="shop-round"
+            className="shop-round nz-icon-btn"
             onClick={goBack}
             aria-label="Go back"
           >
@@ -911,7 +893,7 @@ export default function ShopProfile({
           </button>
           <button
             type="button"
-            className="shop-round"
+            className="shop-round nz-icon-btn"
             onClick={shareShop}
             aria-label="Share shop"
           >

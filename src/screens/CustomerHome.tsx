@@ -20,6 +20,10 @@ import { fmtDay } from '../business/when'
 import Profile from './Profile'
 import type { User } from 'firebase/auth'
 import { watchCustomerNotificationsUnread } from '../business/follows'
+import { fetchShop, type ShopRecord } from '../business/shop'
+import { migrateLegacySaved, setSavedOffer } from '../business/saved'
+import { useSavedOffers } from '../business/useSavedOffers'
+import { OfferListSkeleton } from '../components/Skeletons'
 import './customer.css'
 // The feed cards reuse the merchant list's deal tile (biz-otile) for the
 // discount, so business.css must ship in this bundle too.
@@ -55,7 +59,7 @@ type Props = {
   onSignOut: () => void
 }
 
-type View = 'nearby' | 'explore' | 'saved' | 'you'
+type View = 'nearby' | 'explore' | 'saved' | 'you' | 'shop'
 
 const TABS: Array<{ key: View; label: string; icon: () => ReactElement }> = [
   { key: 'nearby', label: 'Nearby', icon: PinSvg },
@@ -214,11 +218,21 @@ function OfferCard({
         id={`chome-card-${item.offerId}`}
         className={`chome-card${selected ? ' is-sel' : ''}`}
       >
-        <button
-          type="button"
+        <div
           className="chome-card-hit"
-          onClick={onSelect}
+          role="button"
+          tabIndex={0}
           aria-pressed={selected}
+          onClick={onSelect}
+          onKeyDown={(event) => {
+            // Enter/Space on the card itself selects it; key presses from
+            // the shop button inside must keep their own behaviour.
+            if (event.target !== event.currentTarget) return
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              onSelect()
+            }
+          }}
         >
           <span
             className={`biz-otile biz-otile-${item.tileColor ?? 'yellow'}`}
@@ -239,15 +253,17 @@ function OfferCard({
             </span>
             <span className="chome-card-shop">
               {onOpenShop ? (
-                <span
+                <button
+                  type="button"
                   className="chome-card-shop-link"
                   onClick={(event) => {
                     event.stopPropagation()
                     onOpenShop(item.shopUid)
                   }}
+                  aria-label={`Open ${item.shopName}'s profile`}
                 >
                   {item.shopName}
-                </span>
+                </button>
               ) : (
                 item.shopName
               )}
@@ -262,7 +278,7 @@ function OfferCard({
               )}
             </span>
           </span>
-        </button>
+        </div>
         {onToggleBookmark && (
           <button
             type="button"
@@ -304,14 +320,9 @@ export default function CustomerHome({
   const [radiusKm] = useState<number>(cachedRadiusKm)
   const [locality, setLocality] = useState<string | null>(cachedLocality)
   const [view, setView] = useState<View>('nearby')
-  // Bookmarked offer ids, persisted to localStorage.
-  const [saved, setSaved] = useState<Set<string>>(() => {
-    try {
-      return new Set(JSON.parse(localStorage.getItem('nz.saved') ?? '[]'))
-    } catch {
-      return new Set()
-    }
-  })
+  // Bookmarks belong to the account — guests never get a saved set.
+  const viewerUid = session.variant === 'signed-in' ? session.uid : undefined
+  const { saved, loading: savedLoading } = useSavedOffers(viewerUid)
   // The sheet's two positions: resting over the map, or raised so the list
   // dominates and the map peeks behind.
   const [raised, setRaised] = useState(false)
@@ -324,6 +335,9 @@ export default function CustomerHome({
   const [feedError, setFeedError] = useState(false)
   // The selected offer — lit on its card and its map pin.
   const [selected, setSelected] = useState<string | null>(null)
+  // A map pill selects the whole business; its offers fill the left panel.
+  const [selectedShopUid, setSelectedShopUid] = useState<string | null>(null)
+  const [selectedShopInfo, setSelectedShopInfo] = useState<ShopRecord | null>(null)
   // The clock the feed filter runs against — refreshed on every snapshot so
   // scheduled offers wake up without a render-time Date.now().
   const [now, setNow] = useState(() => Date.now())
@@ -421,16 +435,20 @@ export default function CustomerHome({
     )
   }
 
-  /** Lights the card and its pin, raises the sheet and brings the card
-      into view — the pin tap's whole journey. */
-  function selectOffer(id: string) {
-    setSelected(id)
+  /** A pill tap selects the business: its offer list replaces the panel,
+      its tooltip stays lit on the map, and the sheet opens. */
+  function selectPin(shopUid: string) {
+    const first = nearby.find((item) => item.shopUid === shopUid)
+    setSelectedShopUid(shopUid)
+    setSelected(first?.offerId ?? null)
+    setView('shop')
     setRaised(true)
-    window.setTimeout(() => {
-      document
-        .getElementById(`chome-card-${id}`)
-        ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-    }, 380)
+  }
+
+  function clearSelectedShop() {
+    setSelectedShopUid(null)
+    setSelected(null)
+    setView('nearby')
   }
 
   /** A card tap opens the offer's page; the card stays lit so the pin is
@@ -440,23 +458,19 @@ export default function CustomerHome({
     onOpenOffer(item.shopUid, item.offerId)
   }
 
-  /** Toggles a bookmark on an offer and persists to localStorage. */
+  /** Guests are sent to sign-in; signed-in customers save to their account. */
   function toggleSaved(offerId: string): void {
-    setSaved((current) => {
-      const next = new Set(current)
-      if (next.has(offerId)) {
-        next.delete(offerId)
-      } else {
-        next.add(offerId)
-      }
-      try {
-        localStorage.setItem('nz.saved', JSON.stringify([...next]))
-      } catch {
-        // localStorage unavailable — bookmarks won't survive a reload.
-      }
-      return next
-    })
+    if (!viewerUid) {
+      onSignIn()
+      return
+    }
+    void setSavedOffer(viewerUid, offerId, !saved.has(offerId))
   }
+
+  // Bring any old guest-local bookmarks into the account once on sign-in.
+  useEffect(() => {
+    if (viewerUid) void migrateLegacySaved(viewerUid)
+  }, [viewerUid])
 
   // The sheet handle: a tap toggles, a drag follows the gesture.
   const dragRef = useRef<{ startY: number; moved: boolean } | null>(null)
@@ -521,6 +535,22 @@ export default function CustomerHome({
       (a, b) =>
         (a.km ?? Number.POSITIVE_INFINITY) - (b.km ?? Number.POSITIVE_INFINITY),
     )
+
+  // The selected pill's shop doc supplies the address for its tooltip and
+  // panel header — the public feed mirror deliberately omits it.
+  useEffect(() => {
+    if (!selectedShopUid) {
+      setSelectedShopInfo(null)
+      return
+    }
+    let alive = true
+    void fetchShop(selectedShopUid).then((shop) => {
+      if (alive) setSelectedShopInfo(shop)
+    })
+    return () => {
+      alive = false
+    }
+  }, [selectedShopUid])
 
   /** The largest percentage anywhere in a discount label ("50% OFF" → 50),
       or null for non-percentage deals (BOGO, FLAT…). */
@@ -620,23 +650,34 @@ export default function CustomerHome({
       .sort((a, b) => (a.endsAt ?? '').localeCompare(b.endsAt ?? '')),
   )
 
-  // Pins ride only for offers inside the radius — the map is framed to the
-  // circle, so anything else would sit off-screen.
-  const pins: MapPin[] = nearby.flatMap((item) =>
-    typeof item.lat === 'number' && typeof item.lng === 'number'
-      ? [
-          {
-            id: item.offerId,
-            lat: item.lat,
-            lng: item.lng,
-            selected: selected === item.offerId,
-            label:
-              item.discountLabel?.trim().split(' ')[0] ||
-              item.discountLabel?.trim() ||
-              '—',
-          },
-        ]
-      : [],
+  // One pill per business (its offers share coords). Tapping one selects
+  // the whole shop, not a single offer, and shows all its offers in-panel.
+  const pinShops = new Map<string, (typeof nearby)[number]>()
+  for (const item of nearby) {
+    if (typeof item.lat !== 'number' || typeof item.lng !== 'number') continue
+    if (!pinShops.has(item.shopUid)) pinShops.set(item.shopUid, item)
+  }
+  const pins: MapPin[] = [...pinShops.values()].map((item) => ({
+    id: item.shopUid,
+    lat: item.lat as number,
+    lng: item.lng as number,
+    selected: selectedShopUid === item.shopUid,
+    label:
+      item.discountLabel?.trim().split(' ')[0] ||
+      item.discountLabel?.trim() ||
+      '—',
+    shopName: item.shopName,
+    shopCategory: item.shopCategory,
+    address: selectedShopUid === item.shopUid ? selectedShopInfo?.address : null,
+  }))
+
+  // Every offer the selected business has in the public feed, live first.
+  const shopOffers = withDistance(
+    (feed ?? []).filter((item) => item.shopUid === selectedShopUid),
+  ).sort(
+    (a, b) =>
+      Number(b.status === 'live') - Number(a.status === 'live') ||
+      (a.km ?? Number.POSITIVE_INFINITY) - (b.km ?? Number.POSITIVE_INFINITY),
   )
 
   const plural = (count: number, word: string) =>
@@ -651,7 +692,7 @@ export default function CustomerHome({
           fitKey={fitKey}
           className="chome-canvas"
           pins={pins}
-          onSelectPin={selectOffer}
+          onSelectPin={selectPin}
           attributionCorner="bottom-left"
         />
         <div className="chome-top">
@@ -730,9 +771,7 @@ export default function CustomerHome({
                 </p>
               </>
             ) : feed === null ? (
-              <p className="chome-loading" role="status">
-                Looking around…
-              </p>
+              <OfferListSkeleton />
             ) : !fix ? (
               <>
                 <h1 className="chome-title">Set your location first.</h1>
@@ -823,9 +862,7 @@ export default function CustomerHome({
                 <p className="chome-lede">Check the connection and try again.</p>
               </>
             ) : feed === null ? (
-              <p className="chome-loading" role="status">
-                Looking around…
-              </p>
+              <OfferListSkeleton />
             ) : exploreAll.length > 0 ? (
               <>
                 {/* Explore header — real filter/sort state on the live
@@ -1070,10 +1107,22 @@ export default function CustomerHome({
 
         {view === 'saved' && (
           <div className="chome-body">
-            {savedItems.length > 0 ? (
+            {!viewerUid ? (
+              <>
+                <h1 className="chome-title">Sign in to save offers.</h1>
+                <p className="chome-lede">
+                  Your bookmarks are kept on your account, ready on any device.
+                </p>
+                <button type="button" className="btn-primary chome-cta" onClick={onSignIn}>
+                  Sign in
+                </button>
+              </>
+            ) : feed === null || savedLoading ? (
+              <OfferListSkeleton count={2} />
+            ) : savedItems.length > 0 ? (
               <>
                 <h1 className="chome-title">Saved offers</h1>
-                <p className="chome-lede">Pinned from your browsing — still live, ready when you are.</p>
+                <p className="chome-lede">Saved to your account — still live, ready when you are.</p>
                 <ul className="chome-cards">
                   {savedItems.map((item) => (
                     <OfferCard
@@ -1092,9 +1141,57 @@ export default function CustomerHome({
               <>
                 <h1 className="chome-title">Nothing saved yet.</h1>
                 <p className="chome-lede">
-                  Bookmark an offer from its card and it waits here while it's
-                  live.
+                  Bookmark an offer from its card and it waits here, saved to
+                  your account while it's live.
                 </p>
+              </>
+            )}
+          </div>
+        )}
+
+        {view === 'shop' && (
+          <div className="chome-body">
+            <button
+              type="button"
+              className="chome-shopback"
+              onClick={clearSelectedShop}
+            >
+              ← All nearby offers
+            </button>
+            {feed === null ? (
+              <OfferListSkeleton count={2} />
+            ) : (
+              <>
+                <h1 className="chome-title">
+                  {selectedShopInfo?.name || shopOffers[0]?.shopName || 'Business'}
+                </h1>
+                <p className="chome-sub">
+                  {[
+                    selectedShopInfo?.category || shopOffers[0]?.shopCategory,
+                    selectedShopInfo?.address,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || 'Offers from this business'}
+                </p>
+                {shopOffers.length > 0 ? (
+                  <ul className="chome-cards">
+                    {shopOffers.map((item) => (
+                      <OfferCard
+                        key={item.offerId}
+                        item={item}
+                        selected={selected === item.offerId}
+                        onSelect={() => openOffer(item)}
+                        bookmarked={saved.has(item.offerId)}
+                        onToggleBookmark={() => toggleSaved(item.offerId)}
+                        onOpenShop={onOpenShop}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="chome-lede">
+                    No listed offers from this business right now.
+                  </p>
+                )}
               </>
             )}
           </div>
@@ -1115,8 +1212,8 @@ export default function CustomerHome({
                 </span>
                 <h2>Browsing as guest</h2>
                 <p>
-                  Sign in to claim coupons at the counter and keep the
-                  offers you save.
+                  Sign in to save offers to your account and claim coupons at
+                  the counter.
                 </p>
                 <button
                   type="button"
@@ -1145,13 +1242,17 @@ export default function CustomerHome({
         )}
         {TABS.map((tab) => {
           const Icon = tab.icon
+          const isOn = view === tab.key || (view === 'shop' && tab.key === 'nearby')
           return (
             <button
               key={tab.key}
               type="button"
-              className={`chome-tab${view === tab.key ? ' is-on' : ''}`}
-              onClick={() => setView(tab.key)}
-              aria-current={view === tab.key ? 'page' : undefined}
+              className={`chome-tab${isOn ? ' is-on' : ''}`}
+              onClick={() => {
+                if (view === 'shop') setSelectedShopUid(null)
+                setView(tab.key)
+              }}
+              aria-current={isOn ? 'page' : undefined}
             >
               <span className="chome-tab-ico">
                 <Icon />

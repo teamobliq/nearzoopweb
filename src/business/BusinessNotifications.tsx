@@ -95,7 +95,7 @@ function SubScreen({
       <header className="biz-shopedit-head">
         <button
           type="button"
-          className="biz-shopedit-back"
+          className="biz-shopedit-back nz-icon-btn"
           onClick={onBack}
           aria-label={`Back to ${backTo}`}
         >

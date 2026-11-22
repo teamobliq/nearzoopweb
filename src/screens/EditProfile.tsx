@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { BackSvg } from './Locate'
+import { LoadingRegion, Skeleton } from '../components/Skeletons'
 import { maskPhone } from './maskPhone'
 import {
   fetchCustomer,
@@ -84,12 +85,16 @@ export default function EditProfile({
     return (
       <div className="prof-edit">
         <header className="prof-edit-head">
-          <button type="button" className="prof-back" onClick={onDone} aria-label="Back">
+          <button type="button" className="prof-back nz-icon-btn" onClick={onDone} aria-label="Back">
             <BackSvg />
           </button>
           <h1 className="prof-edit-title">Edit profile</h1>
         </header>
-        <p className="prof-loading">Loading…</p>
+        <LoadingRegion label="Loading profile" className="sk-stack">
+          <Skeleton className="sk-line sk-line--md" />
+          <Skeleton className="sk-line" />
+          <Skeleton className="sk-line sk-line--md" />
+        </LoadingRegion>
       </div>
     )
   }
@@ -159,15 +164,16 @@ function EditProfileForm({
   return (
     <div className="prof-edit">
       <header className="prof-edit-head">
-        <button type="button" className="prof-back" onClick={onDone} aria-label="Back">
+        <button type="button" className="prof-back nz-icon-btn" onClick={onDone} aria-label="Back">
           <BackSvg />
         </button>
         <h1 className="prof-edit-title">Edit profile</h1>
       </header>
 
       <div className="prof-edit-body">
-        <label className="prof-field-label">NAME</label>
+        <label className="prof-field-label" htmlFor="prof-name">NAME</label>
         <input
+          id="prof-name"
           className="prof-field"
           type="text"
           value={name}
@@ -176,7 +182,7 @@ function EditProfileForm({
           autoComplete="name"
         />
 
-        <label className="prof-field-label">MOBILE</label>
+        <span className="prof-field-label">MOBILE</span>
         <div className="prof-mobile">
           <span className="prof-mobile-value">{shownMobile ?? '—'}</span>
           {shownMobile && shownVerified ? (
@@ -184,8 +190,9 @@ function EditProfileForm({
           ) : null}
         </div>
 
-        <label className="prof-field-label">EMAIL (OPTIONAL)</label>
+        <label className="prof-field-label" htmlFor="prof-email">EMAIL (OPTIONAL)</label>
         <input
+          id="prof-email"
           className="prof-field"
           type="email"
           value={email}

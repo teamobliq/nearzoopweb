@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { type User } from 'firebase/auth'
+import { RowListSkeleton } from '../components/Skeletons'
 import {
   couponState,
   fmtCouponCode,
@@ -91,7 +92,7 @@ export default function MyCoupons({
           <div className="myc-topbar">
             <button
               type="button"
-              className="myc-back"
+              className="myc-back nz-icon-btn"
               onClick={onBack}
               aria-label="Go back"
             >
@@ -99,7 +100,7 @@ export default function MyCoupons({
             </button>
             <h1 className="myc-title">Claimed coupons</h1>
           </div>
-          <p className="myc-sub">Loading your coupons…</p>
+          <RowListSkeleton label="Loading your coupons" count={4} />
         </div>
       </div>
     )
@@ -111,7 +112,7 @@ export default function MyCoupons({
         <div className="myc-topbar">
           <button
             type="button"
-            className="myc-back"
+            className="myc-back nz-icon-btn"
             onClick={onBack}
             aria-label="Go back"
           >

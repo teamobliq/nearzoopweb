@@ -1,0 +1,173 @@
+/* Shared UI layer — loaded after the screen stylesheets so these rules are
+   authoritative. Screens keep their own layout rules (size, position,
+   spacing); chrome and interaction live here once. */
+
+/* ---- One press feel for every tappable surface -------------------------- */
+.nz-press,
+.btn-circle,
+.cust-back,
+.cust-round,
+.chx-chip,
+.trending-card-hit,
+.chx-trending,
+.shop-action,
+.shop-map-dir,
+.cust-navdialog-option,
+.myc-row,
+.biz-fab,
+.biz-navcompose,
+.biz-ob-back,
+.biz-shopedit-back,
+.loc-back,
+.loc-pick-back,
+.nz-map-failure-retry,
+.splash-retry,
+.admin-btn,
+.admin-drawerclose {
+  transition: translate 0.08s ease, box-shadow 0.08s ease;
+}
+
+/* ---- Round icon / back button ------------------------------------------ */
+/* Size stays with the screen; this supplies the shared 44px floor, chrome
+   and press states. `.is-on` and `:disabled` keep their own overrides. */
+.nz-icon-btn {
+  display: grid;
+  place-items: center;
+  flex: none;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  color: var(--color-ink);
+  background-color: var(--nz-surface);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 999px;
+  box-shadow: var(--shadow-pill);
+  cursor: pointer;
+  transition: translate 0.08s ease, box-shadow 0.08s ease;
+}
+
+.nz-icon-btn:hover:not(:disabled) {
+  translate: 1px 1px;
+  box-shadow: 2px 3px 0 0 var(--color-ink);
+}
+
+.nz-icon-btn:active:not(:disabled) {
+  translate: 2px 3px;
+  box-shadow: 1px 1px 0 0 var(--color-ink);
+}
+
+.nz-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.nz-icon-btn:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 3px;
+}
+
+/* ---- Status chips: one palette, however a screen spells its variant ---- */
+.cust-pill--live,
+.cust-minichip--green,
+.shop-badge--verified,
+.shop-badge--open,
+.biz-pill,
+.biz-offer-live,
+.biz-ochip-live,
+.biz-shopchip-verified,
+.biz-shopchip-open,
+.biz-notiftile.is-green,
+.biz-rpt-chip.is-resolved,
+.admin-chip-verified,
+.admin-chip-live,
+.prof-verified {
+  background-color: var(--chip-green-bg);
+  color: var(--chip-green-fg);
+}
+
+.cust-pill--scheduled,
+.cust-minichip--amber,
+.shop-badge--category,
+.shop-badge--rating,
+.shop-offer-pill,
+.biz-chipicon-checking,
+.biz-ochip-scheduled,
+.biz-ochip-review,
+.biz-notiftile.is-amber,
+.biz-notiftile.is-gold,
+.biz-rpt-chip,
+.admin-chip-pending,
+.admin-chip-paused,
+.admin-chip-review,
+.admin-chip-scheduled {
+  background-color: var(--chip-amber-bg);
+  color: var(--chip-amber-fg);
+}
+
+.cust-minichip--red,
+.biz-chipicon-failed,
+.biz-ochip-changes,
+.biz-notiftile.is-pink,
+.admin-chip-failed,
+.admin-chip-changes {
+  background-color: var(--chip-red-bg);
+  color: var(--chip-red-fg);
+}
+
+.cust-pill--gray,
+.biz-ochip-draft,
+.biz-ochip-gray,
+.admin-chip-setup,
+.admin-chip-ended,
+.admin-chip-draft {
+  background-color: var(--chip-gray-bg);
+  color: var(--chip-gray-fg);
+}
+
+/* ---- Dialogs and cards: one scrim, one paper surface ------------------- */
+.biz-share-backdrop,
+.biz-modal-backdrop,
+.biz-cropback,
+.cust-report-backdrop,
+.cust-claimdialog-backdrop,
+.rate-backdrop,
+.profile-edit-backdrop,
+.profile-coupondialog-backdrop,
+.admin-modal-backdrop {
+  background-color: var(--nz-scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+}
+
+.biz-share-dialog,
+.biz-modal-card,
+.biz-crop,
+.cust-report,
+.cust-claimdialog,
+.rate-dialog,
+.prof-edit,
+.profile-coupondialog,
+.admin-modal {
+  background-color: var(--nz-surface);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: var(--nz-surface-radius);
+  box-shadow: var(--shadow-card);
+}
+
+.admin-card,
+.biz-offer-card,
+.biz-pv-card,
+.myc-row,
+.chome-card-hit,
+.shop-offer-card,
+.shop-detail-card,
+.cust-shopcard,
+.admin-stat,
+.profile-coupons {
+  background-color: var(--nz-surface);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: var(--nz-surface-radius);
+  box-shadow: var(--shadow-card);
+}

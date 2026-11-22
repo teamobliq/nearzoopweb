@@ -24,7 +24,9 @@ export default function LocationPicker({ onPick }: Props) {
   const [engine, setEngine] = useState<'google' | 'maplibre'>(() =>
     GMAPS_KEY ? 'google' : 'maplibre',
   )
+  const [pinned, setPinned] = useState(false)
   const handleMoved = useCallback(() => setMoved(true), [])
+  const handlePinSet = useCallback(() => setPinned(true), [])
   const handleGoogleFail = useCallback(() => setEngine('maplibre'), [])
 
   return (
@@ -34,10 +36,11 @@ export default function LocationPicker({ onPick }: Props) {
           apiKey={GMAPS_KEY}
           onPick={onPick}
           onMoved={handleMoved}
+          onPinSet={handlePinSet}
           onFail={handleGoogleFail}
         />
       ) : (
-        <MaplibrePicker onPick={onPick} onMoved={handleMoved} />
+        <MaplibrePicker onPick={onPick} onMoved={handleMoved} onPinSet={handlePinSet} />
       )}
 
       <span className="biz-pin" aria-hidden="true">
@@ -52,7 +55,13 @@ export default function LocationPicker({ onPick }: Props) {
           <circle cx="24" cy="21" r="6.5" fill="#ffffff" />
         </svg>
       </span>
-      {!moved && <p className="biz-pintip">Drag map so the pin sits on your door</p>}
+      {pinned ? (
+        <p className="biz-pintip is-pinned" role="status">
+          ✓ Pinned here — this is your exact spot
+        </p>
+      ) : !moved ? (
+        <p className="biz-pintip">Tap the map or drag it so the pin sits on your door</p>
+      ) : null}
     </div>
   )
 }

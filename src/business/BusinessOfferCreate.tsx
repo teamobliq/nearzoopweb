@@ -11,7 +11,7 @@ import {
   type OfferWrite,
   type ShopRecord,
 } from './shop'
-import { uploadToImgbb } from './imgbb'
+import { deleteImage, nextImagePath, uploadImage } from './images'
 import { nzMapStyle } from './maplibreUtils'
 import { useMapRetry, watchMapFailure } from './mapResilience'
 import { MapFailure } from './MapFailure'
@@ -511,8 +511,10 @@ export default function BusinessOfferCreate({
     if (!file) return
     setPhotoBusy(slot)
     setError('')
+    const previous = slot === 0 ? draft.photo0 : draft.photo1
     try {
-      const url = await uploadToImgbb(file)
+      const url = await uploadImage(file, nextImagePath(uid, 'offers'))
+      if (previous && previous !== url) void deleteImage(previous)
       set(slot === 0 ? 'photo0' : 'photo1', url)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't upload the photo.")
@@ -569,7 +571,10 @@ export default function BusinessOfferCreate({
               type="button"
               className="biz-photodel"
               aria-label="Remove photo"
-              onClick={() => set(slot === 0 ? 'photo0' : 'photo1', '')}
+              onClick={() => {
+                void deleteImage(url)
+                set(slot === 0 ? 'photo0' : 'photo1', '')
+              }}
             >
               ×
             </button>
@@ -986,7 +991,7 @@ export default function BusinessOfferCreate({
       <header className="biz-ob-top">
         <button
           type="button"
-          className="biz-ob-back"
+          className="biz-ob-back nz-icon-btn"
           aria-label="Back to my offers"
           onClick={onExit}
         >

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
+import { useDialogFocus } from '../hooks/useDialogFocus'
 import CustomerMap from './CustomerMap'
 import { fmtKm, type Coords } from './mapUtils'
 import {
@@ -152,13 +153,16 @@ function LocalityPicker({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useDialogFocus(dialogRef)
+
   return (
-    <div className="loc-pick" role="dialog" aria-modal="true" aria-label="Choose a locality">
+    <div ref={dialogRef} className="loc-pick" role="dialog" aria-modal="true" aria-label="Choose a locality">
       <div className="loc-pick-card">
         <header className="loc-pick-head">
           <button
             type="button"
-            className="loc-pick-back"
+            className="loc-pick-back nz-icon-btn"
             onClick={onClose}
             aria-label="Back to the map"
           >
@@ -368,7 +372,7 @@ export default function Locate({ onDone, onBack }: Props) {
         {onBack && (
           <button
             type="button"
-            className="loc-back"
+            className="loc-back nz-icon-btn"
             onClick={onBack}
             aria-label="Cancel and go back"
           >

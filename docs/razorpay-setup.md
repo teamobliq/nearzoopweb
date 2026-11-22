@@ -100,7 +100,7 @@ they need a service account:
 | `FIREBASE_ADMIN_PROJECT_ID` | runtime (functions) | `nearzoop` |
 | `FIREBASE_ADMIN_CLIENT_EMAIL` | runtime (functions) | Service account email |
 | `FIREBASE_ADMIN_PRIVATE_KEY` | runtime (functions) | PEM with `\n` escapes |
-| plus the existing `VITE_FIREBASE_*` / `VITE_IMGBB_KEY` / `GSTIN_API_KEY` / `VITE_ADMIN_EMAILS` | build | Unchanged. |
+| plus the existing `VITE_FIREBASE_*` / `GSTIN_API_KEY` / `VITE_ADMIN_EMAILS` | build | Unchanged. Photos now use Firebase Storage (`storage.rules`). |
 
 ### Local development
 
