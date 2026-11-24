@@ -97,7 +97,7 @@ export default function BusinessSignIn() {
   const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
-  const [setupStart, setSetupStart] = useState<0 | 1 | 2 | 3>(0)
+  const [setupStart, setSetupStart] = useState<0 | 1 | 2 | 3 | 4>(0)
   const [booting, setBooting] = useState(true)
   const [bootError, setBootError] = useState('')
   const [setupError, setSetupError] = useState('')
@@ -128,7 +128,7 @@ export default function BusinessSignIn() {
       // A lapsed paid year re-opens the wizard at its payment step — the
       // renewal is the same ₹1,000 checkout, nothing else to redo.
       if (feeExpired(shop)) {
-        setSetupStart(3)
+        setSetupStart(4)
         setStep('setup')
         return
       }
@@ -142,7 +142,9 @@ export default function BusinessSignIn() {
       return
     }
     if (shop) {
-      setSetupStart(Math.min((shop.setupStep ?? -1) + 1, 3) as 0 | 1 | 2 | 3)
+      // Saved progress skips the new email step for returning merchants.
+      const done = shop.setupStep ?? -1
+      setSetupStart((done < 0 ? 0 : Math.min(done + 2, 4)) as 0 | 1 | 2 | 3 | 4)
     }
     // Diagnostic: if a finished merchant ever lands here again, the console
     // records exactly what the boot read saw.
@@ -417,7 +419,7 @@ export default function BusinessSignIn() {
 
   /** Jumps a merchant back to the wizard's payment step to renew. */
   function startRenewal(): void {
-    setSetupStart(3)
+    setSetupStart(4)
     setStep('setup')
   }
 
@@ -521,7 +523,7 @@ export default function BusinessSignIn() {
           step === 'failed'
             ? () => {
                 // "Upload another document" re-enters the wizard at verification.
-                setSetupStart(2)
+                setSetupStart(3)
                 setStep('setup')
               }
             : undefined

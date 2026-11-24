@@ -28,7 +28,7 @@ type Props = {
   phone: string
   /** Substep to open on (retrying document upload re-enters at step 3;
       an unpaid saved shop re-enters at the payment step). */
-  startStep?: 0 | 1 | 2 | 3
+  startStep?: 0 | 1 | 2 | 3 | 4
   /** Fires on every Continue/Submit with that step's fields; the wizard only
       advances once the returned promise resolves. */
   onSave: (patch: ShopPatch, completedStep: 0 | 1 | 2) => Promise<void>
@@ -82,10 +82,11 @@ const DOC_PHOTO_LABEL: Record<Exclude<DocType, 'gstin'>, string> = {
 const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/
 
 const STEP_INFO = [
-  { title: 'Set up your shop', caption: 'Step 1 of 4 · Shop details' },
-  { title: 'Where’s your shop?', caption: 'Step 2 of 4 · Location & hours' },
-  { title: 'Verify your shop', caption: 'Step 3 of 4 · Verification' },
-  { title: 'Pay to go live', caption: 'Step 4 of 4 · Payment' },
+  { title: 'Set up your shop', caption: 'Step 1 of 5 · Shop details' },
+  { title: 'Verify your email', caption: 'Step 2 of 5 · Email verification' },
+  { title: 'Where’s your shop?', caption: 'Step 3 of 5 · Location & hours' },
+  { title: 'Verify your shop', caption: 'Step 4 of 5 · Verification' },
+  { title: 'Pay to go live', caption: 'Step 5 of 5 · Payment' },
 ]
 
 function ChevronSvg({ className }: { className: string }) {
@@ -312,14 +313,14 @@ export default function BusinessSetup({
   ownerName = '',
   onPaid,
 }: Props) {
-  const [substep, setSubstep] = useState<0 | 1 | 2 | 3>(startStep)
+  const [substep, setSubstep] = useState<0 | 1 | 2 | 3 | 4>(startStep)
   const [name, setName] = useState('')
   const [category, setCategory] = useState<string | null>(null)
   const [owner, setOwner] = useState('')
   const [email, setEmail] = useState('')
   const [emailError, setEmailError] = useState('')
   const [otpEmail, setOtpEmail] = useState('')
-  const [emailPending, setEmailPending] = useState(false)
+  const otpStartedRef = useRef(false)
   const [customerPhone, setCustomerPhone] = useState(
     phone ? `+91 ${phone}` : '',
   )
@@ -359,6 +360,26 @@ export default function BusinessSetup({
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [substep])
+
+  // Entering the email step sends a code once; going back resets the guard
+  // so returning sends a fresh one.
+  useEffect(() => {
+    if (substep !== 1) {
+      otpStartedRef.current = false
+      return
+    }
+    if (otpStartedRef.current) return
+    otpStartedRef.current = true
+    setOtpEmail(email.trim())
+    setSaving(true)
+    void sendEmailOtp(email.trim())
+      .catch((err: unknown) =>
+        setEmailError(
+          err instanceof Error ? err.message : "Couldn't send the code. Try again.",
+        ),
+      )
+      .finally(() => setSaving(false))
+  }, [substep, email])
 
   /** Uploads the staged storefront image (if any) and returns its hosted URL. */
   async function commitShopPhoto(): Promise<string | null> {
@@ -541,13 +562,12 @@ export default function BusinessSetup({
   async function confirmEmail(code: string) {
     await verifyEmailOtp(code)
     await saveBusinessDetails()
-    setEmailPending(false)
-    setSubstep(1)
+    setSubstep(2)
   }
 
   async function handleContinue(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (saving || verifying || payOpening || payConfirming || emailPending) return
+    if (saving || verifying || payOpening || payConfirming) return
     const completed = substep
     setStepError('')
     if (completed === 0) {
@@ -581,20 +601,15 @@ export default function BusinessSetup({
         setEmailError('Enter a valid email address.')
         return
       }
-      setSaving(true)
       setEmailError('')
-      try {
-        await sendEmailOtp(value)
-        setOtpEmail(value)
-        setEmailPending(true)
-      } catch (err) {
-        setEmailError(err instanceof Error ? err.message : "Couldn't send the code. Try again.")
-      } finally {
-        setSaving(false)
-      }
+      setOtpEmail(value)
+      setSubstep(1)
       return
     }
-    if (completed === 1) {
+    // Step 2 is the dedicated email verification screen — it has its own
+    // Verify & continue action, so the form footer does nothing here.
+    if (completed === 1) return
+    if (completed === 2) {
       if (!address.trim()) {
         setStepError('Enter your shop address.')
         return
@@ -613,7 +628,7 @@ export default function BusinessSetup({
         return
       }
     }
-    if (completed === 2) {
+    if (completed === 3) {
       if (!doc) {
         setDocError('Choose a verification document.')
         return
@@ -628,7 +643,7 @@ export default function BusinessSetup({
         return
       }
     }
-    if (completed === 3) {
+    if (completed === 4) {
       // The payment step: open Razorpay's checkout; the handler takes it
       // from there. Nothing to save here.
       await startPayment()
@@ -637,7 +652,7 @@ export default function BusinessSetup({
     setSaving(true)
     setPhotoError('')
     try {
-      if (completed === 1) {
+      if (completed === 2) {
         await onSave(
           {
             address: address.trim(),
@@ -732,7 +747,7 @@ export default function BusinessSetup({
             <h1 className="biz-steptitle">{info.title}</h1>
           </div>
           <div className="biz-progress" aria-hidden="true">
-            {[0, 1, 2, 3].map((segment) => (
+            {[0, 1, 2, 3, 4].map((segment) => (
               <span
                 key={segment}
                 className={`biz-seg${segment <= substep ? ' is-done' : ''}`}
@@ -742,8 +757,15 @@ export default function BusinessSetup({
           <p className="biz-stepcap">{info.caption}</p>
         </header>
 
-        {emailPending ? (
+        {substep === 1 ? (
           <>
+            <p className="biz-intro">
+              We sent a 6-digit code to your email. Enter it to confirm the
+              address your shop updates will go to.
+            </p>
+            {emailError && (
+              <p className="biz-photoerror" role="alert">{emailError}</p>
+            )}
             <VerifyCode
               phone={otpEmail}
               sub={`We emailed a 6-digit code to ${otpEmail}.`}
@@ -757,14 +779,14 @@ export default function BusinessSetup({
               type="button"
               className="biz-linkbtn"
               onClick={() => {
-                setEmailPending(false)
                 setEmailError('')
+                setSubstep(0)
               }}
             >
               Use a different email
             </button>
           </>
-        ) : substep === 2 ? (
+        ) : substep === 3 ? (
           <>
             <p className="biz-intro">
               Verified shops get a badge customers trust. You can post offers
@@ -876,7 +898,7 @@ export default function BusinessSetup({
           </>
         ) : null}
 
-        {substep === 1 ? (
+        {substep === 2 ? (
           <div className="biz-locrow">
             <LocationPicker onPick={handleLocation} />
 
@@ -1062,7 +1084,7 @@ export default function BusinessSetup({
           </>
         ) : null}
 
-        {substep === 3 ? (
+        {substep === 4 ? (
           <>
             <p className="biz-intro">
               An annual listing fee of ₹1,000 activates{shopName ? ` “${shopName}”` : ' your shop'}
@@ -1136,6 +1158,7 @@ export default function BusinessSetup({
           </p>
         )}
 
+        {substep !== 1 && (
         <div className="biz-formfoot">
           <button
             type="submit"
@@ -1145,7 +1168,7 @@ export default function BusinessSetup({
               verifying ||
               payOpening ||
               payConfirming ||
-              (substep === 3 && !razorpayKeyId())
+              (substep === 4 && !razorpayKeyId())
             }
           >
             {payConfirming
@@ -1156,7 +1179,7 @@ export default function BusinessSetup({
                   ? 'Checking GSTIN…'
                   : saving
                     ? 'Saving…'
-                    : substep === 3
+                    : substep === 4
                       ? (
                         <>
                           <ArrowIcon />
@@ -1168,6 +1191,7 @@ export default function BusinessSetup({
                       )}
           </button>
         </div>
+        )}
       </form>
     </main>
   )
