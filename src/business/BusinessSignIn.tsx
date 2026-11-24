@@ -79,19 +79,36 @@ function nextAuthUser(): Promise<User | null> {
   })
 }
 
-/** Merchant fine print, shown on both phone and OTP screens. */
-export function BizLegal() {
+/** Merchant fine print, shown on the landing, phone and OTP screens. */
+export function BizLegal({
+  onTerms,
+  onGuidelines,
+}: {
+  onTerms: () => void
+  onGuidelines: () => void
+}) {
   return (
     <p className="biz-legal">
-      By continuing you agree to the <a href="#merchant-terms">Merchant Terms</a>{' '}
-      and <a href="#offer-guidelines">Offer Guidelines</a>.
+      By continuing you agree to the{' '}
+      <button type="button" className="biz-legallink" onClick={onTerms}>
+        Merchant Terms
+      </button>{' '}
+      and{' '}
+      <button type="button" className="biz-legallink" onClick={onGuidelines}>
+        Offer Guidelines
+      </button>
+      .
     </p>
   )
 }
 
 type Step = 'landing' | 'phone' | 'code' | 'setup' | 'checking' | 'failed' | 'dash'
 
-export default function BusinessSignIn() {
+type Props = {
+  onOpenDoc: (doc: 'merchantTerms' | 'offerGuidelines') => void
+}
+
+export default function BusinessSignIn({ onOpenDoc }: Props) {
   const [step, setStep] = useState<Step>('landing')
   const [phone, setPhone] = useState('')
   const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null)
@@ -459,6 +476,8 @@ export default function BusinessSignIn() {
       <BusinessLanding
         onRegister={() => setStep('phone')}
         onExisting={() => setStep('phone')}
+        onTerms={() => onOpenDoc('merchantTerms')}
+        onGuidelines={() => onOpenDoc('offerGuidelines')}
       />
     )
   }
@@ -557,7 +576,10 @@ export default function BusinessSignIn() {
           />
         )}
 
-        <BizLegal />
+        <BizLegal
+          onTerms={() => onOpenDoc('merchantTerms')}
+          onGuidelines={() => onOpenDoc('offerGuidelines')}
+        />
       </div>
     </main>
   )

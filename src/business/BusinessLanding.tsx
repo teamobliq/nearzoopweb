@@ -3,9 +3,11 @@ import logoUrl from '../assets/logo.svg'
 type Props = {
   onRegister: () => void
   onExisting: () => void
+  onTerms: () => void
+  onGuidelines: () => void
 }
 
-export default function BusinessLanding({ onRegister, onExisting }: Props) {
+export default function BusinessLanding({ onRegister, onExisting, onTerms, onGuidelines }: Props) {
   return (
     <main className="biz-landing">
       <div className="biz-landing-wrap">
@@ -88,6 +90,18 @@ export default function BusinessLanding({ onRegister, onExisting }: Props) {
                 I already have an account
               </button>
             </div>
+
+            <p className="biz-legal">
+              By continuing you agree to the{' '}
+              <button type="button" className="biz-legallink" onClick={onTerms}>
+                Merchant Terms
+              </button>{' '}
+              and{' '}
+              <button type="button" className="biz-legallink" onClick={onGuidelines}>
+                Offer Guidelines
+              </button>
+              .
+            </p>
           </div>
         </div>
       </div>

@@ -19,6 +19,18 @@
        server-rendered listing exists — static files can't query Firestore. -->
 
   <url>
+    <loc>https://nearzoop.teamobliq.in/merchant-terms</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+
+  <url>
+    <loc>https://nearzoop.teamobliq.in/offer-guidelines</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+
+  <url>
     <loc>https://nearzoop.teamobliq.in/shop?id=example-shop-uid</loc>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>

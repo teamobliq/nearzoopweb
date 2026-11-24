@@ -9,6 +9,8 @@ import { maskPhone } from './screens/maskPhone'
 import Locate from './screens/Locate'
 import CustomerHome from './screens/CustomerHome'
 import BusinessSignIn from './business/BusinessSignIn'
+import MerchantTerms from './business/MerchantTerms'
+import OfferGuidelines from './business/OfferGuidelines'
 import CustomerOffer from './screens/CustomerOffer'
 import MyCoupons from './screens/MyCoupons'
 import CouponPass from './screens/CouponPass'
@@ -22,7 +24,7 @@ import './App.css'
 const AdminPanel = lazy(() => import('./admin/AdminPanel'))
 
 type Screen = 'splash' | 'onboard' | 'auth' | 'locate' | 'home' | 'profile' | 'editProfile' | 'myCoupons' | 'couponPass' | 'trending' | 'shop' | 'notifications'
-type Route = 'customer' | 'business' | 'admin' | 'shop'
+type Route = 'customer' | 'business' | 'admin' | 'shop' | 'merchantTerms' | 'offerGuidelines'
 type Session = { variant: 'guest' | 'signed-in'; label?: string; uid?: string; user?: User }
 type DeepLink = { uid: string; offerId: string }
 
@@ -94,6 +96,12 @@ function readRoute(): Route {
   }
   if (/\/nz-admin$/i.test(path)) {
     return 'admin'
+  }
+  if (/\/merchant-terms$/i.test(path)) {
+    return 'merchantTerms'
+  }
+  if (/\/offer-guidelines$/i.test(path)) {
+    return 'offerGuidelines'
   }
   return 'customer'
 }
@@ -236,6 +244,32 @@ function App() {
     setRoute('business')
   }
 
+  /** Merchant policy documents — real URLs so they can be linked and
+      reloaded, but still rendered as screens inside this SPA. */
+  function openDoc(doc: 'merchantTerms' | 'offerGuidelines') {
+    const path = doc === 'merchantTerms' ? 'merchant-terms' : 'offer-guidelines'
+    try {
+      window.history.pushState({ nzDoc: doc }, '', `${import.meta.env.BASE_URL}${path}`)
+    } catch {
+      // State still switches below.
+    }
+    setRoute(doc)
+  }
+
+  function closeDoc() {
+    const state = window.history.state as { nzDoc?: string } | null
+    if (state?.nzDoc) {
+      window.history.back()
+    } else {
+      try {
+        window.history.pushState({}, '', `${import.meta.env.BASE_URL}busdash`)
+      } catch {
+        // State still switches below.
+      }
+    }
+    setRoute('business')
+  }
+
   /** Opens one offer's page. The address bar stays on the clean base URL —
       this is still one SPA screen swap, not a new page. Sharing uses
       offerShareUrl() to build a deep link for recipients. */
@@ -313,7 +347,9 @@ function App() {
   }
 
   /** One key per navigation state — used to reset scroll on each screen. */
-  const navKey = route === 'business'
+  const navKey = route === 'merchantTerms' || route === 'offerGuidelines'
+      ? route
+      : route === 'business'
       ? 'business'
       : route === 'admin'
         ? 'admin'
@@ -333,8 +369,16 @@ function App() {
     window.scrollTo(0, 0)
   }, [navKey])
 
+  if (route === 'merchantTerms') {
+    return view('up', <MerchantTerms onBack={closeDoc} />)
+  }
+
+  if (route === 'offerGuidelines') {
+    return view('up', <OfferGuidelines onBack={closeDoc} />)
+  }
+
   if (route === 'business') {
-    return view('up', <BusinessSignIn />)
+    return view('up', <BusinessSignIn onOpenDoc={openDoc} />)
   }
 
   if (route === 'admin') {

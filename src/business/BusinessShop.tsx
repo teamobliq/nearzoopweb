@@ -284,6 +284,30 @@ export default function BusinessShop({
             </span>
             <ChevronSvg />
           </button>
+
+          <a
+            className="biz-shoprow"
+            href={`${import.meta.env.BASE_URL}merchant-terms`}
+          >
+            <span className="biz-shoprow-icon" aria-hidden="true">§</span>
+            <span className="biz-shoprow-main">
+              <span className="biz-shoprow-title">Merchant Terms</span>
+              <span className="biz-shoprow-sub">The rules for listing your shop</span>
+            </span>
+            <ChevronSvg />
+          </a>
+
+          <a
+            className="biz-shoprow"
+            href={`${import.meta.env.BASE_URL}offer-guidelines`}
+          >
+            <span className="biz-shoprow-icon" aria-hidden="true">✦</span>
+            <span className="biz-shoprow-main">
+              <span className="biz-shoprow-title">Offer Guidelines</span>
+              <span className="biz-shoprow-sub">What reviewers look for</span>
+            </span>
+            <ChevronSvg />
+          </a>
         </div>
       </div>
     </div>

@@ -571,8 +571,10 @@ export default function BusinessOfferDetail({
             <p className="biz-quickfix-text">“{offer.reviewFix}”</p>
           </div>
           <p className="biz-quickfix-more">
-            Read the Offer Guidelines. Questions? Reply to the reviewer from
-            Help.
+            <a href={`${import.meta.env.BASE_URL}offer-guidelines`}>
+              Read the Offer Guidelines
+            </a>
+            . Questions? Reply to the reviewer from Help.
           </p>
         </section>
       )}

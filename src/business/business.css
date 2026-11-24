@@ -235,10 +235,150 @@
   color: var(--color-orange);
 }
 
-.biz-legal a:focus-visible {
+.biz-legal a:focus-visible,
+.biz-legallink:focus-visible {
   outline: 3px solid var(--color-ink);
   outline-offset: 3px;
   border-radius: 0.3rem;
+}
+
+.biz-legallink {
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.biz-legallink:hover {
+  color: var(--color-orange);
+}
+
+a.biz-shoprow {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ---- Merchant policy documents --------------------------------------- */
+
+.biz-doc {
+  padding-bottom: 3.5rem;
+}
+
+.biz-doc-head {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.4rem;
+}
+
+.biz-doc-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+.biz-doc-title {
+  margin: 0;
+  font-size: clamp(1.9rem, 6vw, 2.5rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+}
+
+.biz-doc-intro {
+  margin: 0.8rem 0 0;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--color-stone);
+}
+
+.biz-doc-callout {
+  margin-top: 1.6rem;
+  padding: 1.15rem 1.25rem;
+  background-color: var(--color-paper);
+  border: var(--border-strong) solid var(--color-ink);
+  border-radius: 1.1rem;
+  box-shadow: var(--shadow-card);
+}
+
+.biz-doc-callout h2 {
+  margin: 0 0 0.8rem;
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.biz-doc-callout ul {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.biz-doc-callout li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.98rem;
+  line-height: 1.45;
+}
+
+.biz-doc-callout li svg {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.2rem;
+  color: var(--color-green);
+}
+
+.biz-doc-section {
+  margin-top: 1.9rem;
+}
+
+.biz-doc-section h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.biz-doc-section p,
+.biz-doc-section li {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--color-stone);
+}
+
+.biz-doc-section p {
+  margin: 0.55rem 0 0;
+}
+
+.biz-doc-section ul {
+  margin: 0.6rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.biz-doc-section li + li {
+  margin-top: 0.35rem;
+}
+
+.biz-doc-foot {
+  margin: 2rem 0 0;
+  padding-top: 1rem;
+  border-top: 2px solid var(--color-hairline);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-stone);
 }
 
 /* --- Setup wizard (steps 1–5) -------------------------------------------- */
