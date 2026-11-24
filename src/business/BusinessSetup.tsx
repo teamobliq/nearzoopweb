@@ -38,6 +38,8 @@ type Props = {
   shopName?: string
   /** Merchant's name — prefills Razorpay's contact details. */
   ownerName?: string
+  /** Signs the merchant out of every wizard step. */
+  onSignOut: () => void
   /** Runs after Razorpay reports success AND the server-side verification
       settles the fee: updates the UI and navigates. Throws on failure so
       the payment step can retry verification with the same signature —
@@ -312,6 +314,7 @@ export default function BusinessSetup({
   shopName = '',
   ownerName = '',
   onPaid,
+  onSignOut,
 }: Props) {
   const [substep, setSubstep] = useState<0 | 1 | 2 | 3 | 4>(startStep)
   const [name, setName] = useState('')
@@ -745,6 +748,9 @@ export default function BusinessSetup({
         <header>
           <div className="biz-steptop">
             <h1 className="biz-steptitle">{info.title}</h1>
+            <button type="button" className="biz-stepout" onClick={onSignOut}>
+              Not you? <strong>Sign out</strong>
+            </button>
           </div>
           <div className="biz-progress" aria-hidden="true">
             {[0, 1, 2, 3, 4].map((segment) => (

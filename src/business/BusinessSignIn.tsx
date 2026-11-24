@@ -510,6 +510,7 @@ export default function BusinessSignIn() {
         shopName={savedShop?.name ?? ''}
         ownerName={savedShop?.ownerName ?? ''}
         onPaid={completePayment}
+        onSignOut={leaveAuth}
       />
     )
   }
