@@ -15,6 +15,7 @@ import {
   type Timestamp,
 } from 'firebase/firestore'
 import { auth, db } from '../firebase'
+import { safeCustomerName } from './customerName'
 
 export type ReviewRecord = {
   id: string
@@ -49,10 +50,15 @@ export function watchShopReviews(
       orderBy('createdAt', 'desc'),
     ),
     (snap) => {
-      const reviews = snap.docs.map((entry) => ({
-        id: entry.id,
-        ...(entry.data() as Omit<ReviewRecord, 'id'>),
-      }))
+      const reviews = snap.docs.map((entry) => {
+        const data = entry.data() as Omit<ReviewRecord, 'id'>
+        return {
+          id: entry.id,
+          ...data,
+          // Older rows may hold a masked phone as the name — never expose it.
+          customerName: safeCustomerName(data.customerName) || undefined,
+        }
+      })
       const count = reviews.length
       const average =
         count === 0
@@ -85,7 +91,9 @@ export async function saveReview(args: {
       rating: Math.round(args.rating),
       ...(args.offerRating ? { offerRating: Math.round(args.offerRating) } : {}),
       ...(args.comment?.trim() ? { comment: args.comment.trim() } : {}),
-      ...(args.customerName?.trim() ? { customerName: args.customerName.trim() } : {}),
+      ...(safeCustomerName(args.customerName)
+        ? { customerName: safeCustomerName(args.customerName) }
+        : {}),
       createdAt: serverTimestamp(),
     },
     { merge: true },

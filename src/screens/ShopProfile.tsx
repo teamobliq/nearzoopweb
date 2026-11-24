@@ -10,6 +10,7 @@ import {
 } from '../business/follows'
 import { enablePush } from '../business/push'
 import { watchShopReviews, type ReviewSummary } from '../business/reviews'
+import { safeCustomerName } from '../business/customerName'
 import { watchFeed, type FeedRecord } from '../business/feed'
 import { fmtDay, rel } from '../business/when'
 import { nzMapStyle } from '../business/maplibreUtils'
@@ -1070,7 +1071,7 @@ export default function ShopProfile({
                           <div className="shop-review-head">
                             <StarsRow value={review.rating} />
                             <span className="shop-review-author">
-                              {review.customerName?.trim() || 'Customer'}
+                              {safeCustomerName(review.customerName) || 'Customer'}
                             </span>
                             {review.createdAt && (
                               <time className="shop-review-time">

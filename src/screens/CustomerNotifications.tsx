@@ -7,6 +7,7 @@ import {
 } from '../business/follows'
 import RateReviewDialog from './RateReviewDialog'
 import { RowListSkeleton } from '../components/Skeletons'
+import { useCustomerName } from '../business/useCustomerName'
 import { rel } from '../business/when'
 
 /** The customer's in-app inbox — every live offer from the shops they
@@ -47,8 +48,6 @@ function RateSvg() {
 type Props = {
   /** The signed-in customer's uid — absent means browsing as guest. */
   viewerUid?: string
-  /** The session label for the review's denormalised name. */
-  viewerName?: string
   onBack: () => void
   onOpenOffer: (shopUid: string, offerId: string) => void
   /** Guests are routed to sign-in from the gate state. */
@@ -57,7 +56,6 @@ type Props = {
 
 export default function CustomerNotifications({
   viewerUid,
-  viewerName,
   onBack,
   onOpenOffer,
   onSignIn,
@@ -67,6 +65,7 @@ export default function CustomerNotifications({
   )
   const [rateItem, setRateItem] = useState<CustomerNotification | null>(null)
   const marked = useRef(false)
+  const reviewerName = useCustomerName(viewerUid)
 
   useEffect(() => {
     if (!viewerUid) return
@@ -197,7 +196,7 @@ export default function CustomerNotifications({
           offerId={rateItem.offerId}
           offerTitle={rateItem.offerTitle}
           viewerUid={viewerUid}
-          viewerName={viewerName}
+          viewerName={reviewerName}
           onClose={() => setRateItem(null)}
           onSignIn={onSignIn}
         />

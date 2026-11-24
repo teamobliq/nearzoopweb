@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useDialogFocus } from '../hooks/useDialogFocus'
 import './customer.css'
 import { saveReview } from '../business/reviews'
+import { safeCustomerName } from '../business/customerName'
 
 /** The rate prompt's dialog — opened from a "How was it?" notification.
     Two star rows: the offer itself, and the shop overall (the shop rating
@@ -88,7 +89,7 @@ export default function RateReviewDialog({
         rating: shopRating,
         offerRating: offerRating || undefined,
         comment,
-        customerName: viewerName ?? undefined,
+        customerName: safeCustomerName(viewerName) || undefined,
       })
       setDone(true)
       onSubmitted?.()
