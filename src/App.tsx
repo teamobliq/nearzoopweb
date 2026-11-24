@@ -16,6 +16,8 @@ import MyCoupons from './screens/MyCoupons'
 import CouponPass from './screens/CouponPass'
 import TrendingNearby from './screens/TrendingNearby'
 import CustomerNotifications from './screens/CustomerNotifications'
+import NotificationsOverlay from './components/NotificationsOverlay'
+import { useDesktop } from './hooks/useDesktop'
 import ShopProfile from './screens/ShopProfile'
 import { cachedCoords } from './business/geocode'
 import './App.css'
@@ -177,6 +179,8 @@ function App() {
       decide whether a screen has anything behind it without reading a ref
       mid-render. */
   const [screenDepth, setScreenDepth] = useState(1)
+  // Desktop shows the inbox as a drawer over Home; phones keep the full page.
+  const desktop = useDesktop()
 
   /** Navigate to a screen and push a history entry for it, so the browser's
       back gesture returns here rather than leaving the app. */
@@ -192,6 +196,14 @@ function App() {
     } catch {
       // History unavailable in some sandboxed contexts; state still flips.
     }
+  }
+
+  /** Closing the desktop inbox pops its history entry so Back behaves like
+   *  a dismissed overlay instead of growing the screen stack. */
+  function closeNotifications() {
+    const state = window.history.state as { nzScreen?: Screen } | null
+    if (state?.nzScreen === 'notifications') window.history.back()
+    else go('home')
   }
 
   useEffect(() => {
@@ -357,12 +369,54 @@ function App() {
           ? `shop:${readShopId() ?? 'missing'}`
           : deepLink
             ? `offer:${deepLink.uid}/${deepLink.offerId}`
-            : screen
+            : screen === 'notifications' && desktop
+              ? 'home'
+              : screen
 
   // Screens are plain swaps — no enter animation. Each navigation still
   // gets a fresh mount and starts at the top of the page.
   function view(_variant: 'up' | 'lift' | 'fade', node: ReactNode) {
     return node
+  }
+
+  /** The inbox, shared by the mobile screen and the desktop drawer. */
+  function notificationsNode() {
+    return (
+      <CustomerNotifications
+        viewerUid={session.variant === 'signed-in' ? session.uid : undefined}
+        viewerName={session.label}
+        onBack={closeNotifications}
+        onOpenOffer={openOffer}
+        onSignIn={() => {
+          setAuthReturn('home')
+          go('auth')
+        }}
+      />
+    )
+  }
+
+  /** Home is also the base layer behind the desktop notifications drawer. */
+  function homeNode() {
+    return (
+      <CustomerHome
+        session={session}
+        user={session.variant === 'signed-in' ? auth.currentUser : null}
+        onEditLocation={() => go('locate')}
+        onOpenOffer={openOffer}
+        onOpenCoupons={() => go('myCoupons')}
+        onOpenTrending={() => go('trending')}
+        onOpenNotifications={() => go('notifications')}
+        onOpenShop={(uid) => {
+          setShopUid(uid)
+          go('shop')
+        }}
+        onSignIn={() => {
+          setAuthReturn('home')
+          go('auth')
+        }}
+        onSignOut={() => setSession({ variant: 'guest' })}
+      />
+    )
   }
 
   useEffect(() => {
@@ -593,20 +647,10 @@ function App() {
     )
   }
 
-  if (screen === 'notifications') {
-    return view(
-      'up',
-      <CustomerNotifications
-        viewerUid={session.variant === 'signed-in' ? session.uid : undefined}
-        viewerName={session.label}
-        onBack={() => go('home')}
-        onOpenOffer={openOffer}
-        onSignIn={() => {
-          setAuthReturn('home')
-          go('auth')
-        }}
-      />,
-    )
+  // On desktop the inbox is an overlay handled in the final Home render, so
+  // the map and panel behind it stay mounted. Phones keep the full screen.
+  if (screen === 'notifications' && !desktop) {
+    return view('up', notificationsNode())
   }
 
   if (screen === 'shop') {
@@ -627,24 +671,14 @@ function App() {
 
   return view(
     'up',
-    <CustomerHome
-      session={session}
-      user={session.variant === 'signed-in' ? auth.currentUser : null}
-      onEditLocation={() => go('locate')}
-      onOpenOffer={openOffer}
-      onOpenCoupons={() => go('myCoupons')}
-      onOpenTrending={() => go('trending')}
-      onOpenNotifications={() => go('notifications')}
-      onOpenShop={(uid) => {
-        setShopUid(uid)
-        go('shop')
-      }}
-      onSignIn={() => {
-        setAuthReturn('home')
-        go('auth')
-      }}
-      onSignOut={() => setSession({ variant: 'guest' })}
-    />,
+    <>
+      {homeNode()}
+      {screen === 'notifications' && desktop && (
+        <NotificationsOverlay onClose={closeNotifications}>
+          {notificationsNode()}
+        </NotificationsOverlay>
+      )}
+    </>,
   )
 }
 
