@@ -1489,6 +1489,28 @@ a.biz-shoprow {
   justify-content: center;
 }
 
+.biz-dash-promote {
+  grid-column: 1 / -1;
+}
+
+.biz-promote-link {
+  width: 100%;
+  margin: 1rem 0 0;
+  padding: 0.7rem 0.8rem;
+  background-color: var(--color-cream);
+  border: 2.5px solid var(--color-ink);
+  border-radius: 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--color-ink);
+}
+
+.biz-promote-actions {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.9rem;
+}
+
 .biz-dash-rowhead {
   display: flex;
   align-items: baseline;

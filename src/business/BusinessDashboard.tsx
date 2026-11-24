@@ -7,6 +7,7 @@ import BusinessOffers from './BusinessOffers'
 import BusinessShop from './BusinessShop'
 import BusinessScan from './BusinessScan'
 import { DashboardSkeleton } from '../components/Skeletons'
+import { useDialogFocus } from '../hooks/useDialogFocus'
 import { syncShopFeed } from './feed'
 import { fmtDay } from './when'
 import {
@@ -154,6 +155,24 @@ function QrSvg() {
   )
 }
 
+function PromoteSvg() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 10v4a1 1 0 0 0 1 1h3l8 5V4L7 9H4a1 1 0 0 0-1 1Z" />
+      <path d="M18 9a4 4 0 0 1 0 6" />
+      <path d="m19 4-3 3" />
+    </svg>
+  )
+}
+
 function InfoSvg() {
   return (
     <svg
@@ -286,9 +305,19 @@ export default function BusinessDashboard({
   const [runAgain, setRunAgain] = useState<OfferRecord | null>(null)
   // The scan flow overlay — opened from every Scan entry point.
   const [scanOpen, setScanOpen] = useState(false)
+  // Shareable shop link — the Promote action's dialog.
+  const [promoteOpen, setPromoteOpen] = useState(false)
+  const [promoteCopied, setPromoteCopied] = useState(false)
+  const promoteRef = useRef<HTMLDivElement>(null)
   // Unread inbox count — feeds the bell's badge in the nav.
   const [unread, setUnread] = useState<number | null>(null)
   const shellRef = useRef<HTMLDivElement | null>(null)
+
+  useDialogFocus(promoteRef, {
+    active: promoteOpen,
+    escape: true,
+    onClose: () => setPromoteOpen(false),
+  })
 
   useEffect(
     () =>
@@ -369,6 +398,29 @@ export default function BusinessDashboard({
   const total = (pick: (offer: OfferRecord) => number | undefined) =>
     offers.reduce((sum, offer) => sum + (pick(offer) ?? 0), 0)
   const hasOffers = offers.length > 0
+
+  const promoteUrl = `${window.location.origin}${import.meta.env.BASE_URL}shop?id=${encodeURIComponent(uid)}`
+
+  async function copyPromoteLink(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(promoteUrl)
+    } catch {
+      try {
+        const scratch = document.createElement('textarea')
+        scratch.value = promoteUrl
+        scratch.style.position = 'absolute'
+        scratch.style.left = '-9999px'
+        document.body.appendChild(scratch)
+        scratch.select()
+        document.execCommand('copy')
+        scratch.remove()
+      } catch {
+        // The link is still selectable in the dialog — nothing else to do.
+      }
+    }
+    setPromoteCopied(true)
+    window.setTimeout(() => setPromoteCopied(false), 2000)
+  }
 
   const detailOffer =
     detailId === null ? null : (offers.find((o) => o.id === detailId) ?? null)
@@ -608,6 +660,14 @@ export default function BusinessDashboard({
                 <QrSvg />
                 Scan coupon
               </button>
+              <button
+                type="button"
+                className="btn-secondary biz-btn biz-dash-promote"
+                onClick={() => setPromoteOpen(true)}
+              >
+                <PromoteSvg />
+                Promote your shop
+              </button>
             </div>
 
             {offers.some((o) => o.status === 'changes') && (
@@ -768,6 +828,54 @@ export default function BusinessDashboard({
           <span>Sign out</span>
         </button>
       </nav>
+
+      {promoteOpen && (
+        <div
+          className="biz-modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setPromoteOpen(false)
+          }}
+        >
+          <div
+            ref={promoteRef}
+            className="biz-modal-card biz-promote-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Promote your shop"
+          >
+            <h2 className="biz-modal-title">Promote your shop</h2>
+            <p className="biz-modal-body">
+              Share your shop page wherever you talk to customers. Every visit
+              helps people find you nearby.
+            </p>
+            <input
+              className="biz-promote-link"
+              value={promoteUrl}
+              readOnly
+              aria-label="Your shop link"
+              onFocus={(event) => event.target.select()}
+            />
+            <div className="biz-promote-actions">
+              <button
+                type="button"
+                className="btn-primary biz-btn"
+                onClick={() => void copyPromoteLink()}
+              >
+                {promoteCopied ? 'Copied!' : 'Copy link'}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary biz-btn"
+                onClick={() =>
+                  window.open(promoteUrl, '_blank', 'noopener,noreferrer')
+                }
+              >
+                Open shop page
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {scanOpen && (
         <BusinessScan
