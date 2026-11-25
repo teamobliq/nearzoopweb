@@ -95,6 +95,10 @@ export type ClaimInput = {
     a code collision can never overwrite somebody else's coupon — the rare
     clash just draws a fresh code. */
 export async function claimCoupon(input: ClaimInput): Promise<CouponRecord> {
+  // A shop can browse the customer app, but must never claim its own deal.
+  if (input.customerUid === input.shopUid) {
+    throw new Error('You cannot claim an offer from your own shop.')
+  }
   const now = new Date().toISOString()
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const code = newCouponCode()

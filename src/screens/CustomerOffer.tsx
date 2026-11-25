@@ -671,6 +671,7 @@ export default function CustomerOffer({
   const exclusions = item.exclusions ?? []
   const redeemKind = item.redeemKind ?? 'screen'
   const couponKind = redeemKind === 'coupon'
+  const isOwnOffer = Boolean(viewerUid && viewerUid === uid)
   /** What the customer does at the counter, in the shop's own terms. */
   const counterLine =
     redeemKind === 'screen'
@@ -730,7 +731,7 @@ export default function CustomerOffer({
   const initial = (item.shopName?.trim()?.[0] ?? 'S').toUpperCase()
 
   async function claim(): Promise<void> {
-    if (!viewerUid || claiming || status === 'ended') return
+    if (!viewerUid || isOwnOffer || claiming || status === 'ended') return
     setClaiming(true)
     setClaimError('')
     try {
@@ -770,6 +771,11 @@ export default function CustomerOffer({
         <TicketSvg />
         <span>Sign in to claim</span>
       </button>
+    ) : isOwnOffer ? (
+      <p className="cust-fine cust-offer-own">
+        This is your shop's offer — you can't claim it. Statistics for it live
+        in your merchant dashboard.
+      </p>
     ) : coupon ? (
       <p className="cust-fine cust-offer-claimed">
         Claimed — your coupon is below. Show it at the counter.

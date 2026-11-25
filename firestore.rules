@@ -271,6 +271,9 @@ service cloud.firestore {
           || isAdmin());
       allow create: if signedIn()
         && request.resource.data.customerUid == request.auth.uid
+        // A merchant may browse the customer app but never claim its own
+        // offer — keep statistics and redemptions honest.
+        && request.resource.data.customerUid != request.resource.data.shopUid
         && request.resource.data.usedAt == null
         && request.resource.data.keys().hasAll([
              'shopUid', 'shopName', 'offerId', 'offerTitle', 'customerUid',

@@ -367,9 +367,18 @@
 
 .cust-offer-ended,
 .cust-offer-claimed,
-.cust-offer-counted {
+.cust-offer-counted,
+.cust-offer-own {
   align-self: center;
   font-size: 0.95rem;
+}
+
+.cust-offer-own {
+  padding: 0.7rem 0.9rem;
+  background-color: var(--color-cream);
+  border: var(--border-mid) solid var(--color-ink);
+  border-radius: 0.9rem;
+  text-align: center;
 }
 
 .cust-err {
